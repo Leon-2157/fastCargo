@@ -1,0 +1,156 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: docker.io/library/nginx:alpine
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
+    environment:
+      NGINX_ENVSUBST_FILTER: "^NGINX_"
+      NGINX_LANDING_HOSTS: "${NGINX_LANDING_HOSTS:-fastcargo.local nginx}"
+      NGINX_CUSTOMER_HOSTS: "${NGINX_CUSTOMER_HOSTS:-customer.fastcargo.local}"
+      NGINX_OPERATOR_HOSTS: "${NGINX_OPERATOR_HOSTS:-operator.fastcargo.local}"
+      NGINX_ADMIN_HOSTS: "${NGINX_ADMIN_HOSTS:-admin.fastcargo.local}"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,z
+      - ./docker/nginx/snippets:/etc/nginx/snippets:ro,z
+      - ./docker/nginx/templates:/etc/nginx/templates:ro,z
+      - .:/var/www/html:ro,z
+    depends_on:
+      - php
+    networks:
+      - fastcargo
+
+  php:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    volumes:
+      - .:/var/www/html:z
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini:ro,z
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    networks:
+      - fastcargo
+
+  worker:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    volumes:
+      - .:/var/www/html:z
+    depends_on:
+      - mysql
+      - redis
+    command: php artisan queue:work redis --sleep=3 --tries=3 --timeout=90
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    networks:
+      - fastcargo
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret}
+      MYSQL_DATABASE: ${DB_DATABASE:-FastCargo}
+      MYSQL_USER: ${DB_USERNAME:-fastcargo}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - mysql_data:/var/lib/mysql:Z
+    networks:
+      - fastcargo
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data:Z
+    networks:
+      - fastcargo
+
+  soketi:
+    image: quay.io/soketi/soketi:latest-16-alpine
+    ports:
+      - "127.0.0.1:6001:6001"
+      - "127.0.0.1:9601:9601"
+    environment:
+      SOKETI_DEBUG: "0"
+      SOKETI_DEFAULT_APP_ID: ${PUSHER_APP_ID:-fastcargo}
+      SOKETI_DEFAULT_APP_KEY: ${PUSHER_APP_KEY:-fastcargo-key}
+      SOKETI_DEFAULT_APP_SECRET: ${PUSHER_APP_SECRET:-fastcargo-secret}
+    networks:
+      - fastcargo
+
+  wag:
+    build:
+      context: ./services/waG
+      dockerfile: Dockerfile
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    environment:
+      PORT: "8080"
+      HTTP_BIND_ADDRESS: "0.0.0.0"
+      APP_NAME: "FastCargo Logistics"
+      APP_ENV: ${WAG_APP_ENV:-development}
+      WHATSAPP_MODE: ${WAG_WHATSAPP_MODE:-whatsmeow}
+      GATEWAY_SECRET: ${WAG_SECRET}
+      WEBHOOK_URL: "http://nginx/api/internal/wag/webhook"
+      SESSION_DB_PATH: "/app/storage/whatsapp.db"
+      CONFIG_FILE: "/app/storage/runtime.env"
+      AI_KNOWLEDGE_BASE_PATH: "/app/storage/knowledge_base.md"
+      AI_KNOWLEDGE_BASE_SEED: "/app/knowledge_base.md"
+      AI_ENABLED: "false"
+      CORS_ALLOWED_ORIGINS: ""
+    volumes:
+      - wag_data:/app/storage:Z
+    depends_on:
+      - nginx
+    networks:
+      - fastcargo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  cloudflared:
+    image: docker.io/cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN:-}"
+    depends_on:
+      - nginx
+    networks:
+      - fastcargo
+    restart: unless-stopped
+    profiles:
+      - tunnel
+
+volumes:
+  mysql_data:
+  redis_data:
+  wag_data:
+
+networks:
+  fastcargo:
+    driver: bridge

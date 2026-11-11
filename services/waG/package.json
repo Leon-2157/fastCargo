@@ -1,0 +1,13 @@
+{
+  "name": "wa-gateway-dashboard-assets",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i web/styles.css -o internal/dashboard/embedded/assets/app.css --minify",
+    "copy:alpine": "node scripts/copy-alpine.mjs",
+    "build": "npm run build:css && npm run copy:alpine"
+  },
+  "devDependencies": {
+    "alpinejs": "3.14.9",
+    "tailwindcss": "3.4.17"
+  }
+}

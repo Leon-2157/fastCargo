@@ -1,0 +1,8 @@
+# Operator dashboard — proteksi oleh Cloudflare Zero Trust Access & middleware operator.vpn
+server {
+    listen 80;
+    server_name ${NGINX_OPERATOR_HOSTS};
+
+    include /etc/nginx/snippets/php-laravel.conf;
+}
+

@@ -1,0 +1,8 @@
+# Customer dashboard — public (wajib auth + email verify + 2FA di Laravel)
+server {
+    listen 80;
+    server_name ${NGINX_CUSTOMER_HOSTS};
+
+    include /etc/nginx/snippets/php-laravel.conf;
+}
+

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Check formatting
+        run: |
+          find cmd internal -name '*.go' -print0 | xargs -0 gofmt -l > /tmp/gofmt-files
+          test ! -s /tmp/gofmt-files
+      - name: Build dashboard assets
+        run: |
+          npm ci
+          npm audit --audit-level=high
+          npm run build
+          git diff --exit-code -- internal/dashboard/embedded/assets
+      - name: Static analysis
+        run: go vet ./...
+      - name: Tests with race detector
+        run: go test -race ./...
+      - name: Go build
+        run: go build -trimpath -o /tmp/wa-gateway ./cmd/wa-gateway
+      - name: Container build
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker build -t wa-gateway:ci .

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Gateway - Control Panel</title>
+    <link rel="stylesheet" href="/assets/app.css">
+    <script defer src="/assets/alpine.min.js"></script>
+    <script defer src="/assets/dashboard.js"></script>
+
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans" x-data="gatewayApp()" x-init="init()" x-cloak>
+
+    <!-- 1. LOGIN SCREEN (ROUTER STYLE) -->
+    <div x-show="!authenticated" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-2xl shadow-2xl text-center">
+            <div class="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            </div>
+            <h2 class="text-xl font-bold tracking-tight text-white mb-1" x-text="config.app_name || 'WhatsApp Gateway'"></h2>
+            <p class="text-xs text-slate-400 mb-6">Panel Kontrol Layanan Gateway & Asisten AI</p>
+
+            <form @submit.prevent="login()" class="space-y-4">
+                <div class="text-left">
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">Kata Sandi Admin</label>
+                    <input type="password" x-model="loginPassword" placeholder="Masukkan kata sandi admin" required
+                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <p class="text-[11px] text-slate-500 mt-1">Gunakan kata sandi admin yang disiapkan oleh operator layanan.</p>
+                </div>
+                <div x-show="loginError" class="p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs rounded-lg text-left" x-text="loginError"></div>
+                <button type="submit" :disabled="loading"
+                    class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 font-semibold text-white text-sm rounded-xl transition duration-150 shadow-lg shadow-emerald-500/20 disabled:opacity-50">
+                    <span x-show="!loading">Masuk ke Panel Kontrol</span>
+                    <span x-show="loading">Memverifikasi...</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. MAIN DASHBOARD -->
+    <div x-show="authenticated" class="flex-1 flex flex-col">
+        <!-- TOP NAVBAR -->
+        <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/30 font-bold">WA</div>
+                <div>
+                    <h1 class="font-bold text-sm text-white leading-tight">WhatsApp Gateway</h1>
+                </div>
+            </div>
+
+            <!-- STATUS BADGE & USER -->
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span x-show="status.status === 'connected'" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5"
+                            :class="{
+                                'bg-emerald-500': status.status === 'connected',
+                                'bg-amber-500': status.status === 'qr_ready',
+                                'bg-sky-500': status.status === 'connecting',
+                                'bg-rose-500': status.status === 'disconnected'
+                            }"></span>
+                    </span>
+                    <span class="text-xs font-medium"
+                        :class="{
+                            'text-emerald-400': status.status === 'connected',
+                            'text-amber-400': status.status === 'qr_ready',
+                            'text-sky-400': status.status === 'connecting',
+                            'text-rose-400': status.status === 'disconnected'
+                        }"
+                        x-text="formatStatus(status.status)"></span>
+                </div>
+
+                <button @click="logout()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-300 transition">Keluar</button>
+            </div>
+        </header>
+
+        <!-- SUB HEADER / TAB BAR -->
+        <div class="bg-slate-900/60 border-b border-slate-800 px-6 flex space-x-2 overflow-x-auto">
+            <button @click="switchTab('device')" :class="tab === 'device' ? 'border-emerald-500 text-emerald-400 font-semibold' : 'border-transparent text-slate-400 hover:text-slate-200'"
+                class="py-3 px-3.5 border-b-2 text-xs transition flex items-center space-x-2 whitespace-nowrap">
+                <span>Perangkat</span>
+            </button>
+            <button @click="switchTab('ai')" :class="tab === 'ai' ? 'border-emerald-500 text-emerald-400 font-semibold' : 'border-transparent text-slate-400 hover:text-slate-200'"
+                class="py-3 px-3.5 border-b-2 text-xs transition flex items-center space-x-2 whitespace-nowrap">
+                <span>Konfigurasi</span>
+            </button>
+            <button @click="switchTab('otp')" :class="tab === 'otp' ? 'border-emerald-500 text-emerald-400 font-semibold' : 'border-transparent text-slate-400 hover:text-slate-200'"
+                class="py-3 px-3.5 border-b-2 text-xs transition flex items-center space-x-2 whitespace-nowrap">
+                <span>Custom Output</span>
+            </button>
+            <button @click="switchTab('system')" :class="tab === 'system' ? 'border-emerald-500 text-emerald-400 font-semibold' : 'border-transparent text-slate-400 hover:text-slate-200'"
+                class="py-3 px-3.5 border-b-2 text-xs transition flex items-center space-x-2 whitespace-nowrap">
+                <span>Aktivitas</span>
+            </button>
+        </div>
+
+        <!-- NOTIFICATION TOAST -->
+        <div x-show="toast.show" x-transition class="fixed bottom-6 right-6 z-50 p-4 rounded-xl shadow-2xl text-xs max-w-sm"
+            :class="toast.type === 'error' ? 'bg-rose-950 border border-rose-800 text-rose-200' : 'bg-emerald-950 border border-emerald-800 text-emerald-200'">
+            <p x-text="toast.message"></p>
+        </div>
+
+        <!-- MAIN TAB CONTENTS -->
+        <main class="flex-1 p-6 max-w-6xl w-full mx-auto space-y-6">
+
+            <!-- TAB 1: DEVICE & PAIRING -->
+            <div x-show="tab === 'device'" class="space-y-6">
+                <!-- CONNECTED BANNER -->
+                <div x-show="status.status === 'connected'" class="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-800/40 p-6 rounded-2xl flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center font-bold text-xl">✓</div>
+                        <div>
+                            <h3 class="text-base font-bold text-white" x-text="config.whatsapp_mode === 'cloud' ? 'WhatsApp Business Cloud API Siap' : 'WhatsApp Berhasil Terhubung'"></h3>
+                            <p class="text-xs text-slate-300 mt-0.5">Nomor Terhubung: <span class="text-emerald-400 font-mono font-bold" x-text="status.user ? status.user.phone : '-'"></span></p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Service siap menerima pesan otomatis AI dan mengirimkan OTP instan.</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button x-show="config.whatsapp_mode !== 'cloud'" @click="restartSocket()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-xl text-slate-200 border border-slate-700">Restart Koneksi</button>
+                        <button x-show="config.whatsapp_mode !== 'cloud'" @click="logoutSocket()" class="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-semibold rounded-xl text-rose-400 border border-rose-500/30">Putus Sesi (Logout)</button>
+                    </div>
+                </div>
+
+                <div x-show="status.status !== 'connected' && config.whatsapp_mode === 'cloud'" class="bg-amber-950/30 border border-amber-700/40 p-6 rounded-2xl text-sm text-amber-100">
+                    <h3 class="font-semibold mb-2">WhatsApp Business Cloud API belum siap</h3>
+                    <p class="text-xs text-amber-200/80">Periksa token akses, Phone Number ID, App Secret, token verifikasi webhook, dan versi Graph API pada konfigurasi deployment. Kredensial dikelola operator dan tidak ditampilkan di dashboard.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" x-show="status.status !== 'connected' && config.whatsapp_mode !== 'cloud'">
+                    <!-- QR CODE METHOD -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl text-center flex flex-col items-center justify-center">
+                        <h3 class="text-sm font-bold text-white mb-1">Metode 1: Pindai QR Code</h3>
+                        <p class="text-xs text-slate-400 mb-5">Buka WA di HP &gt; Perangkat Tertaut &gt; Tautkan Perangkat</p>
+
+                        <div class="w-64 h-64 bg-white p-3 rounded-xl flex items-center justify-center shadow-inner">
+                            <template x-if="status.qr">
+                                <img :src="status.qr" alt="WhatsApp QR Code" class="w-full h-full object-contain">
+                            </template>
+                            <template x-if="!status.qr">
+                                <div class="text-center p-4">
+                                    <div class="animate-spin w-8 h-8 border-4 border-slate-300 border-t-emerald-500 rounded-full mx-auto mb-2"></div>
+                                    <span class="text-xs text-slate-500">Membuat QR code...</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 8-DIGIT PAIRING CODE METHOD -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white mb-4">Metode 2: Kode Pairing 8-Digit</h3>
+
+                            <form @submit.prevent="requestPairCode()" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1">Nomor WhatsApp HP Anda</label>
+                                    <input type="text" x-model="pairingPhone" @input="formatPhoneInput($event)" placeholder="0812 3456 7890 / +62 853 2344 1080" required
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono tracking-wide">
+                                </div>
+                                <button type="submit" :disabled="pairLoading"
+                                    class="w-full py-2.5 bg-sky-600 hover:bg-sky-500 font-semibold text-white text-xs rounded-xl transition shadow-lg shadow-sky-600/20 disabled:opacity-50">
+                                    <span x-show="!pairLoading">Dapatkan Kode Pairing 8-Digit</span>
+                                    <span x-show="pairLoading">Memproses kode...</span>
+                                </button>
+                            </form>
+
+                            <div x-show="pairingCodeResult" class="mt-6 p-5 bg-slate-900 border border-sky-500/30 rounded-xl text-center">
+                                <p class="text-xs text-slate-400 mb-2">Masukkan kode ini pada notifikasi WhatsApp di HP Anda:</p>
+                                <div class="font-mono text-3xl font-extrabold tracking-widest text-sky-400 select-all" x-text="pairingCodeResult"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-700/60 text-[11px] text-slate-500">
+                            Petunjuk: Notifikasi "Tautkan Perangkat Baru" akan muncul otomatis di layar HP Anda saat tombol ditekan.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: AI BRAIN & KNOWLEDGE BASE -->
+            <div x-show="tab === 'ai'" class="space-y-6">
+                <!-- AI CONFIG FORM -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl space-y-5">
+                    <!-- HEADER: TITLE + BATAL + SIMPAN + TOGGLE ON/OFF -->
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-4">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Konfigurasi Model AI</h3>
+                            <p class="text-xs text-slate-400">Pengaturan model AI terpusat (Unified OpenAI-Compatible format)</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <button type="button" @click="cancelAiChanges()" x-show="hasAiChanges()"
+                                class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 font-medium text-xs rounded-xl text-slate-300 transition border border-slate-700">
+                                Batal
+                            </button>
+                            <button type="button" @click="saveSettings()"
+                                class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 font-semibold text-xs rounded-xl text-white transition shadow-sm flex items-center space-x-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                <span>Simpan</span>
+                            </button>
+                            <div class="h-6 w-px bg-slate-700"></div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" x-model="config.ai_enabled" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                                <span class="ml-2.5 text-xs font-medium text-slate-300" x-text="config.ai_enabled ? 'AI Aktif' : 'AI Nonaktif'"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2-COLUMN MAIN GRID (DISABLED JIKA AI NONAKTIF) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1 transition-opacity duration-200"
+                        :class="!config.ai_enabled ? 'opacity-40 pointer-events-none select-none' : ''">
+                        <!-- KOLOM KIRI: API BASE URL, API KEY, NAMA MODEL -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1.5">API Base URL</label>
+                                <input type="text" x-model="config.ai_base_url" :disabled="!config.ai_enabled"
+                                    placeholder="https://generativelanguage.googleapis.com/v1beta/openai/ atau https://api.openai.com/v1"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-950 disabled:cursor-not-allowed">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1.5">API Key</label>
+                                <input type="password" x-model="config.ai_api_key" :disabled="!config.ai_enabled"
+                                    :placeholder="config.ai_api_key_configured ? 'API key sudah tersimpan; isi hanya untuk menggantinya' : 'Masukkan API key provider AI'"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-950 disabled:cursor-not-allowed">
+                                <label class="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
+                                    <input type="checkbox" x-model="config.clear_ai_api_key" :disabled="!config.ai_api_key_configured" class="accent-rose-500">
+                                    Hapus API key yang tersimpan
+                                </label>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nama Model</label>
+                                <input type="text" x-model="config.ai_model" :disabled="!config.ai_enabled"
+                                    placeholder="gemini-1.5-flash / gpt-4o-mini / deepseek-chat / llama-3.3-70b-versatile"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-950 disabled:cursor-not-allowed">
+                            </div>
+                        </div>
+
+                        <!-- KOLOM KANAN: PESAN PENGGANTI & JEDA DURASI BALAS ACAK -->
+                        <div class="flex flex-col justify-between space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Pesan Pengganti (Saat AI Limit/Error)</label>
+                                <textarea x-model="config.ai_fallback_message" rows="4" :disabled="!config.ai_enabled"
+                                    placeholder="Mohon maaf, asisten AI kami saat ini sedang melayani banyak pertanyaan. Pesan Anda telah kami catat untuk Admin Customer Service kami."
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none leading-relaxed disabled:bg-slate-950 disabled:cursor-not-allowed"></textarea>
+                            </div>
+
+                            <!-- BOX: JEDA DURASI BALAS ACAK -->
+                            <div class="pt-3 border-t border-slate-700/60 space-y-2.5">
+                                <label class="block text-xs font-semibold text-slate-300">Human Typing Delay</label>
+
+                                <div class="bg-slate-900 border border-slate-700/80 p-3 rounded-xl flex items-center space-x-3">
+                                    <!-- Toggle ON / OFF -->
+                                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                        <input type="checkbox" x-model="config.ai_typing_delay_enabled" :disabled="!config.ai_enabled" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                                        <span class="ml-2 text-[11px] font-medium text-slate-300" x-text="config.ai_typing_delay_enabled ? 'Aktif' : 'Mati'"></span>
+                                    </label>
+
+                                    <div class="h-6 w-px bg-slate-700 shrink-0"></div>
+
+                                    <!-- Angka Durasi Balas Random -->
+                                    <div class="flex-1 flex items-center space-x-2">
+                                        <input type="number" x-model.number="config.ai_typing_delay_value" min="0" step="1" :disabled="!config.ai_enabled"
+                                            placeholder="2"
+                                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-slate-950 disabled:cursor-not-allowed">
+                                        <span class="text-xs text-slate-400 font-medium px-2 py-1.5 bg-slate-800 rounded-lg border border-slate-700">second</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                                    <span>Human Takeover:</span>
+                                    <div class="flex items-center space-x-1.5">
+                                        <input type="number" x-model.number="config.ai_human_takeover_minutes" min="5" max="180" placeholder="30" :disabled="!config.ai_enabled"
+                                            class="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-center text-xs text-white disabled:bg-slate-950 disabled:cursor-not-allowed">
+                                        <span>Menit</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LIVE KNOWLEDGE BASE EDITOR -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Live Editor: knowledge_base.md</h3>
+                            <p class="text-xs text-slate-400">Tulis aturan bisnis, daftar harga, dan FAQ di bawah ini. AI otomatis memahaminya tanpa restart server!</p>
+                        </div>
+                        <button type="button" @click="saveKnowledgeBase()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-xs font-semibold rounded-xl text-white transition">Simpan Aturan Bisnis</button>
+                    </div>
+                    <textarea x-model="knowledgeBaseContent" rows="10" placeholder="Ketik pengetahuan bisnis Anda di sini..."
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 font-mono text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                </div>
+
+                <!-- INTERACTIVE CHAT SIMULATOR -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl space-y-4">
+                    <div class="border-b border-slate-700/60 pb-3">
+                        <h3 class="text-sm font-bold text-white">Simulator Uji Coba Chat AI</h3>
+                        <p class="text-xs text-slate-400">Tes cara AI menjawab pertanyaan Anda berdasarkan knowledge_base.md di atas secara langsung di web!</p>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 h-64 overflow-y-auto space-y-3">
+                        <template x-for="chat in simChatHistory" :key="chat.id">
+                            <div class="flex" :class="chat.role === 'user' ? 'justify-end' : 'justify-start'">
+                                <div class="max-w-[80%] rounded-2xl px-4 py-2.5 text-xs"
+                                    :class="chat.role === 'user' ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-bl-none whitespace-pre-wrap'">
+                                    <p x-text="chat.text"></p>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="simLoading" class="text-xs text-slate-400 italic">AI sedang merespons...</div>
+                    </div>
+
+                    <form @submit.prevent="sendSimMessage()" class="flex space-x-2">
+                        <input type="text" x-model="simInput" placeholder="Ketik pesan tes ke AI (contoh: Halo, apa syarat rental motor?)..."
+                            class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <button type="submit" :disabled="simLoading || !simInput.trim()"
+                            class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 font-semibold text-white text-xs rounded-xl transition disabled:opacity-50">Kirim</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TAB 3: CUSTOM OUTPUT (OTP & AI TEMPLATES) -->
+            <div x-show="tab === 'otp'" class="space-y-6">
+                <!-- AI RESPONSE TEMPLATE SETTINGS -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Template Jawaban AI</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Atur format pembungkus pesan balasan otomatis dari AI sebelum dikirimkan ke WhatsApp.</p>
+                        </div>
+                        <button type="button" @click="saveSettings()"
+                            class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-xs font-semibold rounded-xl text-white transition flex items-center space-x-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Simpan Template AI</span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-xs font-medium text-slate-300">Format Template Balasan</label>
+                        <textarea x-model="config.ai_response_template" rows="4"
+                            placeholder="{{reply}} atau *{{app_name}}*\n\n{{reply}}"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"></textarea>
+                        <div class="flex flex-wrap items-center gap-2 pt-1">
+                            <span class="text-[11px] text-slate-400">Variabel yang didukung:</span>
+                            <code class="px-2 py-0.5 bg-slate-900 text-emerald-400 rounded text-[11px] font-mono border border-slate-700/60">&#123;&#123;reply&#125;&#125;</code>
+                            <span class="text-[11px] text-slate-400">(Teks balasan AI)</span>
+                            <code class="px-2 py-0.5 bg-slate-900 text-sky-400 rounded text-[11px] font-mono border border-slate-700/60">&#123;&#123;app_name&#125;&#125;</code>
+                            <span class="text-[11px] text-slate-400">(Nama aplikasi/layanan)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OTP TEMPLATE SETTINGS -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Pengaturan OTP</h3>
+                            <p class="text-[11px] text-slate-400 mt-1" x-show="config.whatsapp_mode === 'cloud'">WhatsApp Cloud memakai template AUTHENTICATION Meta yang dikonfigurasi di environment. Samakan masa berlaku template Meta dengan masa aktif OTP di bawah ini.</p>
+                        </div>
+                        <button type="button" @click="saveSettings()"
+                            class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-xs font-semibold rounded-xl text-white transition flex items-center space-x-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Simpan Pengaturan OTP</span>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" x-show="config.whatsapp_mode !== 'cloud'">
+                        <p class="md:col-span-2 text-[11px] text-slate-400">Format teks ini hanya digunakan dalam mode pengembangan. Mode Cloud mengirim template autentikasi yang disetujui Meta.</p>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Template OTP Pendaftaran</label>
+                            <textarea x-model="config.otp_template_default" rows="4"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Template OTP Reset Password</label>
+                            <textarea x-model="config.otp_template_reset" rows="4"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Masa Aktif OTP (Menit)</label>
+                            <input type="number" x-model="config.otp_expiry_minutes" min="1" max="60"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Maksimal Percobaan Salah</label>
+                            <input type="number" x-model="config.otp_max_attempts" min="1" max="10"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Jeda Kirim Ulang (Detik)</label>
+                            <input type="number" x-model="config.otp_cooldown_seconds" min="10" max="300"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TEST MESSAGE SENDER -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl space-y-4">
+                    <h3 class="text-sm font-bold text-white border-b border-slate-700/60 pb-3">Uji Pengiriman WhatsApp</h3>
+                    <p class="text-[11px] text-amber-300">Uji OTP mengirim kode sungguhan ke nomor tujuan dan memakai batas kirim OTP yang sama.</p>
+                    <form @submit.prevent="sendTestMessage()" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Nomor WhatsApp Tujuan</label>
+                                <input type="text" x-model="testMsg.phone" placeholder="Contoh: 08123456789" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Tipe Pesan</label>
+                                <select x-model="testMsg.type" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                                    <option value="otp">Kirim OTP ke nomor nyata</option>
+                                    <option value="custom">Kirim Pesan Teks Bebas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div x-show="testMsg.type === 'custom'">
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Isi Pesan Teks</label>
+                            <textarea x-model="testMsg.message" rows="3" placeholder="Halo! Ini pesan uji coba dari gateway..."
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white"></textarea>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" :disabled="testMsgLoading"
+                                class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-xs font-semibold rounded-xl text-white transition disabled:opacity-50">
+                                <span x-show="!testMsgLoading">Kirim Pesan Uji Coba</span>
+                                <span x-show="testMsgLoading">Sedang Mengirim...</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TAB 4: SYSTEM & ACTIVITY LOGS -->
+            <div x-show="tab === 'system'" class="space-y-6">
+                <!-- STATS CARDS -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-800/50 border border-slate-700/60 p-4 rounded-xl">
+                        <span class="text-[11px] text-slate-400">Total OTP Terkirim</span>
+                        <div class="text-2xl font-bold text-emerald-400 mt-1" x-text="stats.total_otp_sent || 0"></div>
+                    </div>
+                    <div class="bg-slate-800/50 border border-slate-700/60 p-4 rounded-xl">
+                        <span class="text-[11px] text-slate-400">OTP Terverifikasi</span>
+                        <div class="text-2xl font-bold text-sky-400 mt-1" x-text="stats.total_otp_verified || 0"></div>
+                    </div>
+                    <div class="bg-slate-800/50 border border-slate-700/60 p-4 rounded-xl">
+                        <span class="text-[11px] text-slate-400">Balasan Otomatis AI</span>
+                        <div class="text-2xl font-bold text-indigo-400 mt-1" x-text="stats.total_ai_replies || 0"></div>
+                    </div>
+                    <div class="bg-slate-800/50 border border-slate-700/60 p-4 rounded-xl">
+                        <span class="text-[11px] text-slate-400">Total Pesan Masuk</span>
+                        <div class="text-2xl font-bold text-amber-400 mt-1" x-text="stats.total_incoming || 0"></div>
+                    </div>
+                </div>
+
+                <!-- ACTIVITY LOG TABLE -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                        <h3 class="text-sm font-bold text-white">Riwayat 50 Aktivitas Terakhir</h3>
+                        <button @click="loadLogs()" class="text-xs text-sky-400 hover:underline">Perbarui Log</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-slate-400 border-b border-slate-700/40">
+                                    <th class="py-2 px-3">Waktu</th>
+                                    <th class="py-2 px-3">Tipe</th>
+                                    <th class="py-2 px-3">Nomor Tujuan/Pengirim</th>
+                                    <th class="py-2 px-3">Cuplikan Pesan</th>
+                                    <th class="py-2 px-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800">
+                                <template x-for="log in logs" :key="log.id">
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="py-2.5 px-3 text-slate-400 whitespace-nowrap" x-text="formatTime(log.timestamp)"></td>
+                                        <td class="py-2.5 px-3 font-semibold uppercase text-[10px]"
+                                            :class="{
+                                                'text-emerald-400': log.type === 'otp_send' || log.type === 'otp_verify',
+                                                'text-sky-400': log.type === 'ai_reply',
+                                                'text-amber-400': log.type === 'incoming_chat',
+                                                'text-slate-300': log.type === 'manual_send'
+                                            }" x-text="log.type"></td>
+                                        <td class="py-2.5 px-3 font-mono text-slate-200" x-text="log.phone"></td>
+                                        <td class="py-2.5 px-3 text-slate-300 max-w-xs truncate" x-text="log.snippet"></td>
+                                        <td class="py-2.5 px-3">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold"
+                                                :class="log.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'"
+                                                x-text="log.status"></span>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="logs.length === 0">
+                                    <td colspan="5" class="py-6 text-center text-slate-500">Belum ada aktivitas tercatat.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- CHANGE PASSWORD FORM -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-6 rounded-2xl space-y-4">
+                    <h3 class="text-sm font-bold text-white border-b border-slate-700/60 pb-3">Ganti Kata Sandi Admin Panel</h3>
+                    <form @submit.prevent="changePassword()" class="space-y-4 max-w-md">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Kata Sandi Lama</label>
+                            <input type="password" x-model="passChange.old" required
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Kata Sandi Baru</label>
+                            <input type="password" x-model="passChange.new" minlength="6" required
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Konfirmasi Kata Sandi Baru</label>
+                            <input type="password" x-model="passChange.confirm" minlength="6" required
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                        </div>
+                        <button type="submit" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-xs font-semibold rounded-xl text-white transition">Perbarui Kata Sandi</button>
+                    </form>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+
+</body>
+</html>

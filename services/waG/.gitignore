@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+/storage/
+/node_modules/
+/coverage/
+/dist/
+/bin/
+*.db
+*.db-shm
+*.db-wal
+*.log
+/.config/
+/.legacy_node_backup/

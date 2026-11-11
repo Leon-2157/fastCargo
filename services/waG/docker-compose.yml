@@ -1,0 +1,38 @@
+services:
+  wa-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wa-gateway
+    restart: unless-stopped
+    init: true
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    env_file:
+      - .env
+    environment:
+      PORT: "3000"
+      HTTP_BIND_ADDRESS: "0.0.0.0"
+      SESSION_DB_PATH: "/app/storage/whatsapp.db"
+      CONFIG_FILE: "/app/storage/runtime.env"
+      AI_KNOWLEDGE_BASE_PATH: "/app/storage/knowledge_base.md"
+      AI_KNOWLEDGE_BASE_SEED: "/app/knowledge_base.md"
+    ports:
+      - "127.0.0.1:${PORT:-3000}:3000"
+    volumes:
+      - ./storage:/app/storage
+    cpus: 2.0
+    mem_limit: 1g
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

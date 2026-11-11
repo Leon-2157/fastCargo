@@ -1,0 +1,8 @@
+# Landing page — public (juga default_server agar http://nginx/... internal webhook waG tetap cocok)
+server {
+    listen 80 default_server;
+    server_name ${NGINX_LANDING_HOSTS};
+
+    include /etc/nginx/snippets/php-laravel.conf;
+}
+
