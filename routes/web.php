@@ -38,3 +38,6 @@ Route::prefix('api/internal')
 
 // Public external payment webhook (e.g. Dana Snap / QRIS Callback)
 Route::post('/api/webhooks/dana', [PaymentWebhookController::class, 'handle']);
+
+// Public external payment webhook (e.g. Dana Snap / QRIS Callback)
+Route::post('/api/webhooks/dana', [PaymentWebhookController::class, 'handle']);

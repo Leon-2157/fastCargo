@@ -211,7 +211,7 @@
       </nav>
 
       <!-- Main Content -->
-      <div class="container-fluid">
+      <div class="container-fluid pb-5">
         @if(session('success'))
           <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ session('success') }}

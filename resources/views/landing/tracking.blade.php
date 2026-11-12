@@ -392,9 +392,12 @@
           <div class="spec-badge">
             <span class="spec-label">Customs Clearance</span>
             <div class="spec-val">
-              @php $channel = strtoupper($booking->customs_channel ?? 'GREEN'); @endphp
-              <span class="badge @if($channel === 'GREEN') bg-success @elseif($channel === 'YELLOW') bg-warning @else bg-danger @endif bg-opacity-25 text-white border border-opacity-30 border-white px-2 py-1">
-                {{ $channel }} CHANNEL
+              @php
+                $rawChannel = strtoupper($booking->customs_channel ?? 'GREEN');
+                $cleanChannel = str_replace(['_CHANNEL', ' CHANNEL'], '', $rawChannel);
+              @endphp
+              <span class="badge @if(str_contains($cleanChannel, 'GREEN')) bg-success @elseif(str_contains($cleanChannel, 'YELLOW')) bg-warning @else bg-danger @endif bg-opacity-25 text-white border border-opacity-30 border-white px-2 py-1">
+                {{ $cleanChannel }} CHANNEL
               </span>
             </div>
           </div>
