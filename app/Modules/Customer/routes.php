@@ -1,7 +1,9 @@
 <?php
 
+use App\Modules\Customer\Controllers\Auth\ForgotPasswordController;
 use App\Modules\Customer\Controllers\Auth\LoginController;
 use App\Modules\Customer\Controllers\Auth\RegisterController;
+use App\Modules\Customer\Controllers\Auth\ResetPasswordController;
 use App\Modules\Customer\Controllers\Auth\TwoFactorController;
 use App\Modules\Customer\Controllers\BookingController;
 use App\Modules\Customer\Controllers\DashboardController;
@@ -18,6 +20,12 @@ Route::middleware('guest:customer')->group(function () {
     Route::post('/login', [LoginController::class, 'login']);
     Route::get('/register', [RegisterController::class, 'showForm'])->name('customer.register');
     Route::post('/register', [RegisterController::class, 'register']);
+
+    // Password reset routes
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('customer.password.request');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:6,1')->name('customer.password.email');
+    Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('customer.password.reset');
+    Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->name('customer.password.update');
 });
 
 Route::get('/email/verify', fn () => view('customer.auth.verify-email'))

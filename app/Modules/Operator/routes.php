@@ -1,6 +1,8 @@
 <?php
 
+use App\Modules\Operator\Controllers\Auth\ForgotPasswordController;
 use App\Modules\Operator\Controllers\Auth\LoginController;
+use App\Modules\Operator\Controllers\Auth\ResetPasswordController;
 use App\Modules\Operator\Controllers\Auth\TwoFactorController;
 use App\Modules\Operator\Controllers\BookingOpsController;
 use App\Modules\Operator\Controllers\DashboardController;
@@ -20,6 +22,12 @@ Route::middleware('guest:operator')->group(function () {
     // Link registrasi dari undangan admin
     Route::get('/register/{token}', [LoginController::class, 'showRegister'])->name('operator.register');
     Route::post('/register/{token}', [LoginController::class, 'register']);
+
+    // Password reset routes
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('operator.password.request');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:6,1')->name('operator.password.email');
+    Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('operator.password.reset');
+    Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->name('operator.password.update');
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('operator.logout');

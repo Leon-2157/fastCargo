@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Modules\Shared\Models\PaymentTransaction;
 use App\Modules\Shared\Services\DanaPaymentGatewayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,28 @@ class PaymentWebhookController extends Controller
                 'data' => [
                     'invoice_id' => $result['invoice']?->id,
                     'payment_status' => 'SETTLEMENT',
+                ],
+            ]);
+        }
+
+        if (in_array($status, ['EXPIRED', 'FAILED', 'CANCELLED'], true)) {
+            $transaction = PaymentTransaction::where('transaction_ref', $ref)->first();
+            if ($transaction && $transaction->payment_status !== 'SETTLEMENT') {
+                $transaction->update([
+                    'payment_status' => $status,
+                    'raw_gateway_payload' => array_merge($transaction->raw_gateway_payload ?? [], $request->all(), [
+                        'terminal_status_at' => now()->toIso8601String(),
+                    ]),
+                ]);
+            }
+
+            return response()->json([
+                'responseCode' => '2002500',
+                'responseMessage' => "Payment status {$status} recorded successfully.",
+                'partnerReferenceNo' => $ref,
+                'data' => [
+                    'transaction_ref' => $ref,
+                    'payment_status' => $status,
                 ],
             ]);
         }

@@ -4,8 +4,9 @@
 
 @push('styles')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="/assets/dashboard/css/maritime-telemetry.css?v=2" />
 <style>
-  #shipmentMap { height: 450px; width: 100%; border-radius: 8px; z-index: 1; }
+  #shipmentMap { height: 480px; width: 100%; border-radius: 8px; z-index: 1; }
 </style>
 @endpush
 
@@ -33,8 +34,39 @@
         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-satellite-dish me-1"></i> Live Corridor Position</h6>
         <span class="badge bg-primary">{{ str_replace('_', ' ', $booking->cargo_status) }}</span>
       </div>
-      <div class="card-body p-0">
+      <div class="card-body p-0 position-relative">
         <div id="shipmentMap"></div>
+
+        @if(in_array($booking->cargo_status, ['SAILING', 'IN_TRANSIT'], true))
+          <!-- Live Floating Telemetry HUD -->
+          <div class="ais-live-telemetry-hud d-none d-sm-block">
+            <div class="ais-hud-header">
+              <h6 class="ais-hud-title"><i class="fas fa-ship me-1"></i> AIS Telemetry</h6>
+              <span class="ais-live-pill"><span class="ais-live-dot"></span> LIVE PASSAGE</span>
+            </div>
+            <div class="ais-hud-row">
+              <span class="ais-hud-label">Corridor Speed:</span>
+              <span class="ais-hud-value" id="aisHudSpeed">17.4 kts</span>
+            </div>
+            <div class="ais-hud-row">
+              <span class="ais-hud-label">True Heading:</span>
+              <span class="ais-hud-value" id="aisHudHeading">334° NW</span>
+            </div>
+            <div class="ais-hud-row">
+              <span class="ais-hud-label">Coordinates:</span>
+              <span class="ais-hud-value code-font" id="aisHudCoords">Computing...</span>
+            </div>
+            <div class="ais-hud-progress-wrap">
+              <div class="ais-hud-progress-bar-bg">
+                <div class="ais-hud-progress-bar-fill" id="aisHudProgressBar" style="width: 35%;"></div>
+              </div>
+              <div class="ais-hud-footer">
+                <span id="aisHudProgress">35% Completed</span>
+                <span id="aisHudRemaining">Calculating NM...</span>
+              </div>
+            </div>
+          </div>
+        @endif
       </div>
     </div>
 
@@ -94,60 +126,77 @@
 
 @push('scripts')
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/assets/dashboard/js/maritime-telemetry-engine.js?v=2"></script>
 <script>
   @php
     $originLat = $booking->route?->originPort?->latitude ?? -6.1050;
     $originLng = $booking->route?->originPort?->longitude ?? 106.8847;
-    $destLat = $booking->route?->destinationPort?->latitude ?? 1.2654;
-    $destLng = $booking->route?->destinationPort?->longitude ?? 103.8198;
+    $destLat = $booking->route?->destinationPort?->latitude ?? 3.0020;
+    $destLng = $booking->route?->destinationPort?->longitude ?? 101.3980;
 
     $latestEvent = $booking->trackingEvents->first();
     $currentLat = $latestEvent->latitude ?? $originLat;
     $currentLng = $latestEvent->longitude ?? $originLng;
+    $isSailingStatus = in_array($booking->cargo_status, ['SAILING', 'IN_TRANSIT'], true);
   @endphp
 
   const origin = [{{ $originLat }}, {{ $originLng }}];
   const destination = [{{ $destLat }}, {{ $destLng }}];
   const currentPos = [{{ $currentLat }}, {{ $currentLng }}];
+  const isSailing = @json($isSailingStatus);
 
-  let map = L.map('shipmentMap').setView(currentPos, 7);
+  // Initialize map centered between origin and destination
+  let mapCenter = [({{ $originLat }} + {{ $destLat }}) / 2, ({{ $originLng }} + {{ $destLng }}) / 2];
+  let map = L.map('shipmentMap').setView(mapCenter, 6);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap | FastCargo Telemetry'
+    attribution: '&copy; OpenStreetMap | FastCargo Regional AIS',
+    maxZoom: 18
   }).addTo(map);
 
-  // Origin Marker
-  L.marker(origin).addTo(map).bindPopup('<strong>Origin Hub:</strong> {{ $booking->route?->origin_port_id }} - {{ $booking->route?->originPort?->name }}');
+  if (isSailing) {
+    // Activate realistic continuous maritime passage simulation
+    const cruiseEngine = new FastCargoMaritimeCruise(map, {
+      origin: origin,
+      destination: destination,
+      originHub: @json($booking->route?->origin_port_id ?? 'IDJKT'),
+      destinationHub: @json($booking->route?->destination_port_id ?? 'MYPKG'),
+      vesselName: 'MV FastCargo Horizon',
+      voyageNumber: @json($booking->route?->id ?? 'FC-VOY-2026'),
+      trackingNumber: @json($booking->tracking_number),
+      modality: @json($booking->route?->modality ?? 'SEA'),
+      isSailing: true
+    });
+  } else {
+    // Static port markers and milestone indicator
+    L.marker(origin).addTo(map).bindPopup('<strong>Origin Hub:</strong> {{ $booking->route?->origin_port_id }} - {{ $booking->route?->originPort?->name }}');
+    L.marker(destination).addTo(map).bindPopup('<strong>Destination Hub:</strong> {{ $booking->route?->destination_port_id }} - {{ $booking->route?->destinationPort?->name }}');
+    
+    L.circleMarker(currentPos, {
+      radius: 10,
+      fillColor: '#e74a3b',
+      color: '#fff',
+      weight: 3,
+      opacity: 1,
+      fillOpacity: 0.9
+    }).addTo(map).bindPopup('<strong>Current Position</strong><br>{{ $booking->tracking_number }}<br>{{ $booking->cargo_status }}').openPopup();
 
-  // Destination Marker
-  L.marker(destination).addTo(map).bindPopup('<strong>Destination Hub:</strong> {{ $booking->route?->destination_port_id }} - {{ $booking->route?->destinationPort?->name }}');
-
-  // Current Position Vessel Marker
-  let currentMarker = L.circleMarker(currentPos, {
-    radius: 10,
-    fillColor: '#e74a3b',
-    color: '#fff',
-    weight: 3,
-    opacity: 1,
-    fillOpacity: 0.9
-  }).addTo(map).bindPopup('<strong>Current Position</strong><br>{{ $booking->tracking_number }}<br>{{ $booking->cargo_status }}').openPopup();
-
-  // Route Polyline
-  L.polyline([origin, currentPos, destination], {
-    color: '#224abe',
-    weight: 3,
-    dashArray: '6, 8'
-  }).addTo(map);
+    L.polyline([origin, currentPos, destination], {
+      color: '#0284c7',
+      weight: 3,
+      dashArray: '6, 8'
+    }).addTo(map);
+  }
 
   // Fetch real-time weather from OpenWeatherMap
   const weatherApiKey = '5211b43f50402c180e25953d4150befa';
-  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${currentPos[0]}&lon=${currentPos[1]}&units=metric&appid=${weatherApiKey}`)
+  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${mapCenter[0]}&lon=${mapCenter[1]}&units=metric&appid=${weatherApiKey}`)
     .then(res => res.json())
     .then(data => {
       if (data && data.main) {
-        document.getElementById('weatherStation').textContent = `${data.name || 'Maritime Zone'}, ${data.sys?.country || 'ASEAN'}`;
+        document.getElementById('weatherStation').textContent = `${data.name || 'Malacca Strait Corridor'}, ${data.sys?.country || 'ASEAN'}`;
         document.getElementById('weatherTemp').textContent = `${Math.round(data.main.temp)}°C — ${data.weather[0]?.main || 'Clear'}`;
-        document.getElementById('weatherDesc').textContent = `Conditions: ${data.weather[0]?.description}. Humidity: ${data.main.humidity}%, Atmospheric Pressure: ${data.main.pressure} hPa.`;
+        document.getElementById('weatherDesc').textContent = `Passage conditions: ${data.weather[0]?.description}. Humidity: ${data.main.humidity}%, Atmospheric Pressure: ${data.main.pressure} hPa.`;
         document.getElementById('weatherWind').textContent = `${(data.wind?.speed * 1.94384).toFixed(1)} knots`;
         document.getElementById('weatherVis').textContent = `${((data.visibility || 10000) / 1000).toFixed(1)} km`;
 
@@ -166,13 +215,12 @@
       }
     })
     .catch(err => {
-      console.warn('Weather telemetry unavailable:', err);
-      document.getElementById('weatherStation').textContent = 'OpenWeather Telemetry Active';
+      console.warn('Weather telemetry fallback applied:', err);
+      document.getElementById('weatherStation').textContent = 'Malacca Strait TSS Passage';
       document.getElementById('weatherTemp').textContent = '28°C — Standard Tropical Maritime';
-      document.getElementById('weatherDesc').textContent = 'Tropical clear conditions in ASEAN passage corridor.';
+      document.getElementById('weatherDesc').textContent = 'Clear maritime passage with calm sea state.';
       document.getElementById('weatherWind').textContent = '8.5 knots';
       document.getElementById('weatherVis').textContent = '10.0 km';
     });
 </script>
 @endpush
-

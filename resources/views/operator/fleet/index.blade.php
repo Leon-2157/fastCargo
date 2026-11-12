@@ -4,6 +4,7 @@
 
 @push('styles')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="/assets/dashboard/css/maritime-telemetry.css?v=2" />
 <style>
   #fleetMap { height: 600px; width: 100%; border-radius: 8px; z-index: 1; }
 </style>
@@ -67,40 +68,59 @@
 
 @push('scripts')
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/assets/dashboard/js/maritime-telemetry-engine.js?v=2"></script>
 <script>
-  let map = L.map('fleetMap').setView([-1.5, 107.0], 5);
+  let map = L.map('fleetMap').setView([-1.0, 106.0], 5);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap | FastCargo Regional AIS'
+    attribution: '&copy; OpenStreetMap | FastCargo Regional AIS',
+    maxZoom: 18
   }).addTo(map);
 
   const manifests = @json($activeManifests);
 
   manifests.forEach(m => {
     if (m.origin_port && m.destination_port) {
-      // Draw corridor line
-      L.polyline([
-        [m.origin_port.latitude, m.origin_port.longitude],
-        [m.destination_port.latitude, m.destination_port.longitude]
-      ], { color: '#e74a3b', weight: 3, dashArray: '8, 8' }).addTo(map);
+      const origin = [parseFloat(m.origin_port.latitude), parseFloat(m.origin_port.longitude)];
+      const destination = [parseFloat(m.destination_port.latitude), parseFloat(m.destination_port.longitude)];
 
-      // Midpoint marker representing active vessel
-      let midLat = (parseFloat(m.origin_port.latitude) + parseFloat(m.destination_port.latitude)) / 2;
-      let midLng = (parseFloat(m.origin_port.longitude) + parseFloat(m.destination_port.longitude)) / 2;
+      if (m.status === 'SAILING') {
+        new FastCargoMaritimeCruise(map, {
+          origin: origin,
+          destination: destination,
+          originHub: m.origin_port_id,
+          destinationHub: m.destination_port_id,
+          vesselName: m.vessel_or_vehicle_name,
+          voyageNumber: m.voyage_number,
+          trackingNumber: m.manifest_number,
+          modality: 'SEA',
+          isSailing: true
+        });
+      } else {
+        // Draw static corridor line for non-sailing manifests
+        L.polyline([origin, destination], {
+          color: '#0284c7',
+          weight: 2,
+          dashArray: '6, 6',
+          opacity: 0.6
+        }).addTo(map);
 
-      L.circleMarker([midLat, midLng], {
-        radius: 8,
-        fillColor: '#224abe',
-        color: '#fff',
-        weight: 2,
-        fillOpacity: 1
-      }).addTo(map).bindPopup(`
-        <strong>${m.vessel_or_vehicle_name}</strong><br>
-        <span class="badge bg-primary">${m.voyage_number}</span><br>
-        Corridor: ${m.origin_port_id} &rarr; ${m.destination_port_id}
-      `);
+        let midLat = (origin[0] + destination[0]) / 2;
+        let midLng = (origin[1] + destination[1]) / 2;
+
+        L.circleMarker([midLat, midLng], {
+          radius: 7,
+          fillColor: '#0ea5e9',
+          color: '#fff',
+          weight: 2,
+          fillOpacity: 1
+        }).addTo(map).bindPopup(`
+          <strong>${m.vessel_or_vehicle_name}</strong><br>
+          <span class="badge bg-primary">${m.voyage_number}</span><br>
+          Corridor: ${m.origin_port_id} &rarr; ${m.destination_port_id}
+        `);
+      }
     }
   });
 </script>
 @endpush
-

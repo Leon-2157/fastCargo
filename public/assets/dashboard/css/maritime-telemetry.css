@@ -1,0 +1,184 @@
+/**
+ * FastCargo Maritime AIS & Spatial Telemetry Styling
+ * Enterprise Grade Marine Navigation & Radar Visualization
+ */
+
+.fastcargo-vessel-marker-wrapper,
+.fastcargo-aircraft-marker-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.vessel-marker-container {
+  width: 40px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.15s linear;
+}
+
+.vessel-svg-icon {
+  filter: drop-shadow(0 4px 10px rgba(2, 6, 23, 0.65));
+}
+
+.aircraft-svg-icon {
+  filter: drop-shadow(0 4px 12px rgba(2, 132, 199, 0.7));
+}
+
+.vessel-sonar-ping {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  margin-top: -16px;
+  margin-left: -16px;
+  border-radius: 50%;
+  border: 2px solid rgba(56, 189, 248, 0.8);
+  animation: sonarPulse 2.4s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+  pointer-events: none;
+}
+
+@keyframes sonarPulse {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(2.2);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+.port-hub-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 2px solid #ffffff;
+}
+
+/* Floating Live AIS Telemetry HUD on Leaflet Map */
+.ais-live-telemetry-hud {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: #f8fafc;
+  width: 270px;
+  box-shadow: 0 10px 25px -5px rgba(2, 6, 23, 0.6);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.ais-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.ais-hud-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.ais-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid #10b981;
+  color: #6ee7b7;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+}
+
+.ais-live-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+  animation: liveBlink 1.5s infinite ease-in-out;
+}
+
+@keyframes liveBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.ais-hud-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.ais-hud-label {
+  color: #94a3b8;
+}
+
+.ais-hud-value {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.ais-hud-value.code-font {
+  font-family: monospace;
+  font-size: 11px;
+  color: #38bdf8;
+}
+
+.ais-hud-progress-wrap {
+  margin-top: 10px;
+}
+
+.ais-hud-progress-bar-bg {
+  background: rgba(255, 255, 255, 0.12);
+  height: 5px;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.ais-hud-progress-bar-fill {
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 100%);
+  height: 100%;
+  width: 35%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.ais-hud-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+

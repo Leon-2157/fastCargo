@@ -10,6 +10,8 @@ use App\Modules\Admin\Controllers\IncidentReviewController;
 use App\Modules\Admin\Controllers\InvoiceAdminController;
 use App\Modules\Admin\Controllers\KycController;
 use App\Modules\Admin\Controllers\OperatorInvitationController;
+use App\Modules\Admin\Controllers\PaymentSimulatorController;
+use App\Modules\Admin\Controllers\ReportExportController;
 use App\Modules\Admin\Controllers\SystemSettingsController;
 use App\Modules\Admin\Controllers\UserManagementController;
 use App\Modules\Admin\Controllers\WaGatewayController;
@@ -84,6 +86,11 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
         Route::post('/{incident}/reject', [IncidentReviewController::class, 'reject'])->name('reject');
     });
 
+    Route::prefix('reports')->name('admin.reports.')->group(function () {
+        Route::get('/', [ReportExportController::class, 'index'])->name('index');
+        Route::get('/export/{category}', [ReportExportController::class, 'export'])->name('export');
+    });
+
     Route::prefix('audit')->name('admin.audit.')->group(function () {
         Route::get('/', [AuditTrailController::class, 'index'])->name('index');
     });
@@ -101,6 +108,12 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
         Route::get('/qr', [WaGatewayController::class, 'getQr'])->name('qr');
         Route::post('/test', [WaGatewayController::class, 'testSend'])->name('test');
         Route::post('/reset', [WaGatewayController::class, 'resetSession'])->name('reset');
+    });
+
+    Route::prefix('webhook-simulator')->name('admin.simulator.')->group(function () {
+        Route::get('/', [PaymentSimulatorController::class, 'index'])->name('index');
+        Route::post('/generate', [PaymentSimulatorController::class, 'generateSandbox'])->name('generate');
+        Route::post('/fire', [PaymentSimulatorController::class, 'fireWebhook'])->name('fire');
     });
 
     Route::prefix('credits')->name('admin.credits.')->group(function () {
