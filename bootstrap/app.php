@@ -34,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Session domain shared untuk semua subdomain .fastcargo.local
         $middleware->validateCsrfTokens(except: [
             'api/internal/*',
+            'api/webhooks/*',
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request): string {

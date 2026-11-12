@@ -2,17 +2,22 @@
 
 namespace App\Modules\Operator\Controllers;
 
-use App\Modules\Shared\Models\AdmEscrowLedger;
 use App\Modules\Shared\Models\OpsCargoBooking;
 use App\Modules\Shared\Models\OpsEpod;
 use App\Modules\Shared\Models\OpsTrackingEvent;
+use App\Modules\Shared\Services\EscrowSettlementService;
 use App\Modules\Shared\WhatsApp\WaNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class EpodController extends Controller
 {
+    public function __construct(
+        protected EscrowSettlementService $escrowService
+    ) {}
+
     /**
      * Show ePOD entry terminal for a consignment.
      */
@@ -43,13 +48,24 @@ class EpodController extends Controller
         $booking = OpsCargoBooking::findOrFail($id);
         $operatorProfile = Auth::guard('operator')->user()->operatorProfile;
 
+        // Simpan tanda tangan digital PNG jika tersedia
+        $signaturePath = null;
+        if (! empty($validated['signature_data']) && str_contains($validated['signature_data'], 'data:image')) {
+            $base64 = substr($validated['signature_data'], strpos($validated['signature_data'], ',') + 1);
+            $decoded = base64_decode($base64);
+            if ($decoded !== false) {
+                $signaturePath = 'epod_signatures/'.$booking->tracking_number.'_'.time().'.png';
+                Storage::disk('public')->put($signaturePath, $decoded);
+            }
+        }
+
         // 1. Create ePOD
         OpsEpod::updateOrCreate(
             ['cargo_booking_id' => $booking->id],
             [
                 'recipient_name' => $validated['recipient_name'],
                 'recipient_phone' => $validated['recipient_phone'],
-                'signature_image_path' => ! empty($validated['signature_data']) ? 'epod_signatures/'.$booking->tracking_number.'.png' : null,
+                'signature_image_path' => $signaturePath ?? ('epod_signatures/'.$booking->tracking_number.'.png'),
                 'latitude' => $validated['latitude'],
                 'longitude' => $validated['longitude'],
                 'confirmed_at' => now(),
@@ -72,14 +88,8 @@ class EpodController extends Controller
             'event_timestamp' => now(),
         ]);
 
-        // 4. Update Escrow Ledger to FULLY_SETTLED if present
-        $escrow = AdmEscrowLedger::where('cargo_booking_id', $booking->id)->first();
-        if ($escrow) {
-            $escrow->update([
-                'milestone_3_released_at' => now(),
-                'escrow_status' => 'FULLY_SETTLED',
-            ]);
-        }
+        // 4. Update Escrow Ledger to FULLY_SETTLED & calculate revenue split (78% operator, 12% platform fee, 10% tax/port)
+        $this->escrowService->checkAndReleaseMilestone($booking, 'DELIVERED');
 
         WaNotificationService::notifyDelivered(
             $booking,

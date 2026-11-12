@@ -4,6 +4,7 @@ namespace App\Modules\Operator\Controllers;
 
 use App\Modules\Shared\Models\OpsCargoBooking;
 use App\Modules\Shared\Models\OpsTrackingEvent;
+use App\Modules\Shared\Services\EscrowSettlementService;
 use App\Modules\Shared\WhatsApp\WaNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\Auth;
 
 class TrackingOpsController extends Controller
 {
+    public function __construct(
+        protected EscrowSettlementService $escrowService
+    ) {}
+
     /**
      * Display milestone dispatch console.
      */
@@ -57,6 +62,9 @@ class TrackingOpsController extends Controller
         $booking->update([
             'cargo_status' => $validated['current_status'],
         ]);
+
+        // 3. Trigger Escrow milestone evaluation & release
+        $this->escrowService->checkAndReleaseMilestone($booking, $validated['current_status']);
 
         WaNotificationService::notifyBookingStatusUpdated($booking, $validated['event_name']);
 

@@ -707,6 +707,37 @@
           updateCounts();
           renderLayer(state.activeLayer, true);
 
+          // Real-time Fleet Telemetry via WebSocket (Soketi / Echo)
+          if (window.Echo && !state.echoSubscribed) {
+            state.echoSubscribed = true;
+            try {
+              window.Echo.channel('cargo-fleet-telemetry')
+                .listen('.fleet.location.updated', function(data) {
+                  if (!data || !Number.isFinite(Number(data.latitude)) || !Number.isFinite(Number(data.longitude))) return;
+                  const lat = Number(data.latitude);
+                  const lng = Number(data.longitude);
+                  const markerKey = 'fleet_' + (data.manifest_id || data.device_id || 'live');
+
+                  state.liveFleetMarkers = state.liveFleetMarkers || {};
+                  if (state.liveFleetMarkers[markerKey]) {
+                    state.liveFleetMarkers[markerKey].setLatLng([lat, lng]);
+                  } else {
+                    const liveIcon = L.divIcon({
+                      className: 'cockpit-live-vessel',
+                      html: '<div style="background:#0284c7;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px #0284c7;"></div>',
+                      iconSize: [14, 14]
+                    });
+                    const m = L.marker([lat, lng], { icon: liveIcon }).addTo(vectorGroup);
+                    m.bindPopup('<strong>' + escapeHtml(data.carrier_name || 'Vessel') + '</strong><br>' + escapeHtml(data.corridor || '') + '<br>Speed: ' + (data.speed_knots || 0) + ' kts');
+                    state.liveFleetMarkers[markerKey] = m;
+                  }
+                  if (updatedAtEl) {
+                    updatedAtEl.textContent = ' · Live AIS: ' + escapeHtml(data.carrier_name || 'Fleet') + ' (' + (data.speed_knots || 0) + ' kts)';
+                  }
+                });
+            } catch(e) {}
+          }
+
           setTimeout(() => {
             map.invalidateSize();
           }, 150);

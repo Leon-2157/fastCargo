@@ -5,14 +5,18 @@ namespace App\Modules\Customer\Controllers;
 use App\Modules\Shared\Models\AdmInvoice;
 use App\Modules\Shared\Models\Company;
 use App\Modules\Shared\Models\PaymentTransaction;
+use App\Modules\Shared\Services\DanaPaymentGatewayService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 
 class InvoiceController extends Controller
 {
+    public function __construct(
+        protected DanaPaymentGatewayService $danaService
+    ) {}
+
     /**
      * Display a listing of invoices for the authenticated customer.
      */
@@ -63,9 +67,15 @@ class InvoiceController extends Controller
             ])
             ->firstOrFail();
 
+        $qrisData = null;
+        if ($invoice->payment_status !== 'PAID_SETTLED') {
+            $qrisData = $this->danaService->generateQrisCheckout($invoice, $user);
+        }
+
         return view('customer.invoice.show', [
             'role' => 'customer',
             'invoice' => $invoice,
+            'qrisData' => $qrisData,
         ]);
     }
 
@@ -94,7 +104,7 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Simulate Dana Business QRIS payment settlement.
+     * Process / Simulate Dana Business QRIS payment settlement.
      */
     public function initPayment(Request $request, string $id)
     {
@@ -109,37 +119,29 @@ class InvoiceController extends Controller
             return back()->with('info', 'This invoice has already been settled.');
         }
 
-        // Record payment transaction
-        $transaction = PaymentTransaction::create([
-            'id' => Str::uuid()->toString(),
-            'invoice_id' => $invoice->id,
-            'payer_user_id' => $user->id,
-            'payment_gateway' => 'DANA',
-            'payment_channel' => 'QRIS',
-            'transaction_ref' => 'DANA-QRIS-'.strtoupper(Str::random(10)),
-            'amount' => $invoice->total_invoice_amount,
-            'payment_status' => 'SETTLEMENT',
-            'paid_at' => now(),
-            'raw_gateway_payload' => [
-                'merchant_id' => 'DANA_FASTCARGO_01',
-                'payment_method' => 'QRIS_STANDARDIZED',
-                'status' => 'SUCCESS_SETTLED',
-                'rrn' => rand(100000000000, 999999999999),
-            ],
+        // Cari transaksi pending terkini atau generate checkout baru jika belum ada
+        $pendingTx = PaymentTransaction::where('invoice_id', $invoice->id)
+            ->where('payment_status', 'PENDING')
+            ->latest()
+            ->first();
+
+        $txRef = $pendingTx?->transaction_ref;
+        if (! $txRef) {
+            $checkout = $this->danaService->generateQrisCheckout($invoice, $user);
+            $txRef = $checkout['transaction_ref'];
+        }
+
+        $result = $this->danaService->processSettlement($txRef, [
+            'source' => 'CUSTOMER_PORTAL_SIMULATOR',
+            'simulated_by_user_id' => $user->id,
+            'payment_method' => 'DANA_QRIS_STANDARDIZED',
         ]);
 
-        // Update invoice
-        $invoice->update([
-            'payment_status' => 'PAID_SETTLED',
-            'paid_at' => now(),
-        ]);
-
-        // Update cargo booking status if currently booked
-        if ($invoice->booking && $invoice->booking->cargo_status === 'BOOKED') {
-            $invoice->booking->update(['cargo_status' => 'BOOKED']);
+        if (! $result['success']) {
+            return back()->with('error', $result['message']);
         }
 
         return redirect()->route('customer.invoices.show', $invoice->id)
-            ->with('success', 'Dana Business QRIS payment processed and settled successfully!');
+            ->with('success', 'Dana Business QRIS payment confirmed! Escrow funds locked and cargo booking updated.');
     }
 }

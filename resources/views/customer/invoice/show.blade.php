@@ -127,12 +127,16 @@
     </div>
   </div>
 
-  <!-- Right Column: Dana QRIS Payment Simulator -->
+  <!-- Right Column: Dana QRIS Payment Gateway -->
   <div class="col-lg-4">
     <div class="card shadow mb-4">
       <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-qrcode me-1"></i> Dana Business QRIS</h6>
-        <span class="badge bg-info">QRIS Standard</span>
+        @if(isset($qrisData) && $qrisData['is_mock'])
+          <span class="badge bg-warning text-dark"><i class="fas fa-flask me-1"></i> Smart Sandbox</span>
+        @else
+          <span class="badge bg-success"><i class="fas fa-bolt me-1"></i> Dana Live Snap</span>
+        @endif
       </div>
       <div class="card-body text-center p-4">
         @if($invoice->payment_status === 'PAID_SETTLED')
@@ -141,6 +145,10 @@
           </div>
           <h5 class="fw-bold text-success mb-1">Payment Settled</h5>
           <p class="text-muted small mb-3">Settled via Dana Business QRIS on {{ \Carbon\Carbon::parse($invoice->paid_at)->format('d M Y, H:i T') }}</p>
+
+          <div class="alert alert-success text-start small mb-3 py-2 px-3 border-0 bg-success bg-opacity-10 text-success">
+            <i class="fas fa-shield-alt me-1"></i> <strong>Escrow Active:</strong> Funds are locked in FastCargo Escrow Ledger and released progressively to the operator across milestones.
+          </div>
 
           @if($invoice->paymentTransactions->isNotEmpty())
             @php $tx = $invoice->paymentTransactions->first(); @endphp
@@ -164,27 +172,73 @@
             <i class="fas fa-download me-1"></i> Download Tax Receipt
           </a>
         @else
-          <!-- QR Code Display -->
-          <div class="p-3 border rounded bg-light mb-3 d-inline-block">
-            <div style="background: #fff; padding: 15px; border-radius: 8px;">
-              <i class="fas fa-qrcode fa-7x text-dark"></i>
+          <!-- QR Code Display SVG -->
+          <div class="p-3 border rounded bg-light mb-3 d-inline-block shadow-sm position-relative">
+            <div class="bg-white p-2 rounded d-flex justify-content-center align-items-center" style="min-width: 240px; min-height: 240px;">
+              @if(isset($qrisData['qr_svg']))
+                <div class="w-100 d-flex justify-content-center">
+                  {!! $qrisData['qr_svg'] !!}
+                </div>
+              @else
+                <i class="fas fa-qrcode fa-7x text-dark"></i>
+              @endif
+            </div>
+            <div class="mt-2 d-flex justify-content-between align-items-center text-muted small px-1">
+              <span><i class="fas fa-clock text-danger me-1"></i> Expires in <strong id="qrisCountdown">15:00</strong></span>
+              <span class="badge bg-secondary">ASPI / BI QRIS</span>
             </div>
           </div>
 
           <div class="h5 fw-bold text-primary mb-1">IDR {{ number_format($invoice->total_invoice_amount, 0, ',', '.') }}</div>
-          <div class="small text-muted mb-4">NMID: ID10202611090123 &bull; FastCargo Indonesia</div>
+          <div class="small text-muted mb-2">Merchant: <strong>FASTCARGO ASEAN LOGISTICS</strong></div>
+          <div class="small text-secondary mb-3">Ref: <code>{{ $qrisData['transaction_ref'] ?? 'DANA-QRIS-PENDING' }}</code></div>
+
+          <!-- Escrow Guarantee Badge -->
+          <div class="border rounded p-2 mb-3 bg-light text-start small">
+            <div class="d-flex align-items-center text-primary fw-semibold mb-1">
+              <i class="fas fa-lock me-1"></i> 3-Stage Escrow Protection:
+            </div>
+            <div class="text-muted text-xs">
+              <span class="badge bg-light text-dark border me-1">30% Gate-In</span>
+              <span class="badge bg-light text-dark border me-1">40% Sailing</span>
+              <span class="badge bg-light text-dark border">30% ePOD</span>
+            </div>
+          </div>
 
           <form method="POST" action="{{ route('customer.invoices.pay', $invoice->id) }}">
             @csrf
-            <button type="submit" class="btn btn-success btn-lg w-100 shadow mb-2">
-              <i class="fas fa-wallet me-1"></i> Simulate Dana QRIS Pay
+            <button type="submit" class="btn btn-success btn-lg w-100 shadow mb-2 fw-bold">
+              <i class="fas fa-wallet me-1"></i> Simulate Instant Pay (Dana QRIS)
             </button>
           </form>
-          <div class="text-muted text-xs">Simulates real-time webhook callback from Dana Business gateway</div>
+          <div class="text-muted text-xs">Simulates Dana Snap settlement callback, auto-funds Escrow &amp; dispatches WhatsApp receipt</div>
         @endif
       </div>
     </div>
   </div>
 </div>
+
+@push('scripts')
+<script>
+  // 15-minute countdown timer for QRIS
+  (function() {
+    const el = document.getElementById('qrisCountdown');
+    if (!el) return;
+    let sec = 15 * 60;
+    const interval = setInterval(function() {
+      sec--;
+      if (sec <= 0) {
+        clearInterval(interval);
+        el.innerText = 'EXPIRED';
+        el.classList.add('text-danger');
+        return;
+      }
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      el.innerText = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+  })();
+</script>
+@endpush
 @endsection
 

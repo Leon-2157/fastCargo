@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Modules\Landing\Controllers\TrackingPublicController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,3 +35,6 @@ Route::domain(config('app.domains.admin', 'admin.fastcargo.local'))
 // Internal API — webhook payment & waG callbacks (auth middleware per route group)
 Route::prefix('api/internal')
     ->group(base_path('routes/internal.php'));
+
+// Public external payment webhook (e.g. Dana Snap / QRIS Callback)
+Route::post('/api/webhooks/dana', [PaymentWebhookController::class, 'handle']);
