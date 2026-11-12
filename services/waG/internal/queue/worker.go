@@ -15,7 +15,6 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"wa-gateway/internal/otp"
 	"wa-gateway/internal/whatsapp"
 )
 

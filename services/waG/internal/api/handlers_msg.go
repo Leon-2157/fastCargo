@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"wa-gateway/internal/otp"
 	"wa-gateway/internal/queue"
 	"wa-gateway/internal/whatsapp"
 )
