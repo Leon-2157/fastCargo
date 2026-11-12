@@ -24,6 +24,11 @@
             <input class="form-control form-control-lg text-center font-monospace mb-3" type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus>
             <button class="btn btn-danger w-100 py-2 fw-bold" type="submit">Verify and Continue</button>
           </form>
+          <div class="mt-3 text-center">
+            <a href="{{ route('admin.2fa.reset', [], false) }}" class="small text-decoration-none text-muted">
+              <i class="fas fa-question-circle me-1"></i> Lost your authenticator app? Reset 2FA
+            </a>
+          </div>
           <form action="{{ route('admin.logout', [], false) }}" method="POST" class="mt-3">
             @csrf
             <button class="btn btn-link text-muted" type="submit">Sign out</button>

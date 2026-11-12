@@ -41,7 +41,13 @@
             </button>
           </form>
 
-          <form action="{{ route('operator.logout', [], false) }}" method="POST" class="mt-4">
+          <div class="mt-3 text-center">
+            <a href="{{ route('operator.2fa.reset', [], false) }}" class="small text-decoration-none text-muted">
+              <i class="fas fa-question-circle me-1"></i> Lost your authenticator app? Reset 2FA
+            </a>
+          </div>
+
+          <form action="{{ route('operator.logout', [], false) }}" method="POST" class="mt-3">
             @csrf
             <button type="submit" class="btn btn-sm btn-link text-muted">Terminate Session</button>
           </form>

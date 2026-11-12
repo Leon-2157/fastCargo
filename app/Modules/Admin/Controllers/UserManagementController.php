@@ -3,8 +3,10 @@
 namespace App\Modules\Admin\Controllers;
 
 use App\Modules\Shared\Models\User;
+use App\Modules\Shared\Services\TwoFactorResetService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Auth;
 
 class UserManagementController extends Controller
 {
@@ -80,5 +82,19 @@ class UserManagementController extends Controller
         $user->update(['status' => 'BLACKLISTED']);
 
         return back()->with('error', "User {$user->email} has been BLACKLISTED.");
+    }
+
+    /**
+     * Reset 2FA for a user account (Admin intervention).
+     */
+    public function resetTwoFactor(Request $request, string $id)
+    {
+        $user = User::findOrFail($id);
+        /** @var User|null $admin */
+        $admin = Auth::guard('admin')->user();
+
+        TwoFactorResetService::adminReset($user, $admin, $request->ip());
+
+        return back()->with('success', "Two-Factor Authentication for {$user->email} has been reset. The user must configure a new authenticator upon next login.");
     }
 }

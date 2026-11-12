@@ -13,6 +13,7 @@ use App\Modules\Admin\Controllers\OperatorInvitationController;
 use App\Modules\Admin\Controllers\SystemSettingsController;
 use App\Modules\Admin\Controllers\UserManagementController;
 use App\Modules\Admin\Controllers\WaGatewayController;
+use App\Modules\Shared\Controllers\TwoFactorResetController;
 use Illuminate\Support\Facades\Route;
 
 // Auth — tidak ada landing page, langsung /login
@@ -29,6 +30,10 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('admin.2fa.enable');
     Route::get('/two-factor/challenge', [TwoFactorController::class, 'showChallenge'])->name('admin.2fa.challenge');
     Route::post('/two-factor/verify', [TwoFactorController::class, 'verify'])->name('admin.2fa.verify');
+    Route::get('/two-factor/reset', [TwoFactorResetController::class, 'showResetForm'])->name('admin.2fa.reset');
+    Route::post('/two-factor/reset/send', [TwoFactorResetController::class, 'sendOtp'])->name('admin.2fa.reset.send');
+    Route::get('/two-factor/reset/verify', [TwoFactorResetController::class, 'showVerifyForm'])->name('admin.2fa.reset.verify.form');
+    Route::post('/two-factor/reset/verify', [TwoFactorResetController::class, 'verifyOtp'])->name('admin.2fa.reset.verify');
 });
 
 // Dashboard — wajib auth admin + 2FA terverifikasi
@@ -42,6 +47,7 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
         Route::post('/{user}/suspend', [UserManagementController::class, 'suspend'])->name('suspend');
         Route::post('/{user}/restore', [UserManagementController::class, 'restore'])->name('restore');
         Route::post('/{user}/block', [UserManagementController::class, 'block'])->name('block');
+        Route::post('/{user}/reset-2fa', [UserManagementController::class, 'resetTwoFactor'])->name('reset-2fa');
     });
 
     Route::prefix('invitations')->name('admin.invitations.')->group(function () {
@@ -86,6 +92,7 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
         Route::get('/', [SystemSettingsController::class, 'index'])->name('index');
         Route::put('/', [SystemSettingsController::class, 'update'])->name('update');
         Route::post('/ai/switch', [SystemSettingsController::class, 'switchAiProvider'])->name('ai.switch');
+        Route::post('/mail/test', [SystemSettingsController::class, 'sendTestEmail'])->name('mail.test');
     });
 
     Route::prefix('wa-gateway')->name('admin.wa.')->group(function () {

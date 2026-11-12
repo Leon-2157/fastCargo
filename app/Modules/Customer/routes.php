@@ -8,6 +8,7 @@ use App\Modules\Customer\Controllers\DashboardController;
 use App\Modules\Customer\Controllers\InvoiceController;
 use App\Modules\Customer\Controllers\ProfileController;
 use App\Modules\Customer\Controllers\TrackingController;
+use App\Modules\Shared\Controllers\TwoFactorResetController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +44,10 @@ Route::middleware(['auth:customer', 'verified'])->group(function () {
     Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('customer.2fa.enable');
     Route::get('/two-factor/challenge', [TwoFactorController::class, 'showChallenge'])->name('customer.2fa.challenge');
     Route::post('/two-factor/verify', [TwoFactorController::class, 'verify'])->name('customer.2fa.verify');
+    Route::get('/two-factor/reset', [TwoFactorResetController::class, 'showResetForm'])->name('customer.2fa.reset');
+    Route::post('/two-factor/reset/send', [TwoFactorResetController::class, 'sendOtp'])->name('customer.2fa.reset.send');
+    Route::get('/two-factor/reset/verify', [TwoFactorResetController::class, 'showVerifyForm'])->name('customer.2fa.reset.verify.form');
+    Route::post('/two-factor/reset/verify', [TwoFactorResetController::class, 'verifyOtp'])->name('customer.2fa.reset.verify');
 });
 
 // Dashboard routes — wajib auth + 2FA sudah verified

@@ -10,6 +10,7 @@ use App\Modules\Operator\Controllers\IncidentController;
 use App\Modules\Operator\Controllers\ManifestController;
 use App\Modules\Operator\Controllers\ProfileController;
 use App\Modules\Operator\Controllers\TrackingOpsController;
+use App\Modules\Shared\Controllers\TwoFactorResetController;
 use Illuminate\Support\Facades\Route;
 
 // Auth — IP whitelist sudah di-enforce oleh middleware group di web.php
@@ -29,6 +30,10 @@ Route::middleware('auth:operator')->group(function () {
     Route::post('/two-factor/verify', [TwoFactorController::class, 'verify'])->name('operator.2fa.verify');
     Route::get('/two-factor/setup', [TwoFactorController::class, 'showSetup'])->name('operator.2fa.setup');
     Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('operator.2fa.enable');
+    Route::get('/two-factor/reset', [TwoFactorResetController::class, 'showResetForm'])->name('operator.2fa.reset');
+    Route::post('/two-factor/reset/send', [TwoFactorResetController::class, 'sendOtp'])->name('operator.2fa.reset.send');
+    Route::get('/two-factor/reset/verify', [TwoFactorResetController::class, 'showVerifyForm'])->name('operator.2fa.reset.verify.form');
+    Route::post('/two-factor/reset/verify', [TwoFactorResetController::class, 'verifyOtp'])->name('operator.2fa.reset.verify');
 });
 
 // Dashboard — wajib auth + 2FA verified

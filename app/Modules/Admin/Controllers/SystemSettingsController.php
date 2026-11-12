@@ -4,6 +4,7 @@ namespace App\Modules\Admin\Controllers;
 
 use App\Modules\Shared\AI\AiManager;
 use App\Modules\Shared\Models\AdmSystemSetting;
+use App\Modules\Shared\Services\MailSettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,12 +12,16 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class SystemSettingsController extends Controller
 {
     private const SECRET_KEYS = [
         'ninerouter_api_key',
         'gemini_api_key',
+        'mail_password',
     ];
 
     public function index(): View
@@ -36,10 +41,13 @@ class SystemSettingsController extends Controller
             'gemini_key_configured' => $geminiKey !== '',
         ];
 
+        $mailConfig = MailSettingsService::getAdminSummary();
+
         return view('admin.settings.index', [
             'role' => 'admin',
             'settings' => $settings,
             'aiConfig' => $aiConfig,
+            'mailConfig' => $mailConfig,
         ]);
     }
 
@@ -56,6 +64,14 @@ class SystemSettingsController extends Controller
             'escrow_milestone_1_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'escrow_milestone_2_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'escrow_milestone_3_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'mail_mailer' => ['nullable', 'string', 'in:smtp,log,resend'],
+            'mail_host' => ['nullable', 'string', 'max:255'],
+            'mail_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'mail_username' => ['nullable', 'string', 'max:255'],
+            'mail_password' => ['nullable', 'string', 'max:255'],
+            'mail_encryption' => ['nullable', 'string', 'in:tls,ssl,none'],
+            'mail_from_address' => ['nullable', 'email', 'max:255'],
+            'mail_from_name' => ['nullable', 'string', 'max:255'],
         ]);
 
         if (isset($validated['operator_vpn_whitelist'])) {
@@ -90,13 +106,50 @@ class SystemSettingsController extends Controller
         }
 
         Cache::forget('operator_vpn_whitelist');
+        Cache::forget('adm_mail_settings');
         AiManager::reset();
+        MailSettingsService::apply();
 
         if (! empty($auditChanges)) {
             $this->recordAudit($request, 'SYSTEM_SETTINGS_UPDATED', $auditChanges);
         }
 
-        return back()->with('success', 'System parameters and operational configurations updated successfully.');
+        return back()->with('success', 'System parameters, mail delivery engine, and operational configurations updated successfully.');
+    }
+
+    /**
+     * Dispatch an immediate live test email to verify SMTP/Resend configuration.
+     */
+    public function sendTestEmail(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'test_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        try {
+            MailSettingsService::apply();
+
+            $recipient = $validated['test_email'];
+            $from = config('mail.from.address', 'noreply@leonproject.my.id');
+            $fromName = config('mail.from.name', 'FastCargo');
+
+            Mail::raw("Hello from FastCargo Logistics!\n\nThis is a verified test email sent via Resend SMTP engine.\nTimestamp: ".now()->toIso8601String()."\nSender: {$from} ({$fromName})\n\nIf you received this message, your FastCargo email delivery and 2FA reset dispatch are properly configured and operational.", function ($message) use ($recipient, $from, $fromName) {
+                $message->to($recipient)
+                    ->from($from, $fromName)
+                    ->subject('FastCargo — Email Delivery Test ('.now()->format('H:i:s').')');
+            });
+
+            $this->recordAudit($request, 'TEST_EMAIL_DISPATCHED', [
+                'recipient' => $recipient,
+                'status' => 'SUCCESS',
+            ]);
+
+            return back()->with('success', "Test email was sent successfully to {$recipient}. Please check your inbox (and spam/promotions tab).");
+        } catch (Throwable $e) {
+            Log::error('Send test email failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            return back()->with('error', 'Failed to dispatch test email: '.$e->getMessage());
+        }
     }
 
     public function switchAiProvider(Request $request): RedirectResponse

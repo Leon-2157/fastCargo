@@ -149,4 +149,139 @@
     </div>
   </div>
 </div>
+
+<!-- Email Delivery Engine (Resend / SMTP) & Live Test -->
+<div class="row">
+  <div class="col-lg-12 mb-4">
+    <div class="card shadow border-start-success">
+      <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-envelope me-1"></i> Email Delivery Engine (Resend SMTP &amp; Verification)</h6>
+          <small class="text-muted">Powers Email Verification, Password Reset, and 2-Factor Authentication Emergency OTP.</small>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="badge bg-secondary">Driver: {{ strtoupper($mailConfig['mail_mailer']) }}</span>
+          <span class="badge {{ $mailConfig['is_password_configured'] ? 'bg-success' : 'bg-danger' }}">
+            {{ $mailConfig['is_password_configured'] ? 'API Key Configured' : 'API Key Not Set' }}
+          </span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <!-- Configuration Form -->
+          <div class="col-lg-8 border-end pe-lg-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="small fw-bold text-uppercase text-muted mb-0">SMTP Server Configuration</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary" id="btn-preset-resend">
+                <i class="fas fa-magic me-1"></i> Auto-fill Resend SMTP Preset
+              </button>
+            </div>
+
+            <form method="POST" action="{{ route('admin.settings.update', [], false) }}">
+              @csrf
+              @method('PUT')
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold text-muted" for="mail_mailer">Mail Driver</label>
+                  <select id="mail_mailer" name="mail_mailer" class="form-select">
+                    <option value="smtp" {{ $mailConfig['mail_mailer'] === 'smtp' ? 'selected' : '' }}>SMTP (Recommended / Resend)</option>
+                    <option value="log" {{ $mailConfig['mail_mailer'] === 'log' ? 'selected' : '' }}>Local Log (Debug only)</option>
+                  </select>
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label small fw-bold text-muted" for="mail_host">SMTP Host</label>
+                  <input id="mail_host" type="text" name="mail_host" value="{{ old('mail_host', $mailConfig['mail_host']) }}" class="form-control" placeholder="smtp.resend.com">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold text-muted" for="mail_port">Port</label>
+                  <input id="mail_port" type="number" name="mail_port" value="{{ old('mail_port', $mailConfig['mail_port']) }}" class="form-control" placeholder="465">
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold text-muted" for="mail_encryption">Encryption</label>
+                  <select id="mail_encryption" name="mail_encryption" class="form-select">
+                    <option value="tls" {{ $mailConfig['mail_encryption'] === 'tls' ? 'selected' : '' }}>TLS / STARTTLS (Port 587)</option>
+                    <option value="ssl" {{ $mailConfig['mail_encryption'] === 'ssl' ? 'selected' : '' }}>SSL / SMTPS (Port 465)</option>
+                    <option value="none" {{ $mailConfig['mail_encryption'] === 'none' ? 'selected' : '' }}>None</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold text-muted" for="mail_username">SMTP Username</label>
+                  <input id="mail_username" type="text" name="mail_username" value="{{ old('mail_username', $mailConfig['mail_username']) }}" class="form-control" placeholder="resend">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold text-muted" for="mail_password">Resend API Key (Password)</label>
+                  <input id="mail_password" type="password" name="mail_password" value="" class="form-control" autocomplete="new-password" placeholder="{{ $mailConfig['is_password_configured'] ? 'Configured (leave blank to keep)' : 're_xxxxxxxxxxxx' }}">
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted" for="mail_from_address">From Address</label>
+                  <input id="mail_from_address" type="email" name="mail_from_address" value="{{ old('mail_from_address', $mailConfig['mail_from_address']) }}" class="form-control" placeholder="noreply@leonproject.my.id">
+                  <small class="text-muted">Must use verified domain from Resend (e.g. <code>noreply@leonproject.my.id</code>).</small>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted" for="mail_from_name">From Sender Name</label>
+                  <input id="mail_from_name" type="text" name="mail_from_name" value="{{ old('mail_from_name', $mailConfig['mail_from_name']) }}" class="form-control" placeholder="FastCargo">
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-outline-success btn-sm fw-bold">
+                <i class="fas fa-save me-1"></i> Save Mail Settings
+              </button>
+            </form>
+          </div>
+
+          <!-- Send Live Test Email Card -->
+          <div class="col-lg-4 ps-lg-4 mt-4 mt-lg-0 d-flex flex-column justify-content-between">
+            <div>
+              <h6 class="small fw-bold text-uppercase text-primary mb-2">Live Delivery Verification</h6>
+              <p class="text-muted small">
+                Verify that your Resend DNS records and API key are operating properly by sending an instant test email.
+              </p>
+
+              <form method="POST" action="{{ route('admin.settings.mail.test', [], false) }}">
+                @csrf
+                <div class="mb-3">
+                  <label class="form-label small fw-bold text-muted" for="test_email">Recipient Email Address</label>
+                  <input id="test_email" type="email" name="test_email" value="{{ Auth::guard('admin')->user()?->email ?? 'mtaufiq2157@gmail.com' }}" class="form-control" placeholder="your-email@gmail.com" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100 fw-bold py-2">
+                  <i class="fas fa-paper-plane me-1"></i> Dispatch Test Email
+                </button>
+              </form>
+            </div>
+
+            <div class="alert alert-light border small mt-4 mb-0 text-muted">
+              <i class="fas fa-info-circle text-primary me-1"></i>
+              <strong>DNS Tip:</strong> Ensure DKIM, SPF (TXT), and MX records are set to <em>DNS Only</em> (Gray Cloud) in Cloudflare.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const presetBtn = document.getElementById('btn-preset-resend');
+  if (presetBtn) {
+    presetBtn.addEventListener('click', function() {
+      document.getElementById('mail_mailer').value = 'smtp';
+      document.getElementById('mail_host').value = 'smtp.resend.com';
+      document.getElementById('mail_port').value = '465';
+      document.getElementById('mail_encryption').value = 'ssl';
+      document.getElementById('mail_username').value = 'resend';
+      document.getElementById('mail_from_address').value = 'noreply@leonproject.my.id';
+      document.getElementById('mail_from_name').value = 'FastCargo';
+      document.getElementById('mail_password').focus();
+    });
+  }
+});
+</script>
 @endsection

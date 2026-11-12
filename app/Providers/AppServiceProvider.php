@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Modules\Shared\Services\MailSettingsService;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -19,6 +20,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Apply dynamic SMTP/Mail settings from database
+        MailSettingsService::apply();
+
         // Override model Auth agar semua package (Spatie, dsb) pakai model FastCargo
         config(['auth.providers.users.model' => \App\Modules\Shared\Models\User::class]);
 

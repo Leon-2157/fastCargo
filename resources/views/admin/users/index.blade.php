@@ -51,6 +51,7 @@
             <th>Email</th>
             <th>Role / Classification</th>
             <th>KYC / AML</th>
+            <th>2FA Security</th>
             <th>Account Status</th>
             <th>Joined</th>
             <th class="text-end pe-3">Actions</th>
@@ -82,6 +83,15 @@
                 @endif
               </td>
               <td>
+                @if($u->hasTwoFactorEnabled())
+                  <span class="badge bg-primary" title="2FA enabled at {{ $u->two_factor_enabled_at?->format('d M Y H:i') }}">
+                    <i class="fas fa-shield-alt me-1"></i> ACTIVE
+                  </span>
+                @else
+                  <span class="badge bg-light text-muted border">DISABLED</span>
+                @endif
+              </td>
+              <td>
                 @if($u->status === 'ACTIVE')
                   <span class="badge bg-success">ACTIVE</span>
                 @elseif($u->status === 'SUSPENDED')
@@ -92,6 +102,14 @@
               </td>
               <td class="small text-muted">{{ $u->created_at->format('d M Y') }}</td>
               <td class="text-end pe-3">
+                @if($u->hasTwoFactorEnabled())
+                  <form method="POST" action="{{ route('admin.users.reset-2fa', $u->id) }}" class="d-inline" onsubmit="return confirm('Reset 2FA for {{ $u->email }}? The user will be required to scan a new authenticator QR upon their next login.');">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Reset 2FA (Lost Device)">
+                      <i class="fas fa-key"></i>
+                    </button>
+                  </form>
+                @endif
                 @if($u->status === 'ACTIVE')
                   <form method="POST" action="{{ route('admin.users.suspend', $u->id) }}" class="d-inline" onsubmit="return confirm('Suspend user access?');">
                     @csrf
