@@ -31,8 +31,8 @@ func handleSendMessage(c *gin.Context) {
 		target = req.Phone
 	}
 
-	cleanTarget := otp.CleanPhoneNumber(target)
-	if cleanTarget == "" || strings.TrimSpace(req.Message) == "" || utf8.RuneCountInString(req.Message) > 4096 {
+	cleanTarget, _, err := whatsapp.ResolveTargetJID(target)
+	if err != nil || strings.TrimSpace(req.Message) == "" || utf8.RuneCountInString(req.Message) > 4096 {
 		c.JSON(http.StatusBadRequest, gin.H{"status": false, "error": "Nomor target dan isi pesan wajib diisi"})
 		return
 	}

@@ -81,7 +81,7 @@
       <p>Hello <strong>{{ $userName }}</strong>,</p>
       <p>We received a request to reset Two-Factor Authentication (2FA) for your FastCargo account.</p>
       <p>Use the following 6-digit verification code to complete the reset process:</p>
-      
+
       <div class="otp-box">
         <span class="otp-code">{{ $otpCode }}</span>
       </div>
@@ -101,3 +101,4 @@
   </div>
 </body>
 </html>
+

@@ -130,8 +130,8 @@ func (q *WorkerQueue) EnqueueAsync(phone, message string) (string, error) {
 	if q == nil || q.db == nil {
 		return "", errors.New("antrean belum siap")
 	}
-	cleanPhone := otp.CleanPhoneNumber(phone)
-	if cleanPhone == "" || message == "" || utf8.RuneCountInString(message) > 4096 {
+	cleanPhone, _, err := whatsapp.ResolveTargetJID(phone)
+	if err != nil || message == "" || utf8.RuneCountInString(message) > 4096 {
 		return "", errors.New("nomor atau isi pesan tidak valid")
 	}
 	jobID, err := newJobID()

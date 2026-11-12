@@ -459,11 +459,61 @@ func (m *Manager) IsOnWhatsApp(phone string) (bool, types.JID, error) {
 	return true, resp[0].JID, nil
 }
 
+// ResolveTargetJID parses and normalizes a phone number, WhatsApp LID, or full JID.
+func ResolveTargetJID(target string) (string, types.JID, error) {
+	t := strings.TrimSpace(target)
+	if t == "" {
+		return "", types.EmptyJID, fmt.Errorf("nomor tujuan kosong")
+	}
+
+	// 1. If target is already a formatted JID with server (e.g. 109899623206964@lid or 628...@s.whatsapp.net)
+	if strings.Contains(t, "@") {
+		parsed, err := types.ParseJID(t)
+		if err == nil && parsed.User != "" {
+			return parsed.User, parsed, nil
+		}
+	}
+
+	// Extract digits
+	var digits strings.Builder
+	for _, r := range t {
+		if r >= '0' && r <= '9' {
+			digits.WriteRune(r)
+		}
+	}
+	clean := digits.String()
+	if clean == "" {
+		return "", types.EmptyJID, fmt.Errorf("nomor tujuan tidak valid")
+	}
+
+	// 2. WhatsApp Linked ID (LID): typically 15-20 digits
+	if len(clean) >= 15 {
+		return clean, types.NewJID(clean, types.HiddenUserServer), nil
+	}
+
+	// 3. Phone number: normalize leading 0 to 62
+	if strings.HasPrefix(clean, "0") {
+		clean = "62" + clean[1:]
+	} else if !strings.HasPrefix(clean, "62") && len(clean) >= 9 && len(clean) <= 10 {
+		clean = "62" + clean
+	}
+
+	if len(clean) < 8 || len(clean) > 16 {
+		return "", types.EmptyJID, fmt.Errorf("panjang nomor telepon tidak valid")
+	}
+
+	return clean, types.NewJID(clean, types.DefaultUserServer), nil
+}
+
 // SendMessage sends a text message to the specified phone number with anti-ban pacing
 func (m *Manager) SendMessage(toPhone, message string) (string, error) {
-	clean := otp.CleanPhoneNumber(toPhone)
-	if clean == "" || strings.TrimSpace(message) == "" || utf8.RuneCountInString(message) > 4096 {
-		return "", fmt.Errorf("nomor tujuan atau isi pesan tidak valid")
+	if strings.TrimSpace(message) == "" || utf8.RuneCountInString(message) > 4096 {
+		return "", fmt.Errorf("isi pesan tidak valid")
+	}
+
+	clean, jid, err := ResolveTargetJID(toPhone)
+	if err != nil {
+		return "", err
 	}
 	if config.Get().Snapshot().WhatsAppMode == "cloud" {
 		id, err := m.sendCloudText(clean, message)
@@ -487,13 +537,16 @@ func (m *Manager) SendMessage(toPhone, message string) (string, error) {
 		return "", fmt.Errorf("WhatsApp belum terhubung; pesan tidak dikirim")
 	}
 
-	// Verify number is registered on WhatsApp
-	isOnWA, jid, err := m.IsOnWhatsApp(clean)
-	if err != nil {
-		return "", fmt.Errorf("gagal memvalidasi nomor di WhatsApp: %w", err)
-	}
-	if !isOnWA {
-		return "", fmt.Errorf("nomor %s tidak terdaftar di WhatsApp", clean)
+	// Verify number is registered on WhatsApp if target is standard user phone (not LID)
+	if jid.Server == types.DefaultUserServer {
+		isOnWA, verifiedJid, err := m.IsOnWhatsApp(clean)
+		if err != nil {
+			return "", fmt.Errorf("gagal memvalidasi nomor di WhatsApp: %w", err)
+		}
+		if !isOnWA {
+			return "", fmt.Errorf("nomor %s tidak terdaftar di WhatsApp", clean)
+		}
+		jid = verifiedJid
 	}
 
 	// Anti-ban human pacing: send presence composing
