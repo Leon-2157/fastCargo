@@ -21,12 +21,17 @@
         <p class="hero-lead">FastCargo orchestrates sea vessels, cargo airliners, and cross-border road fleets across Indonesia, Singapore, Malaysia, and the greater ASEAN corridor with automated customs clearance and escrow settlement.</p>
 
         <!-- Live Tracking Input in Hero -->
-        <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 p-3 mb-4" id="track">
-          <form action="" method="GET" onsubmit="event.preventDefault(); const resi = document.getElementById('trackingInput').value.trim(); if(resi) window.location.href='/track/'+encodeURIComponent(resi);">
-            <label class="form-label text-light small mb-1" for="trackingInput">Instant Public Cargo Tracker</label>
+        <div class="card p-3 mb-4" id="track" style="background: rgba(14, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 14px; box-shadow: 0 10px 30px -10px rgba(2, 6, 23, 0.6), 0 0 25px -5px rgba(56, 189, 248, 0.15); backdrop-filter: blur(12px);">
+          <form id="trackForm" action="" method="GET" onsubmit="event.preventDefault(); const resi = document.getElementById('trackingInput').value.trim(); if(resi) window.location.href='/track/'+encodeURIComponent(resi);">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label text-light small mb-0 fw-semibold" for="trackingInput">Instant Public Cargo Tracker</label>
+              <button type="button" class="btn btn-sm p-0 text-decoration-none" onclick="document.getElementById('trackingInput').value='RPN-20261106-001'; document.getElementById('trackForm').requestSubmit();" title="Click to test live tracking with demo shipment">
+                <span class="badge bg-info bg-opacity-20 text-info border border-info border-opacity-30 px-2 py-1" style="cursor: pointer; font-size: 0.72rem;">Demo: RPN-20261106-001 &rarr;</span>
+              </button>
+            </div>
             <div class="input-group">
               <input type="text" id="trackingInput" name="resi" class="form-control landing-input" placeholder="e.g. RPN-20261106-001" autocomplete="off" required>
-              <button class="btn btn-primary px-4" type="submit">Track Shipment</button>
+              <button class="btn btn-primary px-4 fw-semibold" type="submit">Track Shipment</button>
             </div>
           </form>
         </div>
