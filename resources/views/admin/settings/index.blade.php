@@ -441,12 +441,32 @@
             const testFeedback = document.getElementById('aiTestFeedback');
             const aiSwitchForm = document.getElementById('aiSwitchForm');
             const btnConfirmSwitch = document.getElementById('btnConfirmSwitchAnyway');
+            const formAiSettings = document.getElementById('formAiSettings');
 
             let aiFormIsDirty = false;
             let aiConnectionVerified = true;
 
+            // Restore last active view from localStorage if available
+            try {
+                const savedView = localStorage.getItem('fastcargo_ai_selected_view');
+                if (savedView && providerSelect && (savedView === 'gemini' || savedView === 'custom')) {
+                    providerSelect.value = savedView;
+                    if (savedView === 'gemini') {
+                        geminiSection.classList.remove('d-none');
+                        customSection.classList.add('d-none');
+                    } else {
+                        geminiSection.classList.add('d-none');
+                        customSection.classList.remove('d-none');
+                    }
+                }
+            } catch (e) {}
+
             if (providerSelect) {
                 providerSelect.addEventListener('change', function() {
+                    try {
+                        localStorage.setItem('fastcargo_ai_selected_view', this.value);
+                    } catch (e) {}
+
                     if (this.value === 'gemini') {
                         geminiSection.classList.remove('d-none');
                         customSection.classList.add('d-none');
@@ -510,6 +530,66 @@
                     btnTestAi.focus();
                 }
             };
+
+            // Real-time AJAX Save AI Settings (No Page Reload)
+            if (formAiSettings) {
+                formAiSettings.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const originalSaveHtml = btnSaveAi.innerHTML;
+                    btnSaveAi.disabled = true;
+                    btnSaveAi.innerHTML =
+                        '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Menyimpan...';
+
+                    const formData = new FormData(formAiSettings);
+                    const payload = {};
+                    formData.forEach(function(value, key) {
+                        payload[key] = value;
+                    });
+
+                    fetch('{{ route('admin.settings.update', [], false) }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(payload)
+                        })
+                        .then(function(res) {
+                            return res.json();
+                        })
+                        .then(function(data) {
+                            btnSaveAi.disabled = false;
+                            btnSaveAi.innerHTML = originalSaveHtml;
+
+                            if (data.success) {
+                                testFeedback.className = 'alert alert-success py-2 px-3 small mb-3';
+                                testFeedback.innerHTML =
+                                    '<i class="fas fa-check-circle me-2"></i> <strong>Tersimpan:</strong> ' +
+                                    (data.message || 'Konfigurasi pengaturan AI berhasil disimpan.');
+                                testFeedback.classList.remove('d-none');
+                                aiFormIsDirty = false;
+                                updateSaveButtonState();
+                            } else {
+                                testFeedback.className = 'alert alert-danger py-2 px-3 small mb-3';
+                                testFeedback.innerHTML =
+                                    '<i class="fas fa-times-circle me-2"></i> <strong>Gagal:</strong> ' +
+                                    (data.message || 'Gagal menyimpan pengaturan.');
+                                testFeedback.classList.remove('d-none');
+                            }
+                        })
+                        .catch(function(err) {
+                            btnSaveAi.disabled = false;
+                            btnSaveAi.innerHTML = originalSaveHtml;
+                            testFeedback.className = 'alert alert-danger py-2 px-3 small mb-3';
+                            testFeedback.innerHTML =
+                                '<i class="fas fa-exclamation-triangle me-2"></i> <strong>Error:</strong> ' +
+                                (err.message || 'Gagal menghubungi server.');
+                            testFeedback.classList.remove('d-none');
+                        });
+                });
+            }
 
             // Real-time AJAX Test Connection
             if (btnTestAi) {

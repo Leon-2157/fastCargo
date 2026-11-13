@@ -60,7 +60,7 @@ class SystemSettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'custom_ai_provider_name' => ['nullable', 'string', 'max:120'],
@@ -137,6 +137,13 @@ class SystemSettingsController extends Controller
         AiManager::reset();
 
         $this->recordAudit($request, 'SYSTEM_SETTINGS_UPDATED', $auditChanges);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Konfigurasi pengaturan AI berhasil disimpan.',
+            ]);
+        }
 
         return back()->with('success', 'System settings have been updated successfully.');
     }
