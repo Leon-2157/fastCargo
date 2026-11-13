@@ -25,7 +25,7 @@
     <div class="row">
         <!-- AI Intelligence Engine Configuration -->
         <div class="col-lg-6 mb-4">
-            <div class="card shadow border-start-primary">
+            <div class="card shadow border-start-primary h-100 d-flex flex-column">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence Engine
                     </h6>
@@ -37,7 +37,7 @@
                         Active: {{ $aiConfig['active_label'] ?? strtoupper($currentAi) }}
                     </span>
                 </div>
-                <div class="card-body">
+                <div class="card-body d-flex flex-column justify-content-between flex-grow-1">
                     <form id="aiSwitchForm" method="POST" action="{{ route('admin.settings.ai.switch', [], false) }}"
                         class="mb-4">
                         @csrf
@@ -58,7 +58,8 @@
                         </div>
                     </form>
 
-                    <form id="formAiSettings" method="POST" action="{{ route('admin.settings.update', [], false) }}">
+                    <form id="formAiSettings" method="POST" action="{{ route('admin.settings.update', [], false) }}"
+                        class="d-flex flex-column justify-content-between flex-grow-1">
                         @csrf
                         @method('PUT')
 
@@ -157,7 +158,7 @@
                         <div id="aiTestFeedback" class="d-none alert py-2 px-3 small mb-3"></div>
 
                         <!-- Footer Action Buttons -->
-                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-auto">
                             <button id="btnTestAiConnection" type="button" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-satellite-dish me-1 text-primary"></i> Test Connection
                             </button>
@@ -172,7 +173,7 @@
 
         <!-- WhatsApp Gateway Station Card -->
         <div class="col-lg-6 mb-4">
-            <div class="card shadow border-start-success h-100">
+            <div class="card shadow border-start-success h-100 d-flex flex-column">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-success"><i class="fab fa-whatsapp me-1"></i> WhatsApp Gateway Station</h6>
                     <div id="wag-status-badge">
@@ -185,48 +186,130 @@
                         @endif
                     </div>
                 </div>
-                <div id="wag-pairing-panel" class="card-body p-4 d-flex flex-column justify-content-center align-items-center text-center">
-                    @if($waConfig['qrSvg'])
-                        <div class="p-2 border rounded bg-light mb-2 d-inline-block shadow-sm" style="max-width: 180px;">
-                            {!! $waConfig['qrSvg'] !!}
+
+                <div class="card-body p-3 d-flex flex-column justify-content-between flex-grow-1">
+                    <!-- BARIS ATAS: 2 KOTAK BERSEBELAHAN -->
+                    <div class="row g-2 mb-3">
+                        <!-- Kotak Kiri: QR Code / Status Perangkat -->
+                        <div class="col-sm-6">
+                            <div id="wag-left-box" class="border rounded p-2 bg-light d-flex flex-column align-items-center justify-content-center text-center h-100 shadow-sm" style="min-height: 180px;">
+                                @if($waConfig['qrSvg'])
+                                    <div class="p-1 bg-white rounded border mb-1 d-flex align-items-center justify-content-center" style="width: 122px; height: 122px;">
+                                        {!! $waConfig['qrSvg'] !!}
+                                    </div>
+                                    <div class="fw-bold text-dark" style="font-size: 11px;">
+                                        <i class="fas fa-qrcode me-1 text-primary"></i> Scan QR WhatsApp
+                                    </div>
+                                    <div class="text-muted" style="font-size: 9.5px;">Buka WA &gt; Perangkat Tertaut</div>
+                                @elseif($waConfig['isConnected'])
+                                    <div class="text-success mb-2">
+                                        <i class="fab fa-whatsapp fa-3x"></i>
+                                    </div>
+                                    <span class="badge bg-success px-2 py-1 mb-1 small">
+                                        <i class="fas fa-check-circle me-1"></i> Sesi Terhubung
+                                    </span>
+                                    <div class="small fw-bold text-dark mb-0" style="font-size: 11px;">
+                                        {{ $waConfig['gatewayStatus']['user']['name'] ?? 'Device Connected' }}
+                                    </div>
+                                    <code class="text-muted" style="font-size: 10px;">+{{ $waConfig['gatewayStatus']['user']['phone'] ?? '' }}</code>
+                                @elseif(!($waConfig['gatewayStatus']['reachable'] ?? false))
+                                    <div class="text-danger mb-2">
+                                        <i class="fas fa-plug fa-3x"></i>
+                                    </div>
+                                    <span class="badge bg-danger px-2 py-1 mb-1 small">waG Offline</span>
+                                    <div class="text-muted" style="font-size: 10px;">Layanan tidak dapat dijangkau</div>
+                                @else
+                                    <div class="spinner-border text-warning mb-2" role="status" style="width: 2rem; height: 2rem;"></div>
+                                    <div class="fw-bold text-dark" style="font-size: 11px;">Menunggu Kode QR...</div>
+                                @endif
+                            </div>
                         </div>
-                        <h6 class="fw-bold mb-1 fs-6">Scan QR to Link WhatsApp</h6>
-                        <p class="text-muted small mb-2" style="font-size: 11px;">Buka WhatsApp &gt; Perangkat Tertaut &gt; Tautkan Perangkat. Tampilan terhubung otomatis begitu di-scan.</p>
-                    @elseif($waConfig['isConnected'])
-                        <div class="text-success mb-2"><i class="fas fa-check-circle fa-3x"></i></div>
-                        <h6 class="fw-bold mb-1 fs-6">Active WhatsApp Session</h6>
-                        @if(!empty($waConfig['gatewayStatus']['user']['phone']))
-                            <p class="small fw-semibold text-dark mb-1">
-                                {{ $waConfig['gatewayStatus']['user']['name'] ?? 'Connected Device' }} (<code>+{{ $waConfig['gatewayStatus']['user']['phone'] }}</code>)
-                            </p>
-                        @endif
-                        <p class="text-muted small mb-0" style="font-size: 11px;">
-                            Status: <strong>CONNECTED</strong>. Notifikasi kargo real-time dan bot pelacakan WhatsApp aktif.
-                        </p>
-                    @elseif(!($waConfig['gatewayStatus']['reachable'] ?? false))
-                        <div class="text-danger mb-2"><i class="fas fa-server fa-3x"></i></div>
-                        <h6 class="fw-bold mb-1 fs-6">waG Service Offline</h6>
-                        <p class="text-muted small mb-0" style="font-size: 11px;">
-                            Layanan Go <code>wa-gateway</code> di <code>{{ $waConfig['gatewayBaseUrl'] }}</code> tidak dapat dijangkau.
-                        </p>
-                    @else
-                        <div class="spinner-border text-warning mb-2" role="status"><span class="visually-hidden">Loading...</span></div>
-                        <h6 class="fw-bold mb-1 fs-6">Menunggu QR Pairing</h6>
-                        <p class="text-muted small mb-0" style="font-size: 11px;">
-                            Memeriksa kode QR terbaru dari gateway secara otomatis...
-                        </p>
-                    @endif
-                </div>
-                <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2 px-3 border-top">
-                    <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalWaTestSend">
-                        <i class="fas fa-paper-plane me-1"></i> Send Test Message
-                    </button>
-                    <form method="POST" action="{{ route('admin.wa.reset', [], false) }}" class="m-0">
-                        @csrf
-                        <button type="submit" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-redo me-1"></i> Reset Session
-                        </button>
-                    </form>
+
+                        <!-- Kotak Kanan: Info Detail Layanan & Sesi -->
+                        <div class="col-sm-6">
+                            <div id="wag-right-box" class="border rounded p-3 bg-white d-flex flex-column justify-content-between h-100 shadow-sm" style="min-height: 180px;">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                        <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">
+                                            <i class="fas fa-info-circle me-1 text-info"></i> Info Detail
+                                        </span>
+                                        <span id="wag-service-badge" class="badge bg-light text-dark border small" style="font-size: 9px;">
+                                            {{ $waConfig['gatewayStatus']['service'] ?? 'waG' }}
+                                        </span>
+                                    </div>
+
+                                    <div class="mb-2">
+                                        <div class="text-muted" style="font-size: 10px;">Status Layanan:</div>
+                                        <div id="wag-detail-status" class="fw-bold small {{ $waConfig['isConnected'] ? 'text-success' : (($waConfig['gatewayStatus']['reachable'] ?? false) ? 'text-warning' : 'text-danger') }}">
+                                            <i class="fas {{ $waConfig['isConnected'] ? 'fa-check-circle' : (($waConfig['gatewayStatus']['reachable'] ?? false) ? 'fa-hourglass-half' : 'fa-times-circle') }} me-1"></i>
+                                            {{ $waConfig['isConnected'] ? 'Online & Terhubung' : (($waConfig['gatewayStatus']['reachable'] ?? false) ? 'Menunggu Pairing' : 'Offline / Terputus') }}
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-2">
+                                        <div class="text-muted" style="font-size: 10px;">Nomor Aktif:</div>
+                                        <div id="wag-detail-phone" class="fw-bold small text-dark">
+                                            @if(!empty($waConfig['gatewayStatus']['user']['phone']))
+                                                <code>+{{ $waConfig['gatewayStatus']['user']['phone'] }}</code>
+                                            @else
+                                                <span class="text-muted fst-italic">Belum Terhubung</span>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div class="text-muted" style="font-size: 10px;">Waktu Pairing:</div>
+                                        <div id="wag-detail-paired-at" class="small text-secondary fw-semibold">
+                                            <i class="far fa-clock me-1"></i> {{ $waConfig['pairedAt'] ?? 'Menunggu scan' }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pt-1 mt-1 border-top d-flex justify-content-between align-items-center">
+                                    <span class="text-muted" style="font-size: 9px;">Gateway:</span>
+                                    <code style="font-size: 9.5px;">{{ $waConfig['gatewayBaseUrl'] }}</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BARIS BAWAH: KOTAK PERSEGI PANJANG (TEST DISPATCH & RESET) -->
+                    <div class="border rounded p-3 bg-light shadow-sm">
+                        <form id="formWaTestDirect" method="POST" action="{{ route('admin.wa.test', [], false) }}">
+                            @csrf
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small fw-bold text-uppercase text-muted" style="font-size: 11px;">
+                                    <i class="fas fa-paper-plane me-1 text-success"></i> Test Send Message
+                                </span>
+                                <span class="text-muted" style="font-size: 10px;">Live Direct Dispatch</span>
+                            </div>
+
+                            <div id="waTestAlertBox" class="alert py-1 px-2 small mb-2 d-none" role="alert"></div>
+
+                            <div class="row g-2 mb-2">
+                                <div class="col-sm-5">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 10px;" for="wa_direct_phone">Nomor Tujuan (E.164 / 08xx)</label>
+                                    <input id="wa_direct_phone" type="text" name="phone" value="{{ old('phone', '+62811000003') }}" class="form-control form-control-sm" placeholder="+628123456789" required>
+                                </div>
+                                <div class="col-sm-7">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 10px;" for="wa_direct_message">Pesan Notifikasi</label>
+                                    <textarea id="wa_direct_message" name="message" rows="2" class="form-control form-control-sm" placeholder="Isi pesan uji coba..." required>[FastCargo Alert] Test notifikasi WhatsApp dari Platform Settings.</textarea>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                <button id="btnWaTestSubmit" type="submit" class="btn btn-success btn-sm px-3">
+                                    <i class="fas fa-paper-plane me-1"></i> Send Test Message
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('formWaResetDirect').submit();">
+                                    <i class="fas fa-redo me-1"></i> Reset Session
+                                </button>
+                            </div>
+                        </form>
+                        <form id="formWaResetDirect" method="POST" action="{{ route('admin.wa.reset', [], false) }}" class="d-none">
+                            @csrf
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -413,39 +496,6 @@
                         Tetap Beralih Engine
                     </button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Test Dispatch WhatsApp Message -->
-    <div class="modal fade" id="modalWaTestSend" tabindex="-1" aria-labelledby="modalWaTestSendLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fs-6 fw-bold text-success" id="modalWaTestSendLabel">
-                        <i class="fab fa-whatsapp me-1"></i> Test Dispatch WhatsApp Notification
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form method="POST" action="{{ route('admin.wa.test', [], false) }}">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted" for="wa_test_phone">Destination Mobile Number (E.164 or 08xx)</label>
-                            <input id="wa_test_phone" type="text" name="phone" value="{{ old('phone', '+62811000003') }}" class="form-control" placeholder="+628123456789" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted" for="wa_test_message">Dispatch Message Template</label>
-                            <textarea id="wa_test_message" name="message" rows="3" class="form-control" required>{{ old('message', '[FastCargo Alert] Test notification sent from FastCargo Platform Settings.') }}</textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-success btn-sm">
-                            <i class="fas fa-paper-plane me-1"></i> Send Test Message
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -702,42 +752,136 @@
                 });
             }
 
-            // Real-time WhatsApp Gateway Polling
+            // Real-time WhatsApp Gateway Polling & Live Status Update
             const wagStatusUrl = '{{ route('admin.wa.status', [], false) }}';
             const wagBadgeEl = document.getElementById('wag-status-badge');
-            const wagPanelEl = document.getElementById('wag-pairing-panel');
+            const wagLeftBox = document.getElementById('wag-left-box');
+            const wagDetailStatus = document.getElementById('wag-detail-status');
+            const wagDetailPhone = document.getElementById('wag-detail-phone');
+            const wagDetailPairedAt = document.getElementById('wag-detail-paired-at');
 
-            if (wagBadgeEl && wagPanelEl) {
+            if (wagBadgeEl && wagLeftBox) {
                 function checkWagStatus() {
                     fetch(wagStatusUrl, { headers: { 'Accept': 'application/json' } })
                         .then(function(res) { return res.json(); })
                         .then(function(data) {
                             if (!data.reachable) {
                                 wagBadgeEl.innerHTML = '<span class="badge bg-danger px-2 py-1 small"><i class="fas fa-plug me-1"></i> Offline</span>';
+                                if (wagDetailStatus) {
+                                    wagDetailStatus.className = 'fw-bold small text-danger';
+                                    wagDetailStatus.innerHTML = '<i class="fas fa-times-circle me-1"></i> Offline / Terputus';
+                                }
+                                if (wagDetailPhone) wagDetailPhone.innerHTML = '<span class="text-muted fst-italic">Belum Terhubung</span>';
+                                if (wagDetailPairedAt) wagDetailPairedAt.innerHTML = '<i class="far fa-clock me-1"></i> Menunggu scan';
+                                wagLeftBox.innerHTML = `
+                                    <div class="text-danger mb-2"><i class="fas fa-plug fa-3x"></i></div>
+                                    <span class="badge bg-danger px-2 py-1 mb-1 small">waG Offline</span>
+                                    <div class="text-muted" style="font-size: 10px;">Layanan tidak dapat dijangkau</div>
+                                `;
                             } else if (data.connected) {
                                 wagBadgeEl.innerHTML = '<span class="badge bg-success px-2 py-1 small"><i class="fas fa-check-circle me-1"></i> Connected</span>';
-                                const userName = (data.user && data.user.name) ? data.user.name : 'Connected Device';
+                                const userName = (data.user && data.user.name) ? data.user.name : 'Device Connected';
                                 const userPhone = (data.user && data.user.phone) ? '+' + data.user.phone : '';
-                                wagPanelEl.innerHTML = `
-                                    <div class="text-success mb-2"><i class="fas fa-check-circle fa-3x"></i></div>
-                                    <h6 class="fw-bold mb-1 fs-6">Active WhatsApp Session</h6>
-                                    <p class="small fw-semibold text-dark mb-1">${userName} (<code>${userPhone}</code>)</p>
-                                    <p class="text-muted small mb-0" style="font-size: 11px;">Status: <strong>CONNECTED</strong>. Notifikasi kargo real-time dan bot pelacakan WhatsApp aktif.</p>
+                                if (wagDetailStatus) {
+                                    wagDetailStatus.className = 'fw-bold small text-success';
+                                    wagDetailStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i> Online &amp; Terhubung';
+                                }
+                                if (wagDetailPhone) {
+                                    wagDetailPhone.innerHTML = userPhone ? `<code>${userPhone}</code>` : '<span class="text-muted fst-italic">Terhubung</span>';
+                                }
+                                if (wagDetailPairedAt && data.paired_at) {
+                                    wagDetailPairedAt.innerHTML = `<i class="far fa-clock me-1"></i> ${data.paired_at}`;
+                                }
+                                wagLeftBox.innerHTML = `
+                                    <div class="text-success mb-2"><i class="fab fa-whatsapp fa-3x"></i></div>
+                                    <span class="badge bg-success px-2 py-1 mb-1 small"><i class="fas fa-check-circle me-1"></i> Sesi Terhubung</span>
+                                    <div class="small fw-bold text-dark mb-0" style="font-size: 11px;">${userName}</div>
+                                    <code class="text-muted" style="font-size: 10px;">${userPhone}</code>
                                 `;
                             } else if (data.qr_svg) {
                                 wagBadgeEl.innerHTML = '<span class="badge bg-warning text-dark px-2 py-1 small"><i class="fas fa-qrcode me-1"></i> Pairing Needed</span>';
-                                wagPanelEl.innerHTML = `
-                                    <div class="p-2 border rounded bg-light mb-2 d-inline-block shadow-sm" style="max-width: 180px;">
+                                if (wagDetailStatus) {
+                                    wagDetailStatus.className = 'fw-bold small text-warning';
+                                    wagDetailStatus.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Menunggu Pairing';
+                                }
+                                if (wagDetailPhone) wagDetailPhone.innerHTML = '<span class="text-muted fst-italic">Belum Terhubung</span>';
+                                if (wagDetailPairedAt) wagDetailPairedAt.innerHTML = '<i class="far fa-clock me-1"></i> Menunggu scan';
+                                wagLeftBox.innerHTML = `
+                                    <div class="p-1 bg-white rounded border mb-1 d-flex align-items-center justify-content-center" style="width: 122px; height: 122px;">
                                         ${data.qr_svg}
                                     </div>
-                                    <h6 class="fw-bold mb-1 fs-6">Scan QR to Link WhatsApp</h6>
-                                    <p class="text-muted small mb-2" style="font-size: 11px;">Buka WhatsApp &gt; Perangkat Tertaut &gt; Tautkan Perangkat. Tampilan terhubung otomatis begitu di-scan.</p>
+                                    <div class="fw-bold text-dark" style="font-size: 11px;"><i class="fas fa-qrcode me-1 text-primary"></i> Scan QR WhatsApp</div>
+                                    <div class="text-muted" style="font-size: 9.5px;">Buka WA &gt; Perangkat Tertaut</div>
                                 `;
                             }
                         })
                         .catch(function() {});
                 }
                 setInterval(checkWagStatus, 4000);
+            }
+
+            // AJAX Dispatch for Direct WhatsApp Test Form
+            const formWaTest = document.getElementById('formWaTestDirect');
+            const btnWaTestSubmit = document.getElementById('btnWaTestSubmit');
+            const waTestAlertBox = document.getElementById('waTestAlertBox');
+
+            if (formWaTest && btnWaTestSubmit) {
+                formWaTest.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const originalHtml = btnWaTestSubmit.innerHTML;
+                    btnWaTestSubmit.disabled = true;
+                    btnWaTestSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sending...';
+
+                    if (waTestAlertBox) {
+                        waTestAlertBox.className = 'alert alert-info py-1 px-2 small mb-2';
+                        waTestAlertBox.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Mengirim notifikasi WhatsApp via gateway...';
+                        waTestAlertBox.classList.remove('d-none');
+                    }
+
+                    const payload = {
+                        phone: document.getElementById('wa_direct_phone').value,
+                        message: document.getElementById('wa_direct_message').value
+                    };
+
+                    fetch(formWaTest.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(function(res) {
+                        return res.json().then(function(data) {
+                            return { ok: res.ok, data: data };
+                        });
+                    })
+                    .then(function(result) {
+                        btnWaTestSubmit.disabled = false;
+                        btnWaTestSubmit.innerHTML = originalHtml;
+
+                        if (result.ok && result.data.success) {
+                            if (waTestAlertBox) {
+                                waTestAlertBox.className = 'alert alert-success py-1 px-2 small mb-2';
+                                waTestAlertBox.innerHTML = '<i class="fas fa-check-circle me-1"></i> <strong>Berhasil:</strong> ' + result.data.message;
+                            }
+                        } else {
+                            if (waTestAlertBox) {
+                                waTestAlertBox.className = 'alert alert-danger py-1 px-2 small mb-2';
+                                waTestAlertBox.innerHTML = '<i class="fas fa-times-circle me-1"></i> <strong>Gagal:</strong> ' + (result.data.message || 'Gagal mengirim pesan.');
+                            }
+                        }
+                    })
+                    .catch(function(err) {
+                        btnWaTestSubmit.disabled = false;
+                        btnWaTestSubmit.innerHTML = originalHtml;
+                        if (waTestAlertBox) {
+                            waTestAlertBox.className = 'alert alert-danger py-1 px-2 small mb-2';
+                            waTestAlertBox.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> <strong>Error:</strong> ' + (err.message || 'Gagal menghubungi server.');
+                        }
+                    });
+                });
             }
         });
     </script>

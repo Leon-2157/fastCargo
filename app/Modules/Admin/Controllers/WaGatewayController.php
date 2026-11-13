@@ -8,6 +8,7 @@ use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -45,6 +46,7 @@ class WaGatewayController extends Controller
             'user' => $gatewayStatus['user'] ?? null,
             'qr_svg' => $snapshot['qrSvg'],
             'qr_available' => $snapshot['qrSvg'] !== null,
+            'paired_at' => $snapshot['pairedAt'] ?? 'Menunggu scan',
             'error' => $gatewayStatus['error'] ?? null,
         ])->header('Cache-Control', 'no-store');
     }
@@ -82,7 +84,7 @@ class WaGatewayController extends Controller
         return back()->with('success', 'WhatsApp gateway session reset. Generating a fresh pairing QR code...');
     }
 
-    public function testSend(Request $request): RedirectResponse
+    public function testSend(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'phone' => ['required', 'string', 'max:40'],
@@ -92,6 +94,13 @@ class WaGatewayController extends Controller
         $sent = $this->waClient->sendText($validated['phone'], $validated['message']);
 
         if (! $sent) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to dispatch test WhatsApp message via waG. Verify WAG_BASE_URL, WAG_SECRET, and gateway session status.',
+                ], 422);
+            }
+
             return back()
                 ->withInput()
                 ->with('error', 'Failed to dispatch test WhatsApp message via waG. Verify WAG_BASE_URL, WAG_SECRET, and gateway session status.');
@@ -106,6 +115,13 @@ class WaGatewayController extends Controller
             ]
         );
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Dispatched live WhatsApp alert to {$validated['phone']}.",
+            ]);
+        }
+
         return back()->with('success', "Dispatched live WhatsApp alert to {$validated['phone']}.");
     }
 
@@ -117,17 +133,34 @@ class WaGatewayController extends Controller
     }
 
     /**
-     * @return array{gatewayStatus: array<string, mixed>, isConnected: bool, qrSvg: ?string}
+     * @return array{gatewayStatus: array<string, mixed>, isConnected: bool, qrSvg: ?string, pairedAt: string}
      */
     private function resolveGatewaySnapshot(): array
     {
         $gatewayStatus = $this->waClient->status();
+        $wagSetting = AdmSystemSetting::where('key', 'wag_connected')->first();
 
         if ($gatewayStatus['reachable']) {
+            $wasConnected = (bool) ($wagSetting?->value ?? false);
+            $nowConnected = (bool) ($gatewayStatus['connected'] ?? false);
+
+            if ($nowConnected && ! $wasConnected) {
+                AdmSystemSetting::updateOrCreate(
+                    ['key' => 'wag_paired_at'],
+                    [
+                        'value' => now()->toIso8601String(),
+                        'type' => 'string',
+                        'description' => 'WhatsApp pairing timestamp',
+                    ]
+                );
+            } elseif (! $nowConnected) {
+                AdmSystemSetting::where('key', 'wag_paired_at')->delete();
+            }
+
             AdmSystemSetting::updateOrCreate(
                 ['key' => 'wag_connected'],
                 [
-                    'value' => $gatewayStatus['connected'] ? '1' : '0',
+                    'value' => $nowConnected ? '1' : '0',
                     'type' => 'boolean',
                     'description' => 'WhatsApp gateway connection status',
                 ]
@@ -135,14 +168,19 @@ class WaGatewayController extends Controller
         }
 
         $isConnected = $gatewayStatus['reachable']
-            ? (bool) $gatewayStatus['connected']
-            : (bool) (AdmSystemSetting::where('key', 'wag_connected')->value('value') ?? false);
+            ? (bool) ($gatewayStatus['connected'] ?? false)
+            : (bool) ($wagSetting?->value ?? false);
+
+        $pairedAtRaw = AdmSystemSetting::where('key', 'wag_paired_at')->value('value');
+        $pairedAtFormatted = $pairedAtRaw
+            ? Carbon::parse($pairedAtRaw)->format('d M Y, H:i').' WIB'
+            : ($isConnected && $wagSetting ? $wagSetting->updated_at?->format('d M Y, H:i').' WIB' : 'Menunggu scan');
 
         $qrSvg = null;
         if (($gatewayStatus['reachable'] ?? false) && ! $isConnected) {
             $qrPayload = $this->waClient->getQrCode();
             if ($qrPayload !== null) {
-                $qrSvg = $this->renderQrSvg($qrPayload, 220);
+                $qrSvg = $this->renderQrSvg($qrPayload, 120);
             }
         }
 
@@ -150,6 +188,7 @@ class WaGatewayController extends Controller
             'gatewayStatus' => $gatewayStatus,
             'isConnected' => $isConnected,
             'qrSvg' => $qrSvg,
+            'pairedAt' => $pairedAtFormatted,
         ];
     }
 }

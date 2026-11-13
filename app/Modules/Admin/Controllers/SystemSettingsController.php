@@ -10,6 +10,7 @@ use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -352,17 +353,34 @@ class SystemSettingsController extends Controller
     }
 
     /**
-     * @return array{gatewayStatus: array<string, mixed>, isConnected: bool, qrSvg: ?string, gatewayBaseUrl: string}
+     * @return array{gatewayStatus: array<string, mixed>, isConnected: bool, qrSvg: ?string, gatewayBaseUrl: string, pairedAt: string}
      */
     private function resolveGatewaySnapshot(): array
     {
         $gatewayStatus = $this->waClient->status();
+        $wagSetting = AdmSystemSetting::where('key', 'wag_connected')->first();
 
         if ($gatewayStatus['reachable']) {
+            $wasConnected = (bool) ($wagSetting?->value ?? false);
+            $nowConnected = (bool) ($gatewayStatus['connected'] ?? false);
+
+            if ($nowConnected && ! $wasConnected) {
+                AdmSystemSetting::updateOrCreate(
+                    ['key' => 'wag_paired_at'],
+                    [
+                        'value' => now()->toIso8601String(),
+                        'type' => 'string',
+                        'description' => 'WhatsApp pairing timestamp',
+                    ]
+                );
+            } elseif (! $nowConnected) {
+                AdmSystemSetting::where('key', 'wag_paired_at')->delete();
+            }
+
             AdmSystemSetting::updateOrCreate(
                 ['key' => 'wag_connected'],
                 [
-                    'value' => $gatewayStatus['connected'] ? '1' : '0',
+                    'value' => $nowConnected ? '1' : '0',
                     'type' => 'boolean',
                     'description' => 'WhatsApp gateway connection status',
                 ]
@@ -370,14 +388,19 @@ class SystemSettingsController extends Controller
         }
 
         $isConnected = $gatewayStatus['reachable']
-            ? (bool) $gatewayStatus['connected']
-            : (bool) (AdmSystemSetting::where('key', 'wag_connected')->value('value') ?? false);
+            ? (bool) ($gatewayStatus['connected'] ?? false)
+            : (bool) ($wagSetting?->value ?? false);
+
+        $pairedAtRaw = AdmSystemSetting::where('key', 'wag_paired_at')->value('value');
+        $pairedAtFormatted = $pairedAtRaw
+            ? Carbon::parse($pairedAtRaw)->format('d M Y, H:i').' WIB'
+            : ($isConnected && $wagSetting ? $wagSetting->updated_at?->format('d M Y, H:i').' WIB' : 'Menunggu scan');
 
         $qrSvg = null;
         if (($gatewayStatus['reachable'] ?? false) && ! $isConnected) {
             $qrPayload = $this->waClient->getQrCode();
             if ($qrPayload !== null) {
-                $renderer = new ImageRenderer(new RendererStyle(180), new SvgImageBackEnd);
+                $renderer = new ImageRenderer(new RendererStyle(120), new SvgImageBackEnd);
                 $qrSvg = (new Writer($renderer))->writeString($qrPayload);
             }
         }
@@ -387,6 +410,7 @@ class SystemSettingsController extends Controller
             'isConnected' => $isConnected,
             'qrSvg' => $qrSvg,
             'gatewayBaseUrl' => (string) config('wagateway.base_url', 'http://wag:8080'),
+            'pairedAt' => $pairedAtFormatted,
         ];
     }
 
