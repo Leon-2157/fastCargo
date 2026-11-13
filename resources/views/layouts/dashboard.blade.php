@@ -165,12 +165,6 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('admin.simulator.*') ? 'active' : '' }}"
-                                href="{{ route('admin.simulator.index') }}">
-                                <i class="fas fa-satellite-dish"></i><span>Webhook Simulator</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}"
                                 href="{{ route('admin.reports.index') }}">
                                 <i class="fas fa-file-export"></i><span>Reports &amp; Data Export</span>

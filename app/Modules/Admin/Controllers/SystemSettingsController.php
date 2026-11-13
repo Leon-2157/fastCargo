@@ -88,6 +88,18 @@ class SystemSettingsController extends Controller
             ->take(5)
             ->get();
 
+        $simulatorTransactions = PaymentTransaction::with(['invoice.booking.escrowLedger'])
+            ->whereIn('payment_status', ['PENDING', 'EXPIRED', 'FAILED', 'CANCELLED', 'SETTLEMENT'])
+            ->latest('created_at')
+            ->take(10)
+            ->get();
+
+        $simulatorRecentLogs = DB::table('adm_immutable_audit_trails')
+            ->whereIn('action', ['WEBHOOK_SIMULATOR_DISPATCHED', 'SIMULATOR_SANDBOX_TX_CREATED'])
+            ->latest('created_at')
+            ->take(10)
+            ->get();
+
         $danaConfig = [
             'dana_env' => (string) $danaEnv,
             'dana_merchant_id' => (string) $danaMerchantId,
@@ -124,6 +136,10 @@ class SystemSettingsController extends Controller
             'waConfig' => $waSnapshot,
             'danaConfig' => $danaConfig,
             'paygConfig' => $paygConfig,
+            'simulatorTransactions' => $simulatorTransactions,
+            'simulatorRecentLogs' => $simulatorRecentLogs,
+            'transactions' => $simulatorTransactions,
+            'recentLogs' => $simulatorRecentLogs,
         ]);
     }
 

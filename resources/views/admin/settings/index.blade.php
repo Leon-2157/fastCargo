@@ -2,6 +2,28 @@
 
 @section('title', 'Platform Settings & System Integrations')
 
+@push('styles')
+<style>
+    .json-viewer-box {
+        background: #0f172a;
+        color: #38bdf8;
+        font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+        font-size: 11.5px;
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid #1e293b;
+        max-height: 240px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+    .scenario-btn-group input:checked + label {
+        font-weight: 700;
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+    }
+</style>
+@endpush
+
 @section('content')
     <div class="d-sm-flex justify-content-between align-items-center mb-4">
         <div>
@@ -765,15 +787,186 @@
                                             <strong>Smart Simulator Engine:</strong> Sandbox bawaan tanpa uang riil untuk evaluasi kelulusan skripsi, presentasi dosen, dan continuous integration (CI) tests.
                                         </div>
 
-                                        <div class="p-3 border rounded bg-white shadow-sm mb-3 text-center">
-                                            <i class="fas fa-vial fa-2x text-success mb-2"></i>
-                                            <h6 class="fw-bold text-dark">Instant Settlement Testbed</h6>
-                                            <p class="text-muted small mb-3">
-                                                Simulasi transaksi 1-klik untuk memeriksa alur escrow (milestone 30/40/30) dan notifikasi WhatsApp otomatis.
+                                        <!-- Quick 1-Click Sandbox Generator -->
+                                        <div class="p-3 bg-light rounded-3 mb-3 border">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="small fw-bold text-dark">Quick 1-Click Sandbox Generator</span>
+                                                <span class="badge bg-primary">Instant Isolated</span>
+                                            </div>
+                                            <p class="text-muted small mb-2" style="font-size: 11px;">
+                                                Generate an isolated sandbox invoice and pending transaction without manual booking:
                                             </p>
-                                            <a href="{{ route('admin.simulator.index', [], false) }}" class="btn btn-success btn-sm px-4 fw-bold shadow-sm">
-                                                <i class="fas fa-external-link-alt me-1"></i> Buka Webhook Testbed Console
-                                            </a>
+                                            <button type="button" id="btnGenSandboxDirect" class="btn btn-outline-primary btn-sm w-100 fw-bold">
+                                                <i class="fas fa-magic me-1"></i> Generate Sandbox Test Invoice
+                                            </button>
+                                        </div>
+
+                                        <!-- Callback Scenario Controls -->
+                                        <div class="border rounded p-3 bg-white shadow-sm mb-3">
+                                            <div class="mb-3">
+                                                <label class="form-label small text-muted fw-bold mb-1" for="selectTransactionDirect">Select Pending Transaction</label>
+                                                <select class="form-select form-select-sm" id="selectTransactionDirect">
+                                                    <option value="">-- Choose Existing Transaction or Enter Manually --</option>
+                                                    @foreach(($simulatorTransactions ?? $transactions ?? []) as $simTx)
+                                                        <option value="{{ $simTx->transaction_ref }}"
+                                                            data-amount="{{ (float) $simTx->amount }}"
+                                                            data-invoice="{{ $simTx->invoice?->invoice_number }}"
+                                                            data-tx-status="{{ $simTx->payment_status }}"
+                                                            data-invoice-status="{{ $simTx->invoice?->payment_status ?? 'PENDING' }}"
+                                                            data-escrow-status="{{ $simTx->invoice?->booking?->escrowLedger?->escrow_status ?? 'NOT_FUNDED' }}"
+                                                            data-escrow-amount="{{ (float) ($simTx->invoice?->booking?->escrowLedger?->total_paid_amount ?? 0) }}">
+                                                            {{ $simTx->transaction_ref }} ({{ $simTx->invoice?->invoice_number ?? 'No INV' }}) — IDR {{ number_format((float) $simTx->amount) }} [{{ $simTx->payment_status }}]
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label small text-muted fw-bold mb-1" for="partnerRefDirect">Partner Reference No (partnerReferenceNo)</label>
+                                                <input type="text" class="form-control form-control-sm font-monospace" id="partnerRefDirect" placeholder="SANDBOX-DANA-XXXX">
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label small text-muted fw-bold mb-1">Callback Status Scenario</label>
+                                                <div class="scenario-btn-group d-flex flex-wrap gap-2">
+                                                    <input type="radio" class="btn-check" name="direct_scenario" id="scenSettlementDirect" value="SETTLEMENT" checked>
+                                                    <label class="btn btn-sm btn-outline-success" for="scenSettlementDirect">
+                                                        <i class="fas fa-check-circle me-1"></i> SETTLEMENT (00)
+                                                    </label>
+
+                                                    <input type="radio" class="btn-check" name="direct_scenario" id="scenExpiredDirect" value="EXPIRED">
+                                                    <label class="btn btn-sm btn-outline-secondary" for="scenExpiredDirect">
+                                                        <i class="fas fa-clock me-1"></i> EXPIRED (01)
+                                                    </label>
+
+                                                    <input type="radio" class="btn-check" name="direct_scenario" id="scenFailedDirect" value="FAILED">
+                                                    <label class="btn btn-sm btn-outline-danger" for="scenFailedDirect">
+                                                        <i class="fas fa-times-circle me-1"></i> FAILED (02)
+                                                    </label>
+
+                                                    <input type="radio" class="btn-check" name="direct_scenario" id="scenCancelledDirect" value="CANCELLED">
+                                                    <label class="btn btn-sm btn-outline-dark" for="scenCancelledDirect">
+                                                        <i class="fas fa-ban me-1"></i> CANCELLED (03)
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label small text-muted fw-bold mb-1" for="amountDirect">Transaction Amount (IDR)</label>
+                                                <input type="number" class="form-control form-control-sm" id="amountDirect" value="6500000" step="1000">
+                                            </div>
+
+                                            <button type="button" id="btnDispatchDirect" class="btn btn-primary btn-sm d-block w-100 py-2 fw-bold shadow-sm">
+                                                <i class="fas fa-paper-plane me-1"></i> Dispatch Simulated Webhook
+                                            </button>
+                                        </div>
+
+                                        <!-- Live Ledger State Indicators -->
+                                        <div class="border rounded p-3 bg-light shadow-sm mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                                <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                                    <i class="fas fa-search-dollar me-1 text-primary"></i> Live Ledger State Indicators
+                                                </span>
+                                                <span id="responseStatusBadgeDirect" class="badge bg-secondary" style="font-size: 10px;">Ready</span>
+                                            </div>
+                                            <div class="row g-2">
+                                                <div class="col-4">
+                                                    <div class="p-2 border rounded text-center bg-white">
+                                                        <div class="text-muted small" style="font-size: 10px;">TX Status</div>
+                                                        <div class="fw-bold mt-1" id="stateTxDirect" style="font-size: 11px;">—</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="p-2 border rounded text-center bg-white">
+                                                        <div class="text-muted small" style="font-size: 10px;">Invoice Status</div>
+                                                        <div class="fw-bold mt-1" id="stateInvoiceDirect" style="font-size: 11px;">—</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="p-2 border rounded text-center bg-white">
+                                                        <div class="text-muted small" style="font-size: 10px;">Escrow Ledger</div>
+                                                        <div class="fw-bold mt-1" id="stateEscrowDirect" style="font-size: 11px;">—</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Foldable/collapsible JSON viewer box -->
+                                        <div class="accordion mb-3" id="directJsonAccordion">
+                                            <div class="accordion-item border rounded">
+                                                <h2 class="accordion-header" id="headingDirectPayload">
+                                                    <button class="accordion-button collapsed py-2 px-3 small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDirectPayload" aria-expanded="false" aria-controls="collapseDirectPayload">
+                                                        <i class="fas fa-code me-2 text-primary"></i> Raw Dispatch Payload (Dana Snap Standard)
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseDirectPayload" class="accordion-collapse collapse" aria-labelledby="headingDirectPayload" data-bs-parent="#directJsonAccordion">
+                                                    <div class="accordion-body p-2 bg-dark">
+                                                        <div class="d-flex justify-content-end mb-1">
+                                                            <button type="button" class="btn btn-link btn-sm text-info text-decoration-none p-0" id="btnCopyDirectReq" style="font-size: 11px;">
+                                                                <i class="fas fa-copy me-1"></i> Copy JSON
+                                                            </button>
+                                                        </div>
+                                                        <pre class="json-viewer-box mb-0" id="jsonDirectRequest">// Webhook payload will appear here upon dispatch...</pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="accordion-item border rounded mt-2">
+                                                <h2 class="accordion-header" id="headingDirectResponse">
+                                                    <button class="accordion-button collapsed py-2 px-3 small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDirectResponse" aria-expanded="false" aria-controls="collapseDirectResponse">
+                                                        <i class="fas fa-terminal me-2 text-success"></i> Server Response Body
+                                                    </button>
+                                                </h2>
+                                                <div id="collapseDirectResponse" class="accordion-collapse collapse" aria-labelledby="headingDirectResponse" data-bs-parent="#directJsonAccordion">
+                                                    <div class="accordion-body p-2 bg-dark">
+                                                        <div class="d-flex justify-content-end mb-1">
+                                                            <button type="button" class="btn btn-link btn-sm text-info text-decoration-none p-0" id="btnCopyDirectRes" style="font-size: 11px;">
+                                                                <i class="fas fa-copy me-1"></i> Copy JSON
+                                                            </button>
+                                                        </div>
+                                                        <pre class="json-viewer-box mb-0" id="jsonDirectResponse" style="color: #4ade80;">// Server response will appear here...</pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Simulator Audit History Collapsible -->
+                                        <div class="border rounded p-3 bg-light shadow-sm mb-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                                    <i class="fas fa-history me-1 text-secondary"></i> Simulator Audit History
+                                                </span>
+                                                <button class="btn btn-sm btn-link text-decoration-none p-0 small" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAuditHistory" aria-expanded="false" style="font-size: 11px;">
+                                                    <i class="fas fa-chevron-down me-1"></i> View History
+                                                </button>
+                                            </div>
+                                            <div class="collapse mt-2" id="collapseAuditHistory">
+                                                <div class="table-responsive bg-white border rounded">
+                                                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 10.5px;">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Waktu</th>
+                                                                <th>Action</th>
+                                                                <th>Target Ref</th>
+                                                                <th>IP</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="simulatorAuditTableBody">
+                                                            @forelse(($simulatorRecentLogs ?? $recentLogs ?? []) as $log)
+                                                                <tr>
+                                                                    <td class="text-nowrap">{{ \Carbon\Carbon::parse($log->created_at)->format('H:i:s') }}</td>
+                                                                    <td><span class="badge bg-light text-dark border">{{ $log->action }}</span></td>
+                                                                    <td class="font-monospace text-primary text-truncate" style="max-width: 100px;">{{ $log->target_id ?? 'N/A' }}</td>
+                                                                    <td>{{ $log->ip_address }}</td>
+                                                                </tr>
+                                                            @empty
+                                                                <tr class="audit-empty-row">
+                                                                    <td colspan="4" class="text-center text-muted py-2">Belum ada riwayat simulasi.</td>
+                                                                </tr>
+                                                            @endforelse
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -829,9 +1022,9 @@
                                         <div class="text-muted mb-2" style="font-size: 11px;">
                                             Mendukung ShopeePay, GoPay, DANA, OVO, Virtual Account BCA/Mandiri, dan ASEAN PayNow/FPX.
                                         </div>
-                                        <a href="{{ route('admin.simulator.index', [], false) }}" class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size: 11px;">
-                                            <i class="fas fa-external-link-alt me-1"></i> Buka Webhook Testbed
-                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" id="btnSwitchToSimulatorTab" style="font-size: 11px;">
+                                            <i class="fas fa-flask me-1"></i> Buka Webhook Testbed
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -845,60 +1038,60 @@
                                     <span class="badge bg-secondary" style="font-size: 10px;">5 Terakhir</span>
                                 </div>
 
-                                @if ($paygConfig['recent_transactions']->isEmpty())
-                                    <div class="text-center py-4">
-                                        <i class="fas fa-inbox text-muted fa-2x mb-2 opacity-50"></i>
-                                        <div class="small fw-bold text-muted">Belum ada transaksi pembayaran</div>
-                                        <div class="text-muted" style="font-size: 11px;">
-                                            Transaksi QRIS dari invoice customer akan otomatis tercatat di sini dan memicu escrow ledger.
-                                        </div>
+                                <div id="recentTxEmpty" class="text-center py-4 {{ $paygConfig['recent_transactions']->isEmpty() ? '' : 'd-none' }}">
+                                    <i class="fas fa-inbox text-muted fa-2x mb-2 opacity-50"></i>
+                                    <div class="small fw-bold text-muted">Belum ada transaksi pembayaran</div>
+                                    <div class="text-muted" style="font-size: 11px;">
+                                        Transaksi QRIS dari invoice customer akan otomatis tercatat di sini dan memicu escrow ledger.
                                     </div>
-                                @else
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-hover align-middle mb-0" style="font-size: 11.5px;">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>Ref / Gateway</th>
-                                                    <th>Nominal</th>
-                                                    <th class="text-center">Status</th>
-                                                    <th class="text-end">Waktu</th>
+                                </div>
+
+                                <div class="table-responsive {{ $paygConfig['recent_transactions']->isEmpty() ? 'd-none' : '' }}" id="recentTxTableWrapper">
+                                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 11.5px;">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Ref / Gateway</th>
+                                                <th>Nominal</th>
+                                                <th class="text-center">Status</th>
+                                                <th class="text-end">Waktu</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="recentTransactionsTableBody">
+                                            @foreach ($paygConfig['recent_transactions'] as $tx)
+                                                <tr data-tx-ref="{{ $tx->transaction_ref }}">
+                                                    <td>
+                                                        <div class="fw-bold font-monospace text-truncate tx-ref" style="max-width: 120px;" title="{{ $tx->transaction_ref }}">
+                                                            {{ $tx->transaction_ref }}
+                                                        </div>
+                                                        <div class="text-muted" style="font-size: 10px;">
+                                                            <span class="badge bg-light text-dark border">{{ $tx->payment_gateway ?? 'PAYG' }}</span>
+                                                            <span class="tx-invoice">{{ $tx->invoice?->invoice_number ?? '-' }}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="fw-bold text-dark tx-amount">
+                                                        Rp {{ number_format((float) $tx->amount, 0, ',', '.') }}
+                                                    </td>
+                                                    <td class="text-center tx-status-cell">
+                                                        @if ($tx->payment_status === 'SETTLEMENT')
+                                                            <span class="badge bg-success">SETTLED</span>
+                                                        @elseif ($tx->payment_status === 'PENDING')
+                                                            <span class="badge bg-warning text-dark">PENDING</span>
+                                                        @elseif ($tx->payment_status === 'EXPIRED')
+                                                            <span class="badge bg-secondary">EXPIRED</span>
+                                                        @elseif ($tx->payment_status === 'CANCELLED')
+                                                            <span class="badge bg-dark">CANCELLED</span>
+                                                        @else
+                                                            <span class="badge bg-danger">{{ $tx->payment_status }}</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-end text-muted tx-time" style="font-size: 10.5px;">
+                                                        {{ $tx->created_at->diffForHumans() }}
+                                                    </td>
                                                 </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach ($paygConfig['recent_transactions'] as $tx)
-                                                    <tr>
-                                                        <td>
-                                                            <div class="fw-bold font-monospace text-truncate" style="max-width: 120px;" title="{{ $tx->transaction_ref }}">
-                                                                {{ $tx->transaction_ref }}
-                                                            </div>
-                                                            <div class="text-muted" style="font-size: 10px;">
-                                                                <span class="badge bg-light text-dark border">{{ $tx->payment_gateway ?? 'PAYG' }}</span>
-                                                                {{ $tx->invoice?->invoice_number ?? '-' }}
-                                                            </div>
-                                                        </td>
-                                                        <td class="fw-bold text-dark">
-                                                            Rp {{ number_format((float) $tx->amount, 0, ',', '.') }}
-                                                        </td>
-                                                        <td class="text-center">
-                                                            @if ($tx->payment_status === 'SETTLEMENT')
-                                                                <span class="badge bg-success">SETTLED</span>
-                                                            @elseif ($tx->payment_status === 'PENDING')
-                                                                <span class="badge bg-warning text-dark">PENDING</span>
-                                                            @elseif ($tx->payment_status === 'EXPIRED')
-                                                                <span class="badge bg-secondary">EXPIRED</span>
-                                                            @else
-                                                                <span class="badge bg-danger">{{ $tx->payment_status }}</span>
-                                                            @endif
-                                                        </td>
-                                                        <td class="text-end text-muted" style="font-size: 10.5px;">
-                                                            {{ $tx->created_at->diffForHumans() }}
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                @endif
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1646,6 +1839,481 @@
                         danaSecretInput.type = 'password';
                         iconToggleDanaSecret.className = 'fas fa-eye';
                     }
+                });
+            }
+
+            // Embedded PayG Smart Simulator Logic
+            const btnGenDirect = document.getElementById('btnGenSandboxDirect');
+            const selectTxDirect = document.getElementById('selectTransactionDirect');
+            const partnerRefDirect = document.getElementById('partnerRefDirect');
+            const amountDirect = document.getElementById('amountDirect');
+            const btnDispatchDirect = document.getElementById('btnDispatchDirect');
+            const statusBadgeDirect = document.getElementById('responseStatusBadgeDirect');
+
+            const stateTxDirect = document.getElementById('stateTxDirect');
+            const stateInvoiceDirect = document.getElementById('stateInvoiceDirect');
+            const stateEscrowDirect = document.getElementById('stateEscrowDirect');
+
+            const jsonDirectReq = document.getElementById('jsonDirectRequest');
+            const jsonDirectRes = document.getElementById('jsonDirectResponse');
+
+            const recentTxEmpty = document.getElementById('recentTxEmpty');
+            const recentTxTableWrapper = document.getElementById('recentTxTableWrapper');
+            const recentTxTableBody = document.getElementById('recentTransactionsTableBody');
+            const simulatorAuditTableBody = document.getElementById('simulatorAuditTableBody');
+
+            // Prepend new row to the embedded audit trail table
+            function prependAuditLog(action, targetRef) {
+                if (!simulatorAuditTableBody) return;
+                const emptyRow = simulatorAuditTableBody.querySelector('.audit-empty-row');
+                if (emptyRow) emptyRow.remove();
+
+                const now = new Date();
+                const timeStr = String(now.getHours()).padStart(2, '0') + ':' +
+                                String(now.getMinutes()).padStart(2, '0') + ':' +
+                                String(now.getSeconds()).padStart(2, '0');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-nowrap">${timeStr}</td>
+                    <td><span class="badge bg-light text-dark border">${action}</span></td>
+                    <td class="font-monospace text-primary text-truncate" style="max-width: 100px;">${targetRef || 'N/A'}</td>
+                    <td>127.0.0.1</td>
+                `;
+                simulatorAuditTableBody.prepend(tr);
+            }
+
+            // Safe clipboard copy with fallback
+            function copyDirectJson(text, btnElement) {
+                if (!text || text.startsWith('//')) return;
+                const successCallback = () => {
+                    const orig = btnElement.innerHTML;
+                    btnElement.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
+                    setTimeout(() => { btnElement.innerHTML = orig; }, 2000);
+                };
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(successCallback).catch(() => fallbackDirectCopy(text, successCallback));
+                } else {
+                    fallbackDirectCopy(text, successCallback);
+                }
+            }
+
+            function fallbackDirectCopy(text, callback) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                try {
+                    document.execCommand('copy');
+                    callback();
+                } catch (e) {}
+                document.body.removeChild(ta);
+            }
+
+            function updateRecentTransactionsTable(ref, status, amount, invoiceNo) {
+                if (recentTxEmpty) recentTxEmpty.classList.add('d-none');
+                if (recentTxTableWrapper) recentTxTableWrapper.classList.remove('d-none');
+
+                let badgeHtml = '';
+                const upperStatus = (status || '').toUpperCase();
+                let hlClass = 'table-danger';
+
+                if (upperStatus === 'SETTLEMENT' || upperStatus === 'SETTLED') {
+                    badgeHtml = '<span class="badge bg-success">SETTLED</span>';
+                    hlClass = 'table-success';
+                } else if (upperStatus === 'PENDING') {
+                    badgeHtml = '<span class="badge bg-warning text-dark">PENDING</span>';
+                    hlClass = 'table-warning';
+                } else if (upperStatus === 'EXPIRED') {
+                    badgeHtml = '<span class="badge bg-secondary">EXPIRED</span>';
+                    hlClass = 'table-secondary';
+                } else if (upperStatus === 'CANCELLED') {
+                    badgeHtml = '<span class="badge bg-dark">CANCELLED</span>';
+                    hlClass = 'table-secondary';
+                } else {
+                    badgeHtml = `<span class="badge bg-danger">${upperStatus}</span>`;
+                }
+
+                const existingRow = recentTxTableBody ? recentTxTableBody.querySelector(`tr[data-tx-ref="${ref}"]`) : null;
+                if (existingRow) {
+                    const statusCell = existingRow.querySelector('.tx-status-cell');
+                    if (statusCell) statusCell.innerHTML = badgeHtml;
+                    const timeCell = existingRow.querySelector('.tx-time');
+                    if (timeCell) timeCell.textContent = 'Baru saja';
+                    if (amount) {
+                        const amountCell = existingRow.querySelector('.tx-amount');
+                        if (amountCell) amountCell.textContent = 'Rp ' + Number(amount).toLocaleString('id-ID');
+                    }
+                    if (invoiceNo) {
+                        const invSpan = existingRow.querySelector('.tx-invoice');
+                        if (invSpan && (!invSpan.textContent || invSpan.textContent.trim() === '-')) {
+                            invSpan.textContent = invoiceNo;
+                        }
+                    }
+                    recentTxTableBody.prepend(existingRow);
+                    existingRow.classList.remove('table-success', 'table-warning', 'table-secondary', 'table-danger');
+                    existingRow.classList.add(hlClass);
+                    setTimeout(() => existingRow.classList.remove(hlClass), 2500);
+                } else if (recentTxTableBody) {
+                    const newRow = document.createElement('tr');
+                    newRow.dataset.txRef = ref;
+                    newRow.innerHTML = `
+                        <td>
+                            <div class="fw-bold font-monospace text-truncate tx-ref" style="max-width: 120px;" title="${ref}">
+                                ${ref}
+                            </div>
+                            <div class="text-muted" style="font-size: 10px;">
+                                <span class="badge bg-light text-dark border">PAYG</span>
+                                <span class="tx-invoice">${invoiceNo || '-'}</span>
+                            </div>
+                        </td>
+                        <td class="fw-bold text-dark tx-amount">
+                            Rp ${Number(amount || 0).toLocaleString('id-ID')}
+                        </td>
+                        <td class="text-center tx-status-cell">
+                            ${badgeHtml}
+                        </td>
+                        <td class="text-end text-muted tx-time" style="font-size: 10.5px;">
+                            Baru saja
+                        </td>
+                    `;
+                    recentTxTableBody.prepend(newRow);
+                    newRow.classList.add(hlClass);
+                    setTimeout(() => newRow.classList.remove(hlClass), 2500);
+                }
+            }
+
+            // Prevent accidental form submission on Enter in simulator inputs
+            if (partnerRefDirect) {
+                partnerRefDirect.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (btnDispatchDirect) btnDispatchDirect.click();
+                    }
+                });
+            }
+            if (amountDirect) {
+                amountDirect.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (btnDispatchDirect) btnDispatchDirect.click();
+                    }
+                });
+            }
+
+            // Quick Switch button from Right Column to Tab 3
+            const btnSwitchToSimulator = document.getElementById('btnSwitchToSimulatorTab');
+            if (btnSwitchToSimulator) {
+                btnSwitchToSimulator.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const tabBtn = document.getElementById('tab-simulator-btn');
+                    if (tabBtn) {
+                        tabBtn.click();
+                        tabBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+            }
+
+            // Auto-activate Tab 3 if URL hash or parameter requests it
+            if (window.location.hash === '#tab-simulator' || window.location.search.includes('tab=simulator')) {
+                const tabBtn = document.getElementById('tab-simulator-btn');
+                if (tabBtn) {
+                    setTimeout(() => {
+                        tabBtn.click();
+                        tabBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 150);
+                }
+            }
+
+            // 1-Click Sandbox Test Generator
+            if (btnGenDirect) {
+                btnGenDirect.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    btnGenDirect.disabled = true;
+                    btnGenDirect.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generating Sandbox TX...';
+
+                    fetch('{{ route("admin.simulator.generate", [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnGenDirect.disabled = false;
+                        btnGenDirect.innerHTML = '<i class="fas fa-magic me-1"></i> Generate Sandbox Test Invoice';
+
+                        if (data.success && data.transaction) {
+                            if (partnerRefDirect) partnerRefDirect.value = data.transaction.transaction_ref;
+                            if (amountDirect) amountDirect.value = data.transaction.amount;
+
+                            if (selectTxDirect) {
+                                const opt = document.createElement('option');
+                                opt.value = data.transaction.transaction_ref;
+                                opt.dataset.amount = data.transaction.amount;
+                                opt.dataset.invoice = data.transaction.invoice_number;
+                                opt.dataset.txStatus = 'PENDING';
+                                opt.dataset.invoiceStatus = 'PENDING';
+                                opt.dataset.escrowStatus = 'NOT_FUNDED';
+                                opt.dataset.escrowAmount = '0.00';
+                                opt.textContent = `${data.transaction.transaction_ref} (${data.transaction.invoice_number}) — IDR ${Number(data.transaction.amount).toLocaleString('id-ID')} [PENDING]`;
+
+                                // Keep the placeholder at index 0
+                                if (selectTxDirect.children.length > 0 && selectTxDirect.children[0].value === '') {
+                                    selectTxDirect.children[0].insertAdjacentElement('afterend', opt);
+                                } else {
+                                    selectTxDirect.prepend(opt);
+                                }
+                                selectTxDirect.value = data.transaction.transaction_ref;
+                            }
+
+                            if (stateTxDirect) stateTxDirect.innerHTML = '<span class="badge bg-warning text-dark">PENDING</span>';
+                            if (stateInvoiceDirect) stateInvoiceDirect.innerHTML = '<span class="badge bg-warning text-dark">PENDING</span>';
+                            if (stateEscrowDirect) stateEscrowDirect.innerHTML = '<span class="badge bg-secondary">NOT_FUNDED</span>';
+
+                            updateRecentTransactionsTable(
+                                data.transaction.transaction_ref,
+                                'PENDING',
+                                data.transaction.amount,
+                                data.transaction.invoice_number
+                            );
+
+                            prependAuditLog('SIMULATOR_SANDBOX_TX_CREATED', data.transaction.transaction_ref);
+                        } else {
+                            alert(data.message || 'Gagal generate sandbox transaction');
+                        }
+                    })
+                    .catch(err => {
+                        btnGenDirect.disabled = false;
+                        btnGenDirect.innerHTML = '<i class="fas fa-magic me-1"></i> Generate Sandbox Test Invoice';
+                        alert('Network Error saat generate sandbox: ' + err);
+                    });
+                });
+            }
+
+            // Dropdown selection change
+            if (selectTxDirect) {
+                selectTxDirect.addEventListener('change', function() {
+                    const selected = selectTxDirect.options[selectTxDirect.selectedIndex];
+                    if (selected && selected.value) {
+                        if (partnerRefDirect) partnerRefDirect.value = selected.value;
+                        if (selected.dataset.amount && amountDirect) {
+                            amountDirect.value = selected.dataset.amount;
+                        }
+
+                        // Update Live Ledger Indicators to reflect selected transaction
+                        if (selected.dataset.txStatus && stateTxDirect) {
+                            const st = selected.dataset.txStatus;
+                            const cls = st === 'SETTLEMENT' ? 'bg-success' : (st === 'PENDING' ? 'bg-warning text-dark' : (st === 'EXPIRED' || st === 'CANCELLED' ? 'bg-secondary' : 'bg-danger'));
+                            stateTxDirect.innerHTML = `<span class="badge ${cls}">${st}</span>`;
+                        }
+                        if (selected.dataset.invoiceStatus && stateInvoiceDirect) {
+                            const invSt = selected.dataset.invoiceStatus;
+                            const cls = invSt === 'PAID_SETTLED' ? 'bg-success' : (invSt === 'PENDING' ? 'bg-warning text-dark' : 'bg-danger');
+                            stateInvoiceDirect.innerHTML = `<span class="badge ${cls}">${invSt}</span>`;
+                        }
+                        if (selected.dataset.escrowStatus && stateEscrowDirect) {
+                            const escSt = selected.dataset.escrowStatus;
+                            const cls = escSt === 'HELD_IN_ESCROW' ? 'bg-success' : 'bg-secondary';
+                            const escAmt = selected.dataset.escrowAmount ? Number(selected.dataset.escrowAmount).toLocaleString('id-ID') : '0';
+                            const text = escSt === 'HELD_IN_ESCROW' ? `HELD (Rp ${escAmt})` : escSt;
+                            stateEscrowDirect.innerHTML = `<span class="badge ${cls}">${text}</span>`;
+                        }
+                    } else if (selected && !selected.value) {
+                        if (partnerRefDirect) partnerRefDirect.value = '';
+                        if (stateTxDirect) stateTxDirect.innerHTML = '—';
+                        if (stateInvoiceDirect) stateInvoiceDirect.innerHTML = '—';
+                        if (stateEscrowDirect) stateEscrowDirect.innerHTML = '—';
+                    }
+                });
+            }
+
+            // Webhook Dispatcher
+            if (btnDispatchDirect) {
+                btnDispatchDirect.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const ref = partnerRefDirect ? partnerRefDirect.value.trim() : '';
+                    const amount = (amountDirect && amountDirect.value.trim() !== '') ? amountDirect.value.trim() : '6500000';
+                    const scenarioRadio = document.querySelector('input[name="direct_scenario"]:checked');
+                    const scenario = scenarioRadio ? scenarioRadio.value : 'SETTLEMENT';
+
+                    if (!ref) {
+                        alert('Mohon masukkan atau pilih Partner Reference No.');
+                        if (partnerRefDirect) partnerRefDirect.focus();
+                        return;
+                    }
+
+                    btnDispatchDirect.disabled = true;
+                    btnDispatchDirect.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Dispatching Webhook...';
+                    if (statusBadgeDirect) {
+                        statusBadgeDirect.className = 'badge bg-secondary';
+                        statusBadgeDirect.textContent = 'Sending...';
+                    }
+
+                    fetch('{{ route("admin.simulator.fire", [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            partnerReferenceNo: ref,
+                            scenario: scenario,
+                            amount: amount
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnDispatchDirect.disabled = false;
+                        btnDispatchDirect.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Dispatch Simulated Webhook';
+
+                        if (statusBadgeDirect) {
+                            if (data.http_status === 200) {
+                                statusBadgeDirect.className = 'badge bg-success';
+                                statusBadgeDirect.textContent = `HTTP ${data.http_status} OK`;
+                            } else {
+                                statusBadgeDirect.className = 'badge bg-danger';
+                                statusBadgeDirect.textContent = `HTTP ${data.http_status || 'ERR'}`;
+                            }
+                        }
+
+                        // Render payload and response JSON
+                        if (jsonDirectReq) {
+                            jsonDirectReq.textContent = typeof data.request_payload === 'string'
+                                ? data.request_payload
+                                : JSON.stringify(data.request_payload, null, 2);
+                        }
+                        if (jsonDirectRes) {
+                            jsonDirectRes.textContent = typeof data.response_payload === 'string'
+                                ? data.response_payload
+                                : JSON.stringify(data.response_payload, null, 2);
+                        }
+
+                        // Auto expand response collapse box
+                        const collapseResEl = document.getElementById('collapseDirectResponse');
+                        if (collapseResEl && window.bootstrap && window.bootstrap.Collapse) {
+                            bootstrap.Collapse.getOrCreateInstance(collapseResEl).show();
+                        }
+
+                        // Update Live Ledger Indicators
+                        if (data.ledger_state) {
+                            const txStatus = data.ledger_state.transaction_status;
+                            const invStatus = data.ledger_state.invoice_status;
+                            const escStatus = data.ledger_state.escrow_status;
+                            const escAmount = data.ledger_state.escrow_amount_held;
+
+                            if (stateTxDirect) {
+                                const txClass = txStatus === 'SETTLEMENT' ? 'bg-success' : (txStatus === 'PENDING' ? 'bg-warning text-dark' : (txStatus === 'EXPIRED' || txStatus === 'CANCELLED' ? 'bg-secondary' : 'bg-danger'));
+                                stateTxDirect.innerHTML = `<span class="badge ${txClass}">${txStatus}</span>`;
+                            }
+
+                            if (stateInvoiceDirect) {
+                                const invClass = invStatus === 'PAID_SETTLED' ? 'bg-success' : (invStatus === 'PENDING' ? 'bg-warning text-dark' : 'bg-danger');
+                                stateInvoiceDirect.innerHTML = `<span class="badge ${invClass}">${invStatus}</span>`;
+                            }
+
+                            if (stateEscrowDirect) {
+                                const escClass = escStatus === 'HELD_IN_ESCROW' ? 'bg-success' : 'bg-secondary';
+                                const escText = escStatus === 'HELD_IN_ESCROW' ? `HELD (Rp ${Number(escAmount).toLocaleString('id-ID')})` : escStatus;
+                                stateEscrowDirect.innerHTML = `<span class="badge ${escClass}">${escText}</span>`;
+                            }
+                        }
+
+                        // Determine resolved status
+                        const resolvedTxStatus = (data.ledger_state && data.ledger_state.transaction_status && data.ledger_state.transaction_status !== 'NOT_FOUND')
+                            ? data.ledger_state.transaction_status
+                            : scenario;
+
+                        // Lookup invoice number if known
+                        let invoiceNo = null;
+                        if (selectTxDirect) {
+                            for (let i = 0; i < selectTxDirect.options.length; i++) {
+                                if (selectTxDirect.options[i].value === ref) {
+                                    invoiceNo = selectTxDirect.options[i].dataset.invoice || null;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Immediately update "Riwayat Transaksi Masuk" table on right column
+                        updateRecentTransactionsTable(ref, resolvedTxStatus, amount, invoiceNo);
+
+                        // Update or insert option in dropdown
+                        if (selectTxDirect) {
+                            let found = false;
+                            for (let i = 0; i < selectTxDirect.options.length; i++) {
+                                if (selectTxDirect.options[i].value === ref) {
+                                    const inv = selectTxDirect.options[i].dataset.invoice || 'INV';
+                                    const amt = selectTxDirect.options[i].dataset.amount || amount;
+                                    selectTxDirect.options[i].textContent = `${ref} (${inv}) — IDR ${Number(amt).toLocaleString('id-ID')} [${resolvedTxStatus}]`;
+                                    selectTxDirect.options[i].dataset.txStatus = resolvedTxStatus;
+                                    if (data.ledger_state) {
+                                        selectTxDirect.options[i].dataset.invoiceStatus = data.ledger_state.invoice_status;
+                                        selectTxDirect.options[i].dataset.escrowStatus = data.ledger_state.escrow_status;
+                                        selectTxDirect.options[i].dataset.escrowAmount = data.ledger_state.escrow_amount_held;
+                                    }
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                const opt = document.createElement('option');
+                                opt.value = ref;
+                                opt.dataset.amount = amount;
+                                opt.dataset.invoice = 'MANUAL';
+                                opt.dataset.txStatus = resolvedTxStatus;
+                                if (data.ledger_state) {
+                                    opt.dataset.invoiceStatus = data.ledger_state.invoice_status;
+                                    opt.dataset.escrowStatus = data.ledger_state.escrow_status;
+                                    opt.dataset.escrowAmount = data.ledger_state.escrow_amount_held;
+                                }
+                                opt.textContent = `${ref} (MANUAL) — IDR ${Number(amount).toLocaleString('id-ID')} [${resolvedTxStatus}]`;
+                                if (selectTxDirect.children.length > 0 && selectTxDirect.children[0].value === '') {
+                                    selectTxDirect.children[0].insertAdjacentElement('afterend', opt);
+                                } else {
+                                    selectTxDirect.prepend(opt);
+                                }
+                                selectTxDirect.value = ref;
+                            }
+                        }
+
+                        prependAuditLog('WEBHOOK_SIMULATOR_DISPATCHED', ref);
+                    })
+                    .catch(err => {
+                        btnDispatchDirect.disabled = false;
+                        btnDispatchDirect.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Dispatch Simulated Webhook';
+                        if (statusBadgeDirect) {
+                            statusBadgeDirect.className = 'badge bg-danger';
+                            statusBadgeDirect.textContent = 'Network Error';
+                        }
+                        if (jsonDirectRes) jsonDirectRes.textContent = String(err);
+                        const collapseResEl = document.getElementById('collapseDirectResponse');
+                        if (collapseResEl && window.bootstrap && window.bootstrap.Collapse) {
+                            bootstrap.Collapse.getOrCreateInstance(collapseResEl).show();
+                        }
+                    });
+                });
+            }
+
+            // Copy JSON buttons
+            const btnCopyDirectReq = document.getElementById('btnCopyDirectReq');
+            const btnCopyDirectRes = document.getElementById('btnCopyDirectRes');
+
+            if (btnCopyDirectReq && jsonDirectReq) {
+                btnCopyDirectReq.addEventListener('click', function() {
+                    copyDirectJson(jsonDirectReq.textContent, btnCopyDirectReq);
+                });
+            }
+
+            if (btnCopyDirectRes && jsonDirectRes) {
+                btnCopyDirectRes.addEventListener('click', function() {
+                    copyDirectJson(jsonDirectRes.textContent, btnCopyDirectRes);
                 });
             }
         });

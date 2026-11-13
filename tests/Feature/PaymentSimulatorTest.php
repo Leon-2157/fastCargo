@@ -154,4 +154,95 @@ class PaymentSimulatorTest extends TestCase
             'payment_status' => 'EXPIRED',
         ]);
     }
+
+    public function test_admin_can_fire_failed_scenario_webhook(): void
+    {
+        $genResponse = $this->withSession($this->adminSession())
+            ->actingAs($this->admin, 'admin')
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->post('http://admin.fastcargo.local/webhook-simulator/generate');
+
+        $ref = $genResponse->json('transaction.transaction_ref');
+
+        $fireResponse = $this->withSession($this->adminSession())
+            ->actingAs($this->admin, 'admin')
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->post('http://admin.fastcargo.local/webhook-simulator/fire', [
+                'partnerReferenceNo' => $ref,
+                'scenario' => 'FAILED',
+            ]);
+
+        $fireResponse->assertStatus(200);
+        $fireResponse->assertJson([
+            'success' => true,
+            'http_status' => 200,
+            'scenario' => 'FAILED',
+            'ledger_state' => [
+                'transaction_status' => 'FAILED',
+            ],
+        ]);
+
+        $this->assertDatabaseHas('payment_transactions', [
+            'transaction_ref' => $ref,
+            'payment_status' => 'FAILED',
+        ]);
+    }
+
+    public function test_admin_can_fire_cancelled_scenario_webhook(): void
+    {
+        $genResponse = $this->withSession($this->adminSession())
+            ->actingAs($this->admin, 'admin')
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->post('http://admin.fastcargo.local/webhook-simulator/generate');
+
+        $ref = $genResponse->json('transaction.transaction_ref');
+
+        $fireResponse = $this->withSession($this->adminSession())
+            ->actingAs($this->admin, 'admin')
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->post('http://admin.fastcargo.local/webhook-simulator/fire', [
+                'partnerReferenceNo' => $ref,
+                'scenario' => 'CANCELLED',
+            ]);
+
+        $fireResponse->assertStatus(200);
+        $fireResponse->assertJson([
+            'success' => true,
+            'http_status' => 200,
+            'scenario' => 'CANCELLED',
+            'ledger_state' => [
+                'transaction_status' => 'CANCELLED',
+            ],
+        ]);
+
+        $this->assertDatabaseHas('payment_transactions', [
+            'transaction_ref' => $ref,
+            'payment_status' => 'CANCELLED',
+        ]);
+    }
+
+    public function test_admin_settings_embeds_smart_simulator_and_removes_standalone_sidebar_link(): void
+    {
+        $response = $this->withSession($this->adminSession())
+            ->actingAs($this->admin, 'admin')
+            ->get('http://admin.fastcargo.local/settings');
+
+        $response->assertStatus(200);
+        $response->assertViewHas('simulatorTransactions');
+        $response->assertViewHas('simulatorRecentLogs');
+        $response->assertSee('btnGenSandboxDirect');
+        $response->assertSee('btnDispatchDirect');
+        $response->assertSee('selectTransactionDirect');
+        $response->assertSee('partnerRefDirect');
+        $response->assertSee('amountDirect');
+        $response->assertSee('btnSwitchToSimulatorTab');
+        $response->assertSee('SETTLEMENT (00)');
+        $response->assertSee('EXPIRED (01)');
+        $response->assertSee('FAILED (02)');
+        $response->assertSee('CANCELLED (03)');
+        $response->assertSee('Live Ledger State Indicators');
+        $response->assertSee('Riwayat Transaksi Masuk');
+        $response->assertSee('simulatorAuditTableBody');
+        $response->assertDontSee('href="http://admin.fastcargo.local/webhook-simulator">', false);
+    }
 }
