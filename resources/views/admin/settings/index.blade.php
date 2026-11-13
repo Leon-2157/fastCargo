@@ -21,7 +21,8 @@
         <div class="col-lg-6 mb-4">
             <div class="card shadow border-start-primary">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence Engine</h6>
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence Engine
+                    </h6>
                     @php
                         $currentAi = $aiConfig['active_provider'] ?? 'custom';
                         $isGemini = in_array($currentAi, ['gemini'], true);
@@ -54,8 +55,6 @@
                     <form id="formAiSettings" method="POST" action="{{ route('admin.settings.update', [], false) }}">
                         @csrf
                         @method('PUT')
-                        <input type="hidden" name="ai_form_type" id="ai_form_type"
-                            value="{{ $isGemini ? 'gemini' : 'custom' }}">
 
                         <!-- SECTION GOOGLE GEMINI (Gambar 3) -->
                         <div id="aiSectionGemini" class="{{ $isGemini ? '' : 'd-none' }}">
@@ -64,9 +63,10 @@
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-muted mb-1" for="gemini_api_key">Gemini API Key</label>
-                                <input id="gemini_api_key" type="password" name="gemini_api_key" value=""
+                                <input id="gemini_api_key" type="password" name="gemini_api_key"
+                                    value="{{ old('gemini_api_key', $aiConfig['gemini_api_key']) }}"
                                     class="form-control ai-dirty-tracker" autocomplete="new-password"
-                                    placeholder="{{ $aiConfig['gemini_key_configured'] ? 'Configured (leave blank to keep current key)' : 'Enter Google Gemini API key' }}">
+                                    placeholder="Enter Google Gemini API key">
                             </div>
 
                             <div class="mb-4">
@@ -102,9 +102,10 @@
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-muted mb-1" for="custom_ai_api_key">API Key</label>
-                                <input id="custom_ai_api_key" type="password" name="custom_ai_api_key" value=""
+                                <input id="custom_ai_api_key" type="password" name="custom_ai_api_key"
+                                    value="{{ old('custom_ai_api_key', $aiConfig['custom_ai_api_key']) }}"
                                     class="form-control ai-dirty-tracker" autocomplete="new-password"
-                                    placeholder="{{ $aiConfig['custom_ai_key_configured'] ? 'Configured (leave blank to keep current key)' : 'Enter API Key' }}">
+                                    placeholder="Enter API Key">
                             </div>
 
                             <hr class="my-3">
@@ -155,7 +156,7 @@
                                 <i class="fas fa-satellite-dish me-1 text-primary"></i> Test Connection
                             </button>
                             <button id="btnSaveAiSettings" type="submit" class="btn btn-primary btn-sm">
-                                <i class="fas fa-save me-1"></i> Save AI Engine Settings
+                                <i class="fas fa-save me-1"></i> Save Settings
                             </button>
                         </div>
                     </form>
@@ -434,7 +435,6 @@
             const providerSelect = document.getElementById('ai_provider_select');
             const geminiSection = document.getElementById('aiSectionGemini');
             const customSection = document.getElementById('aiSectionCustom');
-            const formTypeInput = document.getElementById('ai_form_type');
             const btnSwitchEngine = document.getElementById('btnSwitchEngine');
             const btnSaveAi = document.getElementById('btnSaveAiSettings');
             const btnTestAi = document.getElementById('btnTestAiConnection');
@@ -450,11 +450,9 @@
                     if (this.value === 'gemini') {
                         geminiSection.classList.remove('d-none');
                         customSection.classList.add('d-none');
-                        formTypeInput.value = 'gemini';
                     } else {
                         geminiSection.classList.add('d-none');
                         customSection.classList.remove('d-none');
-                        formTypeInput.value = 'custom';
                     }
                     testFeedback.classList.add('d-none');
                 });

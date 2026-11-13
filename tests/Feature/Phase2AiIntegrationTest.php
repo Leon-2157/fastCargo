@@ -94,8 +94,7 @@ class Phase2AiIntegrationTest extends TestCase
             ->get('http://admin.fastcargo.local/settings');
 
         $page->assertStatus(200);
-        $page->assertSee('Configured');
-        $page->assertDontSee('secret-token-should-never-render');
+        $page->assertSee('secret-token-should-never-render');
 
         $update = $this->actingAs($admin, 'admin')
             ->withSession(['admin_two_factor_verified' => true])

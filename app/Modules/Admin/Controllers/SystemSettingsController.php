@@ -39,11 +39,13 @@ class SystemSettingsController extends Controller
             'active_label' => AiManager::activeProviderLabel(),
             'custom_ai_provider_name' => AiManager::settingValue('custom_ai_provider_name', (string) config('ai.providers.custom.name', 'Custom AI')),
             'custom_ai_base_url' => AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.custom.base_url', 'http://localhost:20128/v1'))),
+            'custom_ai_api_key' => $customAiKey,
             'custom_ai_model' => AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-high'))),
             'custom_ai_max_completion_tokens' => AiManager::settingValue('custom_ai_max_completion_tokens', '4096'),
             'custom_ai_max_output_tokens' => AiManager::settingValue('custom_ai_max_output_tokens', '2048'),
             'custom_ai_max_tokens' => AiManager::settingValue('custom_ai_max_tokens', '8192'),
             'custom_ai_key_configured' => $customAiKey !== '',
+            'gemini_api_key' => $geminiKey,
             'gemini_model' => AiManager::settingValue('gemini_model', (string) config('ai.providers.gemini.model', 'gemini-2.0-flash')),
             'gemini_key_configured' => $geminiKey !== '',
         ];
@@ -61,7 +63,6 @@ class SystemSettingsController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'ai_form_type' => ['nullable', 'string', 'in:gemini,custom'],
             'custom_ai_provider_name' => ['nullable', 'string', 'max:120'],
             'custom_ai_base_url' => ['nullable', 'url', 'max:255'],
             'custom_ai_api_key' => ['nullable', 'string', 'max:255'],
@@ -98,11 +99,6 @@ class SystemSettingsController extends Controller
         }
         if (! empty($validated['custom_ai_model'])) {
             $validated['ninerouter_model'] = $validated['custom_ai_model'];
-        }
-
-        // Auto-activate selected provider if submitted from AI form
-        if (! empty($validated['ai_form_type'])) {
-            $validated['ai_provider'] = $validated['ai_form_type'] === 'gemini' ? 'gemini' : 'custom';
         }
 
         if (isset($validated['operator_vpn_whitelist'])) {
