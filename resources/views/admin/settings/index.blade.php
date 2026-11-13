@@ -28,7 +28,7 @@
         <div class="col-lg-6 mb-4 align-self-start">
             <div class="card shadow border-start-primary">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence Engine
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence
                     </h6>
                     @php
                         $currentAi = $aiConfig['active_provider'] ?? 'custom';
@@ -243,12 +243,9 @@
                                 <div>
                                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                         <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">
-                                            <i class="fas fa-info-circle me-1 text-info"></i> Info Detail
+                                            <i class="fas fa-info-circle me-1 text-info"></i> Informasi Detail
                                         </span>
-                                        <span id="wag-service-badge" class="badge bg-light text-dark border small"
-                                            style="font-size: 9px;">
-                                            {{ $waConfig['gatewayStatus']['service'] ?? 'waG' }}
-                                        </span>
+
                                     </div>
 
                                     <div class="mb-2">
@@ -257,7 +254,7 @@
                                             class="fw-bold small {{ $waConfig['isConnected'] ? 'text-success' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'text-warning' : 'text-danger') }}">
                                             <i
                                                 class="fas {{ $waConfig['isConnected'] ? 'fa-check-circle' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'fa-hourglass-half' : 'fa-times-circle') }} me-1"></i>
-                                            {{ $waConfig['isConnected'] ? 'Online & Terhubung' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'Menunggu Pairing' : 'Offline / Terputus') }}
+                                            {{ $waConfig['isConnected'] ? 'Online' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'Menunggu Pairing' : 'Offline / Terputus') }}
                                         </div>
                                     </div>
 
@@ -344,9 +341,7 @@
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-envelope me-1"></i> Email Delivery
-                            Engine</h6>
-                        <small class="text-muted">Powers Email Verification, Password Reset, and 2-Factor Authentication
-                            Emergency OTP.</small>
+                        </h6>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
                         <span id="badge-mail-driver" class="badge bg-secondary">Driver:
@@ -376,32 +371,18 @@
                                 <!-- Mail Driver Selection -->
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold text-muted mb-1" for="mail_mailer">
-                                        <i class="fas fa-paper-plane me-1 text-primary"></i> Mail Delivery Driver Engine
+                                        <i class="fas fa-paper-plane me-1 text-primary"></i> Mail Delivery
                                     </label>
                                     <select id="mail_mailer" name="mail_mailer" class="form-select">
                                         <option value="smtp"
                                             {{ $mailConfig['mail_mailer'] === 'smtp' ? 'selected' : '' }}>
-                                            SMTP (Recommended / Resend Production)
+                                            SMTP
                                         </option>
                                         <option value="log"
                                             {{ $mailConfig['mail_mailer'] === 'log' ? 'selected' : '' }}>
-                                            Local Log (Development / Debug Only)
+                                            Local Log
                                         </option>
                                     </select>
-                                </div>
-
-                                <!-- Local Log Info Box -->
-                                <div id="logModeNotice"
-                                    class="alert alert-info py-2 px-3 small mb-3 shadow-sm {{ $mailConfig['mail_mailer'] === 'log' ? '' : 'd-none' }}">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-file-alt fa-2x text-info me-3"></i>
-                                        <div>
-                                            <strong>Mode Local Log Aktif:</strong> Email tidak dikirim ke internet,
-                                            melainkan dicatat langsung di file log server
-                                            (<code>storage/logs/laravel.log</code>). Server SMTP, Port, dan API Key tidak
-                                            diperlukan.
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <!-- Group 1: Server Connection (Hidden when Local Log) -->
@@ -411,9 +392,9 @@
                                         <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
                                             <i class="fas fa-server me-1 text-primary"></i> 1. Server Connection
                                         </span>
-                                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2"
-                                            id="btn-preset-resend" style="font-size: 11px;">
-                                            <i class="fas fa-magic me-1"></i> Auto-fill Resend SMTP Preset
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2"
+                                            id="btn-preset-resend" style="font-size: 12px;">
+                                            <i class="fas fa-magic me-1"></i> Auto fill
                                         </button>
                                     </div>
 
@@ -455,7 +436,7 @@
                                 <div class="border rounded p-3 mb-3 bg-white shadow-sm">
                                     <div class="mb-2 pb-1 border-bottom">
                                         <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
-                                            <i class="fas fa-shield-alt me-1 text-primary"></i> 2. Authentication &amp;
+                                            <i class="fas fa-shield-alt me-1 text-primary"></i>
                                             Sender Identity
                                         </span>
                                     </div>
@@ -474,9 +455,9 @@
                                             <label class="form-label mb-1 text-muted" style="font-size: 11px;"
                                                 for="mail_password">Resend API Key (Password)</label>
                                             <input id="mail_password" type="password" name="mail_password"
-                                                value="" class="form-control form-control-sm"
-                                                autocomplete="new-password"
-                                                placeholder="{{ $mailConfig['is_password_configured'] ? 'Configured (leave blank to keep)' : 're_xxxxxxxxxxxx' }}">
+                                                value="{{ old('mail_password', $mailConfig['mail_password'] ?? '') }}"
+                                                class="form-control form-control-sm" autocomplete="new-password"
+                                                placeholder="re_xxxxxxxxxxxx">
                                         </div>
                                     </div>
 
@@ -489,8 +470,6 @@
                                                 value="{{ old('mail_from_address', $mailConfig['mail_from_address']) }}"
                                                 class="form-control form-control-sm"
                                                 placeholder="noreply@leonproject.my.id">
-                                            <div class="text-muted" style="font-size: 10px;">Domain terverifikasi Resend /
-                                                DNS.</div>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label mb-1 text-muted" style="font-size: 11px;"
@@ -498,14 +477,12 @@
                                             <input id="mail_from_name" type="text" name="mail_from_name"
                                                 value="{{ old('mail_from_name', $mailConfig['mail_from_name']) }}"
                                                 class="form-control form-control-sm" placeholder="FastCargo">
-                                            <div class="text-muted" style="font-size: 10px;">Nama pengirim pada header
-                                                email.</div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <button type="submit" class="btn btn-success btn-sm px-4 fw-bold shadow-sm">
-                                    <i class="fas fa-save me-1"></i> Save Mail Settings
+                                    <i class="fas fa-save me-1"></i> Save Settings
                                 </button>
                             </form>
                         </div>
@@ -516,13 +493,7 @@
                                 <span class="small fw-bold text-uppercase text-primary" style="font-size: 11.5px;">
                                     <i class="fas fa-satellite-dish me-1"></i> Live Delivery Verification
                                 </span>
-                                <span class="badge bg-light text-secondary border small"
-                                    style="font-size: 9.5px;">Diagnostic Tool</span>
                             </div>
-                            <p class="text-muted small mb-3" style="font-size: 11px;">
-                                Validasi kesiapan server pengiriman email, autentikasi kredensial, dan pastikan email sampai
-                                ke inbox tujuan.
-                            </p>
 
                             <!-- Direct Dispatch Form -->
                             <div class="border rounded p-3 mb-3 bg-light shadow-sm">
@@ -585,33 +556,6 @@
                                         Dispatch Test Email.
                                     </div>
                                 @endif
-                            </div>
-
-                            <!-- Pratinjau Pesan Uji Coba -->
-                            <div class="border rounded p-2 mb-3 bg-light small" style="font-size: 10.5px;">
-                                <div class="text-muted fw-bold mb-1">
-                                    <i class="fas fa-envelope-open-text me-1 text-primary"></i> Pratinjau Payload Pesan Uji
-                                    Coba:
-                                </div>
-                                <div class="text-dark"><strong>Subjek:</strong> FastCargo — Email Delivery Test</div>
-                                <div class="text-dark"><strong>Pengirim:</strong> {{ $mailConfig['mail_from_name'] }}
-                                    &lt;{{ $mailConfig['mail_from_address'] }}&gt;</div>
-                                <div class="text-muted mt-1" style="font-size: 10px;">Isi: Verifikasi kesiapan sistem
-                                    autentikasi 2FA OTP &amp; reset password FastCargo.</div>
-                            </div>
-
-                            <!-- DNS & Deliverability Checklist (Cloudflare / Resend) -->
-                            <div class="alert alert-light border small mb-0 text-muted shadow-sm"
-                                style="font-size: 10.5px;">
-                                <div class="fw-bold text-dark mb-1">
-                                    <i class="fas fa-shield-alt text-primary me-1"></i> Deliverability &amp; DNS Checklist:
-                                </div>
-                                <ul class="mb-0 ps-3" style="line-height: 1.5;">
-                                    <li><strong>SPF (TXT):</strong> <code>v=spf1 include:amazonses.com ~all</code></li>
-                                    <li><strong>DKIM (CNAME):</strong> Key domain terverifikasi di Resend</li>
-                                    <li><strong>Cloudflare Proxy:</strong> Pastikan MX &amp; SPF diset <em>DNS Only</em>
-                                        (Awan Abu-abu)</li>
-                                </ul>
                             </div>
                         </div>
                     </div>
@@ -990,7 +934,7 @@
                                 if (wagDetailStatus) {
                                     wagDetailStatus.className = 'fw-bold small text-success';
                                     wagDetailStatus.innerHTML =
-                                        '<i class="fas fa-check-circle me-1"></i> Online &amp; Terhubung';
+                                        '<i class="fas fa-check-circle me-1"></i> Online';
                                 }
                                 if (wagDetailPhone) {
                                     wagDetailPhone.innerHTML = userPhone ? `<code>${userPhone}</code>` :

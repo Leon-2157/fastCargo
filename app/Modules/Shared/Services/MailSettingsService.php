@@ -104,6 +104,7 @@ class MailSettingsService
             'mail_host' => $settings->get('mail_host', config('mail.mailers.smtp.host', 'smtp.resend.com')),
             'mail_port' => $settings->get('mail_port', config('mail.mailers.smtp.port', 465)),
             'mail_username' => $settings->get('mail_username', config('mail.mailers.smtp.username', 'resend')),
+            'mail_password' => (string) $password,
             'mail_encryption' => $settings->get('mail_encryption', config('mail.mailers.smtp.encryption', 'tls')),
             'mail_from_address' => $settings->get('mail_from_address', config('mail.from.address', 'noreply@leonproject.my.id')),
             'mail_from_name' => $settings->get('mail_from_name', config('mail.from.name', 'FastCargo')),
