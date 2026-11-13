@@ -5,7 +5,7 @@
 @section('content')
     <div class="d-sm-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="text-dark mb-0 fw-bold">WhatsApp Gateway Station (waG)</h3>
+            <h3 class="text-dark mb-0 fw-bold">WhatsApp Gateway</h3>
             <p class="text-muted small mb-0">WhatsApp Go gateway station (<code>{{ $gatewayBaseUrl }}</code>) for automated
                 consignment alerts &amp; tracking bot replies.</p>
         </div>

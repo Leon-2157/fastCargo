@@ -4,6 +4,7 @@ namespace App\Modules\Admin\Controllers;
 
 use App\Modules\Shared\AI\AiManager;
 use App\Modules\Shared\Models\AdmSystemSetting;
+use App\Modules\Shared\Models\PaymentTransaction;
 use App\Modules\Shared\Services\MailSettingsService;
 use App\Modules\Shared\WhatsApp\WaGatewayClient;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -31,6 +32,7 @@ class SystemSettingsController extends Controller
         'ninerouter_api_key',
         'gemini_api_key',
         'mail_password',
+        'dana_client_secret',
     ];
 
     public function __construct(
@@ -63,12 +65,44 @@ class SystemSettingsController extends Controller
         $waSnapshot = $this->resolveGatewaySnapshot();
         $mailConfig = MailSettingsService::getAdminSummary();
 
+        $danaEnv = AdmSystemSetting::get('dana_env', config('dana.env', 'sandbox'));
+        $danaMerchantId = AdmSystemSetting::get('dana_merchant_id', config('dana.merchant_id', ''));
+        $danaClientId = AdmSystemSetting::get('dana_client_id', config('dana.client_id', ''));
+        $danaClientSecret = AdmSystemSetting::get('dana_client_secret', config('dana.client_secret', ''));
+
+        $isDanaConfigured = ! empty($danaClientId) && ! empty($danaClientSecret);
+
+        $renderer = new ImageRenderer(
+            new RendererStyle(135, 1),
+            new SvgImageBackEnd
+        );
+        $writer = new Writer($renderer);
+        $samplePayload = '00020101021226580014ID.DANA.WWW011893600911002233445551440014ID.LINKAJA.WWW01189360091100223344555204541153033605802ID5925FASTCARGO ASEAN LOGISTICS6007JAKARTA6304A1B2';
+        $sampleQrSvg = $writer->writeString($samplePayload);
+
+        $recentTransactions = PaymentTransaction::with(['invoice.booking', 'payer'])
+            ->latest('created_at')
+            ->take(5)
+            ->get();
+
+        $danaConfig = [
+            'dana_env' => (string) $danaEnv,
+            'dana_merchant_id' => (string) $danaMerchantId,
+            'dana_client_id' => (string) $danaClientId,
+            'dana_client_secret' => (string) $danaClientSecret,
+            'is_configured' => $isDanaConfigured,
+            'webhook_url' => url('/api/webhooks/dana'),
+            'sample_qr_svg' => $sampleQrSvg,
+            'recent_transactions' => $recentTransactions,
+        ];
+
         return view('admin.settings.index', [
             'role' => 'admin',
             'settings' => $settings,
             'aiConfig' => $aiConfig,
             'mailConfig' => $mailConfig,
             'waConfig' => $waSnapshot,
+            'danaConfig' => $danaConfig,
         ]);
     }
 
@@ -100,6 +134,10 @@ class SystemSettingsController extends Controller
             'mail_encryption' => ['nullable', 'string', 'in:tls,ssl,none'],
             'mail_from_address' => ['nullable', 'email', 'max:255'],
             'mail_from_name' => ['nullable', 'string', 'max:255'],
+            'dana_env' => ['nullable', 'string', 'in:sandbox,production'],
+            'dana_merchant_id' => ['nullable', 'string', 'max:100'],
+            'dana_client_id' => ['nullable', 'string', 'max:150'],
+            'dana_client_secret' => ['nullable', 'string', 'max:255'],
         ]);
 
         // Auto-sync custom_ai values with legacy ninerouter keys for backward compatibility
@@ -129,7 +167,7 @@ class SystemSettingsController extends Controller
             }
 
             $stringValue = trim((string) $value);
-            if (in_array($key, self::SECRET_KEYS, true) && $stringValue === '') {
+            if (in_array($key, self::SECRET_KEYS, true) && ($stringValue === '' || str_starts_with($stringValue, '••••'))) {
                 continue;
             }
 
@@ -146,6 +184,7 @@ class SystemSettingsController extends Controller
 
         Cache::forget('operator_vpn_whitelist');
         Cache::forget('adm_mail_settings');
+        Cache::forget('adm_dana_settings');
         AiManager::reset();
 
         $this->recordAudit($request, 'SYSTEM_SETTINGS_UPDATED', $auditChanges);

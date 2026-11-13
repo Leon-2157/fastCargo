@@ -564,6 +564,220 @@
         </div>
     </div>
 
+    <!-- DANA Payment Gateway & QRIS Station -->
+    <div class="row">
+        <div class="col-lg-12 mb-4">
+            <div class="card shadow border-start-primary">
+                <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-qrcode me-1"></i> DANA Payment Gateway &amp; QRIS Station
+                        </h6>
+                        <small class="text-muted">Pusat integrasi pembayaran DANA Snap, QRIS Dinamis ASPI, dan escrow settlement gateway.</small>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <span id="badge-dana-mode" class="badge {{ $danaConfig['dana_env'] === 'production' ? 'bg-danger' : 'bg-info text-dark' }}">
+                            <i class="fas {{ $danaConfig['dana_env'] === 'production' ? 'fa-fire' : 'fa-flask' }} me-1"></i>
+                            {{ $danaConfig['dana_env'] === 'production' ? 'Live Production Snap' : 'Sandbox (Simulator)' }}
+                        </span>
+                        <span id="badge-dana-status" class="badge {{ $danaConfig['is_configured'] ? 'bg-success' : 'bg-warning text-dark' }}">
+                            <i class="fas {{ $danaConfig['is_configured'] ? 'fa-check-circle' : 'fa-exclamation-triangle' }} me-1"></i>
+                            {{ $danaConfig['is_configured'] ? 'Credentials Active' : 'Credentials Incomplete' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <!-- Configuration Form (Left Column) -->
+                        <div class="col-lg-7 border-end pe-lg-4">
+                            <form method="POST" action="{{ route('admin.settings.update', [], false) }}" id="formDanaSettings">
+                                @csrf
+                                @method('PUT')
+
+                                <!-- Group 1: Gateway Mode & Sandbox Preset -->
+                                <div class="border rounded p-3 mb-3 bg-light shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                            <i class="fas fa-toggle-on me-1 text-primary"></i> 1. Gateway Mode &amp; Sandbox Preset
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" id="btn-preset-dana" style="font-size: 12px;">
+                                            <i class="fas fa-magic me-1"></i> Auto-fill Sandbox Preset
+                                        </button>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;" for="dana_env">Environment Mode</label>
+                                            <select id="dana_env" name="dana_env" class="form-select form-select-sm">
+                                                <option value="sandbox" {{ $danaConfig['dana_env'] === 'sandbox' ? 'selected' : '' }}>Sandbox (Developer Testing)</option>
+                                                <option value="production" {{ $danaConfig['dana_env'] === 'production' ? 'selected' : '' }}>Production (Live Payment)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;" for="dana_merchant_id">DANA Merchant ID</label>
+                                            <input id="dana_merchant_id" type="text" name="dana_merchant_id"
+                                                value="{{ old('dana_merchant_id', $danaConfig['dana_merchant_id']) }}"
+                                                class="form-control form-control-sm" placeholder="2166100000000001">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Group 2: Snap API Credentials -->
+                                <div class="border rounded p-3 mb-3 bg-white shadow-sm">
+                                    <div class="mb-2 pb-1 border-bottom">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                            <i class="fas fa-key me-1 text-primary"></i> 2. Snap API Credentials
+                                        </span>
+                                    </div>
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;" for="dana_client_id">Client Key / ID</label>
+                                            <input id="dana_client_id" type="text" name="dana_client_id"
+                                                value="{{ old('dana_client_id', $danaConfig['dana_client_id']) }}"
+                                                class="form-control form-control-sm font-monospace" placeholder="fastcargo-snap-client">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;" for="dana_client_secret">Secret Key (Client Secret)</label>
+                                            <div class="input-group input-group-sm">
+                                                <input id="dana_client_secret" type="password" name="dana_client_secret"
+                                                    value="{{ old('dana_client_secret', $danaConfig['dana_client_secret'] ? '••••••••••••••••' : '') }}"
+                                                    class="form-control form-control-sm font-monospace" autocomplete="new-password"
+                                                    placeholder="sec_live_xxxxxxxx">
+                                                <button class="btn btn-outline-secondary" type="button" id="btn-toggle-dana-secret" title="Toggle visibility">
+                                                    <i class="fas fa-eye" id="icon-toggle-dana-secret"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Group 3: Webhook Callback URL -->
+                                <div class="border rounded p-3 mb-3 bg-light shadow-sm">
+                                    <div class="mb-2 pb-1 border-bottom d-flex justify-content-between align-items-center">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                            <i class="fas fa-satellite-dish me-1 text-primary"></i> 3. Notification Webhook Endpoint
+                                        </span>
+                                        <span class="badge bg-secondary" style="font-size: 10px;">Public POST</span>
+                                    </div>
+                                    <div class="input-group input-group-sm mb-1">
+                                        <span class="input-group-text bg-white text-muted"><i class="fas fa-link"></i></span>
+                                        <input type="text" id="dana_webhook_url" class="form-control font-monospace text-dark bg-white"
+                                            value="{{ $danaConfig['webhook_url'] }}" readonly>
+                                        <button class="btn btn-primary" type="button" id="btn-copy-dana-webhook">
+                                            <i class="fas fa-copy me-1"></i> Copy URL
+                                        </button>
+                                    </div>
+                                    <div class="form-text text-muted" style="font-size: 11px;">
+                                        <i class="fas fa-info-circle text-primary me-1"></i> Daftarkan URL ini ke dashboard DANA Developer (Merchant Portal) untuk menerima instant payment notification (IPN) &amp; settlement trigger.
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm">
+                                    <i class="fas fa-save me-1"></i> Save DANA Settings
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Diagnostic & Recent Transactions (Right Column) -->
+                        <div class="col-lg-5 ps-lg-4">
+                            <!-- Top Box: Live QRIS Simulator Preview -->
+                            <div class="border rounded p-3 mb-3 bg-white shadow-sm">
+                                <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                    <span class="small fw-bold text-uppercase text-primary" style="font-size: 11.5px;">
+                                        <i class="fas fa-qrcode me-1"></i> Live QRIS Simulator Preview
+                                    </span>
+                                    <span class="badge bg-light text-dark border" style="font-size: 10px;">ASPI Standard</span>
+                                </div>
+                                <div class="d-flex flex-column flex-sm-row align-items-center gap-3">
+                                    <div class="p-2 border rounded bg-white shadow-sm text-center flex-shrink-0" style="width: 140px; height: 140px; display: flex; align-items: center; justify-content: center;">
+                                        <div style="max-width: 100%; max-height: 100%;">
+                                            {!! $danaConfig['sample_qr_svg'] !!}
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1 small">
+                                        <div class="fw-bold text-dark mb-1">FASTCARGO ASEAN LOGISTICS</div>
+                                        <div class="text-muted mb-1" style="font-size: 11px;">
+                                            <span class="badge bg-primary me-1">NMID</span> ID1020038942110
+                                        </div>
+                                        <div class="text-muted mb-2" style="font-size: 11px;">
+                                            Mendukung DANA, GoPay, OVO, ShopeePay, LinkAja &amp; BCA Mobile via QRIS MPM.
+                                        </div>
+                                        <a href="{{ route('admin.simulator.index', [], false) }}" class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size: 11px;">
+                                            <i class="fas fa-external-link-alt me-1"></i> Buka Webhook Testbed
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bottom Box: Riwayat Transaksi Terakhir (Feed) -->
+                            <div class="border rounded p-3 bg-light shadow-sm">
+                                <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                    <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                        <i class="fas fa-receipt me-1 text-primary"></i> Riwayat Transaksi Masuk
+                                    </span>
+                                    <span class="badge bg-secondary" style="font-size: 10px;">5 Terakhir</span>
+                                </div>
+
+                                @if ($danaConfig['recent_transactions']->isEmpty())
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-inbox text-muted fa-2x mb-2 opacity-50"></i>
+                                        <div class="small fw-bold text-muted">Belum ada transaksi pembayaran</div>
+                                        <div class="text-muted" style="font-size: 11px;">
+                                            Transaksi QRIS dari invoice customer akan otomatis tercatat di sini dan memicu escrow ledger.
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover align-middle mb-0" style="font-size: 11.5px;">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Ref / Invoice</th>
+                                                    <th>Nominal</th>
+                                                    <th class="text-center">Status</th>
+                                                    <th class="text-end">Waktu</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($danaConfig['recent_transactions'] as $tx)
+                                                    <tr>
+                                                        <td>
+                                                            <div class="fw-bold font-monospace text-truncate" style="max-width: 110px;" title="{{ $tx->transaction_ref }}">
+                                                                {{ $tx->transaction_ref }}
+                                                            </div>
+                                                            <div class="text-muted" style="font-size: 10px;">
+                                                                {{ $tx->invoice?->invoice_number ?? '-' }}
+                                                            </div>
+                                                        </td>
+                                                        <td class="fw-bold text-dark">
+                                                            Rp {{ number_format((float) $tx->amount, 0, ',', '.') }}
+                                                        </td>
+                                                        <td class="text-center">
+                                                            @if ($tx->payment_status === 'SETTLEMENT')
+                                                                <span class="badge bg-success">SETTLED</span>
+                                                            @elseif ($tx->payment_status === 'PENDING')
+                                                                <span class="badge bg-warning text-dark">PENDING</span>
+                                                            @elseif ($tx->payment_status === 'EXPIRED')
+                                                                <span class="badge bg-secondary">EXPIRED</span>
+                                                            @else
+                                                                <span class="badge bg-danger">{{ $tx->payment_status }}</span>
+                                                            @endif
+                                                        </td>
+                                                        <td class="text-end text-muted" style="font-size: 10.5px;">
+                                                            {{ $tx->created_at->diffForHumans() }}
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Peringatan Perubahan Belum Disimpan Saat Switch Engine -->
     <div class="modal fade" id="unsavedAiChangesModal" tabindex="-1" aria-labelledby="unsavedAiChangesModalLabel"
         aria-hidden="true">
@@ -1050,6 +1264,72 @@
                                     (err.message || 'Gagal menghubungi server.');
                             }
                         });
+                });
+            }
+
+            // DANA Payment Gateway & QRIS Station Handlers
+            const danaEnvSelect = document.getElementById('dana_env');
+            const badgeDanaMode = document.getElementById('badge-dana-mode');
+            const btnPresetDana = document.getElementById('btn-preset-dana');
+            const btnCopyDanaWebhook = document.getElementById('btn-copy-dana-webhook');
+            const danaWebhookInput = document.getElementById('dana_webhook_url');
+            const btnToggleDanaSecret = document.getElementById('btn-toggle-dana-secret');
+            const danaSecretInput = document.getElementById('dana_client_secret');
+            const iconToggleDanaSecret = document.getElementById('icon-toggle-dana-secret');
+
+            if (danaEnvSelect && badgeDanaMode) {
+                danaEnvSelect.addEventListener('change', function() {
+                    const isProd = this.value === 'production';
+                    badgeDanaMode.className = 'badge ' + (isProd ? 'bg-danger' : 'bg-info text-dark');
+                    badgeDanaMode.innerHTML = '<i class="fas ' + (isProd ? 'fa-fire' : 'fa-flask') + ' me-1"></i> ' +
+                        (isProd ? 'Live Production Snap' : 'Sandbox (Simulator)');
+                });
+            }
+
+            if (btnPresetDana) {
+                btnPresetDana.addEventListener('click', function() {
+                    if (danaEnvSelect) {
+                        danaEnvSelect.value = 'sandbox';
+                        danaEnvSelect.dispatchEvent(new Event('change'));
+                    }
+                    const merchantInput = document.getElementById('dana_merchant_id');
+                    const clientInput = document.getElementById('dana_client_id');
+                    if (merchantInput) merchantInput.value = '2166100000000001';
+                    if (clientInput) clientInput.value = 'fastcargo-snap-sandbox';
+                    if (danaSecretInput) {
+                        danaSecretInput.value = 'sandbox_secret_998877665544';
+                        danaSecretInput.type = 'text';
+                        if (iconToggleDanaSecret) {
+                            iconToggleDanaSecret.className = 'fas fa-eye-slash';
+                        }
+                    }
+                });
+            }
+
+            if (btnCopyDanaWebhook && danaWebhookInput) {
+                btnCopyDanaWebhook.addEventListener('click', function() {
+                    const text = danaWebhookInput.value;
+                    navigator.clipboard.writeText(text).then(function() {
+                        const originalHtml = btnCopyDanaWebhook.innerHTML;
+                        btnCopyDanaWebhook.className = 'btn btn-success';
+                        btnCopyDanaWebhook.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
+                        setTimeout(function() {
+                            btnCopyDanaWebhook.className = 'btn btn-primary';
+                            btnCopyDanaWebhook.innerHTML = originalHtml;
+                        }, 2000);
+                    });
+                });
+            }
+
+            if (btnToggleDanaSecret && danaSecretInput && iconToggleDanaSecret) {
+                btnToggleDanaSecret.addEventListener('click', function() {
+                    if (danaSecretInput.type === 'password') {
+                        danaSecretInput.type = 'text';
+                        iconToggleDanaSecret.className = 'fas fa-eye-slash';
+                    } else {
+                        danaSecretInput.type = 'password';
+                        iconToggleDanaSecret.className = 'fas fa-eye';
+                    }
                 });
             }
         });
