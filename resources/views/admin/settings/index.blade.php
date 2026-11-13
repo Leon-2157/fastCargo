@@ -221,7 +221,7 @@
                         <div class="col-sm-6">
                             <div id="wag-left-box"
                                 class="border rounded p-2 bg-light d-flex flex-column align-items-center justify-content-center text-center h-100 shadow-sm"
-                                style="min-height: 180px;">
+                                style="min-height: 210px;">
                                 @if ($waConfig['qrSvg'])
                                     <div class="p-1 bg-white rounded border mb-1 d-flex align-items-center justify-content-center"
                                         style="width: 122px; height: 122px;">
@@ -257,11 +257,11 @@
                             </div>
                         </div>
 
-                        <!-- Kotak Kanan: Info Detail Layanan & Sesi -->
-                        <div class="col-sm-6">
+                        <!-- Kotak Kanan: Info Detail Layanan & Sesi + AI Integration -->
+                        <div class="col-sm-6 d-flex flex-column justify-content-between">
                             <div id="wag-right-box"
-                                class="border rounded p-3 bg-white d-flex flex-column justify-content-between h-100 shadow-sm"
-                                style="min-height: 150px;">
+                                class="border rounded p-3 bg-white d-flex flex-column justify-content-between shadow-sm mb-2 flex-grow-1"
+                                style="min-height: 140px;">
                                 <div>
                                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                         <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">
@@ -304,6 +304,36 @@
                                     <span class="text-muted" style="font-size: 9px;">Gateway:</span>
                                     <code style="font-size: 9.5px;">{{ $waConfig['gatewayBaseUrl'] }}</code>
                                 </div>
+                            </div>
+
+                            <!-- Compact AI Integration Box -->
+                            <div class="border rounded p-2 bg-white shadow-sm">
+                                <form id="formWaAiSettings" method="POST" action="{{ route('admin.settings.update', [], false) }}" class="m-0">
+                                    @csrf
+                                    @method('PUT')
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="form-label mb-0 text-muted fw-bold" style="font-size: 10.5px;" for="wa_ai_provider">
+                                            <i class="fas fa-robot me-1 text-primary"></i> AI Integration
+                                        </label>
+                                        <button type="submit" class="btn btn-primary btn-sm py-0 px-2 fw-semibold" style="font-size: 9.5px; height: 21px; line-height: 20px;">
+                                            <i class="fas fa-save me-1"></i> Simpan
+                                        </button>
+                                    </div>
+                                    <select id="wa_ai_provider" name="wa_ai_provider" class="form-select form-select-sm" style="font-size: 11px;">
+                                        <option value="default" {{ old('wa_ai_provider', $waAiProvider ?? 'default') === 'default' ? 'selected' : '' }}>
+                                            Ikuti AI Global (Active: {{ $aiConfig['active_label'] }})
+                                        </option>
+                                        <option value="gemini" {{ old('wa_ai_provider', $waAiProvider ?? 'default') === 'gemini' ? 'selected' : '' }}>
+                                            Gemini 2.0 Flash
+                                        </option>
+                                        <option value="custom" {{ old('wa_ai_provider', $waAiProvider ?? 'default') === 'custom' ? 'selected' : '' }}>
+                                            {{ $aiConfig['custom_ai_provider_name'] ?? 'Custom AI' }}
+                                        </option>
+                                        <option value="disabled" {{ old('wa_ai_provider', $waAiProvider ?? 'default') === 'disabled' ? 'selected' : '' }}>
+                                            Nonaktifkan AI
+                                        </option>
+                                    </select>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -390,21 +420,42 @@
                                 @csrf
                                 @method('PUT')
 
-                                <!-- Mail Driver Selection -->
-                                <div class="mb-3">
-                                    <label class="form-label small fw-bold text-muted mb-1" for="mail_mailer">
-                                        <i class="fas fa-paper-plane me-1 text-primary"></i> Mail Delivery
-                                    </label>
-                                    <select id="mail_mailer" name="mail_mailer" class="form-select">
-                                        <option value="smtp"
-                                            {{ $mailConfig['mail_mailer'] === 'smtp' ? 'selected' : '' }}>
-                                            SMTP
-                                        </option>
-                                        <option value="log"
-                                            {{ $mailConfig['mail_mailer'] === 'log' ? 'selected' : '' }}>
-                                            Local Log
-                                        </option>
-                                    </select>
+                                <!-- Mail Driver & AI Integration Selection Row -->
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold text-muted mb-1" for="mail_mailer">
+                                            <i class="fas fa-paper-plane me-1 text-primary"></i> Mail Delivery
+                                        </label>
+                                        <select id="mail_mailer" name="mail_mailer" class="form-select">
+                                            <option value="smtp"
+                                                {{ old('mail_mailer', $mailConfig['mail_mailer']) === 'smtp' ? 'selected' : '' }}>
+                                                SMTP
+                                            </option>
+                                            <option value="log"
+                                                {{ old('mail_mailer', $mailConfig['mail_mailer']) === 'log' ? 'selected' : '' }}>
+                                                Local Log
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold text-muted mb-1" for="mail_ai_provider">
+                                            <i class="fas fa-robot me-1 text-primary"></i> AI Integration
+                                        </label>
+                                        <select id="mail_ai_provider" name="mail_ai_provider" class="form-select">
+                                            <option value="default" {{ old('mail_ai_provider', $mailAiProvider ?? 'default') === 'default' ? 'selected' : '' }}>
+                                                Ikuti AI Global (Active: {{ $aiConfig['active_label'] }})
+                                            </option>
+                                            <option value="gemini" {{ old('mail_ai_provider', $mailAiProvider ?? 'default') === 'gemini' ? 'selected' : '' }}>
+                                                Gemini 2.0 Flash
+                                            </option>
+                                            <option value="custom" {{ old('mail_ai_provider', $mailAiProvider ?? 'default') === 'custom' ? 'selected' : '' }}>
+                                                {{ $aiConfig['custom_ai_provider_name'] ?? 'Custom AI' }}
+                                            </option>
+                                            <option value="disabled" {{ old('mail_ai_provider', $mailAiProvider ?? 'default') === 'disabled' ? 'selected' : '' }}>
+                                                Nonaktifkan AI
+                                            </option>
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <!-- Group 1: Server Connection (Hidden when Local Log) -->

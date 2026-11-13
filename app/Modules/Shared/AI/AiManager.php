@@ -36,6 +36,40 @@ class AiManager
         return static::$instance;
     }
 
+    public static function forWhatsApp(): ?AiProviderInterface
+    {
+        $setting = strtolower(trim(static::settingValue('wa_ai_provider', 'default')));
+
+        return match ($setting) {
+            'disabled' => null,
+            'gemini' => new GeminiProvider,
+            'custom', '9router' => new CustomAiProvider,
+            default => static::provider(),
+        };
+    }
+
+    public static function forEmail(): ?AiProviderInterface
+    {
+        $setting = strtolower(trim(static::settingValue('mail_ai_provider', 'default')));
+
+        return match ($setting) {
+            'disabled' => null,
+            'gemini' => new GeminiProvider,
+            'custom', '9router' => new CustomAiProvider,
+            default => static::provider(),
+        };
+    }
+
+    public static function isWaAiEnabled(): bool
+    {
+        return static::forWhatsApp() !== null;
+    }
+
+    public static function isMailAiEnabled(): bool
+    {
+        return static::forEmail() !== null;
+    }
+
     public static function activeProviderKey(): string
     {
         $raw = static::settingValue('ai_provider', (string) config('ai.default', 'custom'));
@@ -216,7 +250,7 @@ class AiManager
         return $context;
     }
 
-    private static function canFallbackToGemini(): bool
+    public static function canFallbackToGemini(): bool
     {
         if (! config('ai.fallback_enabled', true)) {
             return false;
@@ -237,6 +271,8 @@ class AiManager
                 return DB::table('adm_system_settings')
                     ->whereIn('key', [
                         'ai_provider',
+                        'wa_ai_provider',
+                        'mail_ai_provider',
                         'custom_ai_provider_name',
                         'custom_ai_base_url',
                         'custom_ai_api_key',

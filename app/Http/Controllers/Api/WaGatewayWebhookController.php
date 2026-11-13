@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Jobs\SendWhatsAppNotification;
 use App\Modules\Shared\AI\AiManager;
+use App\Modules\Shared\AI\Providers\CustomAiProvider;
+use App\Modules\Shared\AI\Providers\GeminiProvider;
 use App\Modules\Shared\Models\AdmSystemSetting;
 use App\Modules\Shared\Models\OpsCargoBooking;
 use App\Modules\Shared\WhatsApp\WaGatewayClient;
@@ -104,13 +106,29 @@ class WaGatewayWebhookController extends Controller
             ];
         }
 
+        $waAi = AiManager::forWhatsApp();
+        if ($waAi === null) {
+            return [
+                'intent' => 'help_fallback',
+                'reply' => $this->helpMenuReply(),
+            ];
+        }
+
         try {
             $systemPrompt = 'You are FastCargo WhatsApp Support Bot for ASEAN cross-border freight (sea, air, land cargo). '
                 .'Answer briefly in plain WhatsApp-friendly text (max 4 sentences). '
                 .'If user wants shipment tracking, ask for their waybill format RPN-YYYYMMDD-XXXX. '
                 .'Never fabricate shipment statuses, prices, or internal data.';
 
-            $aiReply = AiManager::chat($message, ['channel' => 'whatsapp_bot'], $systemPrompt);
+            try {
+                $aiReply = $waAi->chat($message, ['channel' => 'whatsapp_bot'], $systemPrompt);
+            } catch (Throwable $chatError) {
+                if ($waAi instanceof CustomAiProvider && AiManager::canFallbackToGemini()) {
+                    $aiReply = (new GeminiProvider)->chat($message, ['channel' => 'whatsapp_bot'], $systemPrompt);
+                } else {
+                    throw $chatError;
+                }
+            }
 
             return [
                 'intent' => 'ai_support',

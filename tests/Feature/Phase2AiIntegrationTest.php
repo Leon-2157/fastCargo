@@ -208,4 +208,97 @@ class Phase2AiIntegrationTest extends TestCase
             ->assertSee('AI Assistant is temporarily unavailable')
             ->assertDontSee('HTTP 500');
     }
+
+    public function test_ai_manager_channel_helpers_resolve_providers_and_disabled_state(): void
+    {
+        AdmSystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => 'custom', 'type' => 'string']);
+        AiManager::reset();
+
+        // Default: follows active provider (custom)
+        $this->assertTrue(AiManager::isWaAiEnabled());
+        $this->assertTrue(AiManager::isMailAiEnabled());
+        $this->assertInstanceOf(CustomAiProvider::class, AiManager::forWhatsApp());
+        $this->assertInstanceOf(CustomAiProvider::class, AiManager::forEmail());
+
+        // Explicit Gemini
+        AdmSystemSetting::updateOrCreate(['key' => 'wa_ai_provider'], ['value' => 'gemini', 'type' => 'string']);
+        AiManager::reset();
+        $this->assertTrue(AiManager::isWaAiEnabled());
+        $this->assertInstanceOf(GeminiProvider::class, AiManager::forWhatsApp());
+
+        // Explicit Custom
+        AdmSystemSetting::updateOrCreate(['key' => 'mail_ai_provider'], ['value' => 'custom', 'type' => 'string']);
+        AiManager::reset();
+        $this->assertTrue(AiManager::isMailAiEnabled());
+        $this->assertInstanceOf(CustomAiProvider::class, AiManager::forEmail());
+
+        // Disabled
+        AdmSystemSetting::updateOrCreate(['key' => 'wa_ai_provider'], ['value' => 'disabled', 'type' => 'string']);
+        AdmSystemSetting::updateOrCreate(['key' => 'mail_ai_provider'], ['value' => 'disabled', 'type' => 'string']);
+        AiManager::reset();
+
+        $this->assertFalse(AiManager::isWaAiEnabled());
+        $this->assertFalse(AiManager::isMailAiEnabled());
+        $this->assertNull(AiManager::forWhatsApp());
+        $this->assertNull(AiManager::forEmail());
+
+        // Case insensitivity & whitespace normalization
+        AdmSystemSetting::updateOrCreate(['key' => 'wa_ai_provider'], ['value' => ' DISABLED ', 'type' => 'string']);
+        AdmSystemSetting::updateOrCreate(['key' => 'mail_ai_provider'], ['value' => ' Gemini ', 'type' => 'string']);
+        AiManager::reset();
+
+        $this->assertFalse(AiManager::isWaAiEnabled());
+        $this->assertNull(AiManager::forWhatsApp());
+        $this->assertTrue(AiManager::isMailAiEnabled());
+        $this->assertInstanceOf(GeminiProvider::class, AiManager::forEmail());
+    }
+
+    public function test_admin_settings_updates_wa_and_mail_ai_providers(): void
+    {
+        $admin = User::where('email', 'admin@fastcargo.internal')->firstOrFail();
+
+        $update = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->put('http://admin.fastcargo.local/settings', [
+                'wa_ai_provider' => 'gemini',
+                'mail_ai_provider' => 'disabled',
+            ]);
+
+        $update->assertRedirect();
+        $update->assertSessionHas('success');
+
+        $this->assertSame('gemini', AdmSystemSetting::where('key', 'wa_ai_provider')->value('value'));
+        $this->assertSame('disabled', AdmSystemSetting::where('key', 'mail_ai_provider')->value('value'));
+
+        $page = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->get('http://admin.fastcargo.local/settings');
+
+        $page->assertStatus(200);
+        $page->assertSee('name="wa_ai_provider"', false);
+        $page->assertSee('name="mail_ai_provider"', false);
+        $page->assertSee('id="formWaAiSettings"', false);
+
+        // Submitting only wa_ai_provider preserves other settings
+        $waOnly = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->put('http://admin.fastcargo.local/settings', [
+                'wa_ai_provider' => 'default',
+            ]);
+        $waOnly->assertRedirect();
+        $this->assertSame('default', AdmSystemSetting::where('key', 'wa_ai_provider')->value('value'));
+        $this->assertSame('disabled', AdmSystemSetting::where('key', 'mail_ai_provider')->value('value'));
+
+        // Validation rejects invalid provider values
+        $invalid = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->put('http://admin.fastcargo.local/settings', [
+                'wa_ai_provider' => 'invalid-provider',
+            ]);
+
+        $invalid->assertSessionHasErrors('wa_ai_provider');
+    }
 }

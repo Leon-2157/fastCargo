@@ -68,6 +68,11 @@ class SystemSettingsController extends Controller
         $waSnapshot = $this->resolveGatewaySnapshot();
         $mailConfig = MailSettingsService::getAdminSummary();
 
+        $waAiProvider = (string) AdmSystemSetting::get('wa_ai_provider', 'default');
+        $mailAiProvider = (string) AdmSystemSetting::get('mail_ai_provider', 'default');
+        $aiConfig['wa_ai_provider'] = $waAiProvider;
+        $aiConfig['mail_ai_provider'] = $mailAiProvider;
+
         $danaEnv = AdmSystemSetting::get('dana_env', config('dana.env', 'sandbox'));
         $danaMerchantId = AdmSystemSetting::get('dana_merchant_id', config('dana.merchant_id', ''));
         $danaClientId = AdmSystemSetting::get('dana_client_id', config('dana.client_id', ''));
@@ -140,12 +145,18 @@ class SystemSettingsController extends Controller
             'simulatorRecentLogs' => $simulatorRecentLogs,
             'transactions' => $simulatorTransactions,
             'recentLogs' => $simulatorRecentLogs,
+            'waAiProvider' => $waAiProvider,
+            'mailAiProvider' => $mailAiProvider,
+            'wa_ai_provider' => $waAiProvider,
+            'mail_ai_provider' => $mailAiProvider,
         ]);
     }
 
     public function update(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
+            'wa_ai_provider' => ['nullable', 'string', 'in:default,gemini,custom,disabled'],
+            'mail_ai_provider' => ['nullable', 'string', 'in:default,gemini,custom,disabled'],
             'custom_ai_provider_name' => ['nullable', 'string', 'max:120'],
             'custom_ai_base_url' => ['nullable', 'url', 'max:255'],
             'custom_ai_api_key' => ['nullable', 'string', 'max:255'],

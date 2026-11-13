@@ -346,4 +346,64 @@ class Phase2WaGatewayTest extends TestCase
 
         Queue::assertPushed(SendWhatsAppNotification::class, 2);
     }
+
+    public function test_incoming_wa_message_skips_ai_when_wa_ai_is_disabled(): void
+    {
+        Queue::fake();
+
+        AdmSystemSetting::updateOrCreate(['key' => 'wa_ai_provider'], ['value' => 'disabled', 'type' => 'string']);
+        AiManager::reset();
+
+        $resp = $this->withHeaders([
+            'X-Gateway-Secret' => 'testing-wag-secret',
+            'Idempotency-Key' => 'evt-disabled-001',
+        ])->postJson('/api/internal/wag/webhook', [
+            'event_id' => 'evt-disabled-001',
+            'sender' => '+6281234567890',
+            'message' => 'What is your best shipping rate to Manila?',
+        ]);
+
+        $resp->assertStatus(200)->assertJson([
+            'status' => 'ok',
+            'intent' => 'help_fallback',
+        ]);
+
+        $this->assertStringContainsString('FastCargo Automated Assistant', (string) $resp->json('reply'));
+        Queue::assertPushed(SendWhatsAppNotification::class, 1);
+    }
+
+    public function test_incoming_wa_message_falls_back_to_gemini_when_custom_ai_fails(): void
+    {
+        Queue::fake();
+
+        AdmSystemSetting::updateOrCreate(['key' => 'wa_ai_provider'], ['value' => 'custom', 'type' => 'string']);
+        AdmSystemSetting::updateOrCreate(['key' => 'custom_ai_base_url'], ['value' => 'http://custom-ai.test/v1', 'type' => 'string']);
+        AdmSystemSetting::updateOrCreate(['key' => 'custom_ai_api_key'], ['value' => 'custom-key', 'type' => 'string']);
+        AdmSystemSetting::updateOrCreate(['key' => 'gemini_api_key'], ['value' => 'gemini-key', 'type' => 'string']);
+        AiManager::reset();
+
+        Http::fake([
+            'custom-ai.test/*' => Http::response(['error' => 'custom ai crashed'], 500),
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Sea freight to Manila departs weekly on Tuesdays.']]]]],
+            ], 200),
+        ]);
+
+        $resp = $this->withHeaders([
+            'X-Gateway-Secret' => 'testing-wag-secret',
+            'Idempotency-Key' => 'evt-fallback-001',
+        ])->postJson('/api/internal/wag/webhook', [
+            'event_id' => 'evt-fallback-001',
+            'sender' => '+6281234567890',
+            'message' => 'When is the next ship to Manila?',
+        ]);
+
+        $resp->assertStatus(200)->assertJson([
+            'status' => 'ok',
+            'intent' => 'ai_support',
+            'reply' => 'Sea freight to Manila departs weekly on Tuesdays.',
+        ]);
+
+        Queue::assertPushed(SendWhatsAppNotification::class, 1);
+    }
 }
