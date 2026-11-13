@@ -101,6 +101,10 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
         Route::post('/ai/switch', [SystemSettingsController::class, 'switchAiProvider'])->name('ai.switch');
         Route::post('/ai/test', [SystemSettingsController::class, 'testAiConnection'])->name('ai.test');
         Route::post('/mail/test', [SystemSettingsController::class, 'sendTestEmail'])->name('mail.test');
+        Route::post('/payg/otp/request', [SystemSettingsController::class, 'requestPaygOtp'])->name('payg.otp.request');
+        Route::post('/payg/otp/verify', [SystemSettingsController::class, 'verifyPaygOtp'])->name('payg.otp.verify');
+        Route::post('/payg/disconnect', [SystemSettingsController::class, 'disconnectPayg'])->name('payg.disconnect');
+        Route::get('/payg/fees', [SystemSettingsController::class, 'getPaygFees'])->name('payg.fees');
     });
 
     Route::prefix('wa-gateway')->name('admin.wa.')->group(function () {

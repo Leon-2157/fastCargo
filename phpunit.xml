@@ -22,6 +22,8 @@
         <env name="APP_KEY" value="base64:/pJWy9m5nqKOqdwsqeU7puW9fLZMVQOqFkGJXrJT2Fw=" force="true"/>
         <env name="APP_INTERNAL_SECRET" value="testing-internal-secret" force="true"/>
         <env name="WAG_SECRET" value="testing-wag-secret" force="true"/>
+        <env name="PAYG_SECRET" value="fastcargo-payg-secret-2026" force="true"/>
+        <env name="PAYG_TIMEOUT" value="1" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

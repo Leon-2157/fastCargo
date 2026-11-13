@@ -124,11 +124,11 @@
   <div class="col-lg-4">
     <div class="card shadow mb-4">
       <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-qrcode me-1"></i> Dana Business QRIS</h6>
+        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-qrcode me-1"></i> PayG / Dana Business QRIS</h6>
         @if(isset($qrisData) && $qrisData['is_mock'])
           <span class="badge bg-warning text-dark"><i class="fas fa-flask me-1"></i> Smart Sandbox</span>
         @else
-          <span class="badge bg-success"><i class="fas fa-bolt me-1"></i> Dana Live Snap</span>
+          <span class="badge bg-success"><i class="fas fa-bolt me-1"></i> Multi-Channel Live</span>
         @endif
       </div>
       <div class="card-body text-center p-4">
@@ -197,6 +197,12 @@
               <span class="badge bg-light text-dark border">30% ePOD</span>
             </div>
           </div>
+
+          @if(!empty($qrisData['payment_url']))
+            <a href="{{ $qrisData['payment_url'] }}" target="_blank" class="btn btn-outline-info btn-md w-100 mb-2 fw-bold">
+              <i class="fas fa-external-link-alt me-1"></i> Pay via SociaBuzz (VA / ASEAN FPX / PayNow)
+            </a>
+          @endif
 
           <form method="POST" action="{{ route('customer.invoices.pay', $invoice->id) }}">
             @csrf

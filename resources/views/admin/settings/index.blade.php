@@ -178,7 +178,7 @@
             <div class="card shadow border-start-success">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-success"><i class="fab fa-whatsapp me-1"></i> WhatsApp Gateway
-                        Station</h6>
+                        </h6>
                     <div id="wag-status-badge">
                         @if (!($waConfig['gatewayStatus']['reachable'] ?? false))
                             <span class="badge bg-danger px-2 py-1 small"><i class="fas fa-plug me-1"></i> Offline</span>
@@ -564,26 +564,32 @@
         </div>
     </div>
 
-    <!-- DANA Payment Gateway & QRIS Station -->
+    <!-- PayG Multi-Channel Payment Station -->
     <div class="row">
         <div class="col-lg-12 mb-4">
             <div class="card shadow border-start-primary">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-qrcode me-1"></i> DANA Payment Gateway &amp; QRIS Station
+                            <i class="fas fa-satellite-dish me-1"></i> PayG Multi-Channel Payment Station
                         </h6>
-                        <small class="text-muted">Pusat integrasi pembayaran DANA Snap, QRIS Dinamis ASPI, dan escrow settlement gateway.</small>
+                        <small class="text-muted">Pusat integrasi pembayaran multi-channel: SGpay (Shopee/GoPay direct QRIS), SoBpay (SociaBuzz ASEAN Aggregator), dan Smart Simulator.</small>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
-                        <span id="badge-dana-mode" class="badge {{ $danaConfig['dana_env'] === 'production' ? 'bg-danger' : 'bg-info text-dark' }}">
-                            <i class="fas {{ $danaConfig['dana_env'] === 'production' ? 'fa-fire' : 'fa-flask' }} me-1"></i>
-                            {{ $danaConfig['dana_env'] === 'production' ? 'Live Production Snap' : 'Sandbox (Simulator)' }}
+                        @if ($paygConfig['status']['reachable'] ?? false)
+                            <span class="badge bg-success">
+                                <i class="fas fa-server me-1"></i> PayG Daemon (Port 8085)
+                            </span>
+                        @else
+                            <span class="badge bg-info text-dark">
+                                <i class="fas fa-flask me-1"></i> Standalone Sandbox Mode
+                            </span>
+                        @endif
+                        <span id="badge-payg-mode" class="badge bg-primary text-uppercase">
+                            {{ $paygConfig['active_mode'] ?? 'auto' }} Engine
                         </span>
-                        <span id="badge-dana-status" class="badge {{ $danaConfig['is_configured'] ? 'bg-success' : 'bg-warning text-dark' }}">
-                            <i class="fas {{ $danaConfig['is_configured'] ? 'fa-check-circle' : 'fa-exclamation-triangle' }} me-1"></i>
-                            {{ $danaConfig['is_configured'] ? 'Credentials Active' : 'Credentials Incomplete' }}
-                        </span>
+                        <span id="badge-dana-mode" class="d-none"></span>
+                        <span id="badge-dana-status" class="d-none"></span>
                     </div>
                 </div>
                 <div class="card-body p-4">
@@ -594,112 +600,234 @@
                                 @csrf
                                 @method('PUT')
 
-                                <!-- Group 1: Gateway Mode & Sandbox Preset -->
+                                <!-- Legacy hidden fields to preserve backwards compatibility -->
+                                <input type="hidden" name="dana_env" id="dana_env" value="{{ $danaConfig['dana_env'] ?? 'sandbox' }}">
+                                <input type="hidden" name="dana_merchant_id" id="dana_merchant_id" value="{{ $danaConfig['dana_merchant_id'] ?? '' }}">
+                                <input type="hidden" name="dana_client_id" id="dana_client_id" value="{{ $danaConfig['dana_client_id'] ?? '' }}">
+                                <input type="hidden" name="dana_client_secret" id="dana_client_secret" value="{{ $danaConfig['dana_client_secret'] ?? '' }}">
+
+                                <!-- Global Gateway Mode & Secret -->
                                 <div class="border rounded p-3 mb-3 bg-light shadow-sm">
-                                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
-                                            <i class="fas fa-toggle-on me-1 text-primary"></i> 1. Gateway Mode &amp; Sandbox Preset
-                                        </span>
-                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" id="btn-preset-dana" style="font-size: 12px;">
-                                            <i class="fas fa-magic me-1"></i> Auto-fill Sandbox Preset
-                                        </button>
-                                    </div>
                                     <div class="row g-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;" for="dana_env">Environment Mode</label>
-                                            <select id="dana_env" name="dana_env" class="form-select form-select-sm">
-                                                <option value="sandbox" {{ $danaConfig['dana_env'] === 'sandbox' ? 'selected' : '' }}>Sandbox (Developer Testing)</option>
-                                                <option value="production" {{ $danaConfig['dana_env'] === 'production' ? 'selected' : '' }}>Production (Live Payment)</option>
+                                        <div class="col-md-7">
+                                            <label class="form-label mb-1 text-muted small fw-bold" for="payg_active_mode">Default Gateway Routing Mode</label>
+                                            <select id="payg_active_mode" name="payg_active_mode" class="form-select form-select-sm">
+                                                <option value="auto" {{ ($paygConfig['active_mode'] ?? 'auto') === 'auto' ? 'selected' : '' }}>Auto Dispatcher (SGpay &gt; SoBpay &gt; Simulator)</option>
+                                                <option value="sgpay" {{ ($paygConfig['active_mode'] ?? '') === 'sgpay' ? 'selected' : '' }}>SGpay (Direct Merchant Shopee/GoPay QRIS)</option>
+                                                <option value="sobpay" {{ ($paygConfig['active_mode'] ?? '') === 'sobpay' ? 'selected' : '' }}>SoBpay (SociaBuzz Multi-Channel &amp; ASEAN)</option>
+                                                <option value="simulator" {{ ($paygConfig['active_mode'] ?? '') === 'simulator' ? 'selected' : '' }}>Simulator (Sandbox Instant Testbed)</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;" for="dana_merchant_id">DANA Merchant ID</label>
-                                            <input id="dana_merchant_id" type="text" name="dana_merchant_id"
-                                                value="{{ old('dana_merchant_id', $danaConfig['dana_merchant_id']) }}"
-                                                class="form-control form-control-sm" placeholder="2166100000000001">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Group 2: Snap API Credentials -->
-                                <div class="border rounded p-3 mb-3 bg-white shadow-sm">
-                                    <div class="mb-2 pb-1 border-bottom">
-                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
-                                            <i class="fas fa-key me-1 text-primary"></i> 2. Snap API Credentials
-                                        </span>
-                                    </div>
-                                    <div class="row g-2 mb-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;" for="dana_client_id">Client Key / ID</label>
-                                            <input id="dana_client_id" type="text" name="dana_client_id"
-                                                value="{{ old('dana_client_id', $danaConfig['dana_client_id']) }}"
-                                                class="form-control form-control-sm font-monospace" placeholder="fastcargo-snap-client">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;" for="dana_client_secret">Secret Key (Client Secret)</label>
+                                        <div class="col-md-5">
+                                            <label class="form-label mb-1 text-muted small fw-bold" for="payg_secret">PayG HMAC Secret</label>
                                             <div class="input-group input-group-sm">
-                                                <input id="dana_client_secret" type="password" name="dana_client_secret"
-                                                    value="{{ old('dana_client_secret', $danaConfig['dana_client_secret'] ? '••••••••••••••••' : '') }}"
-                                                    class="form-control form-control-sm font-monospace" autocomplete="new-password"
-                                                    placeholder="sec_live_xxxxxxxx">
-                                                <button class="btn btn-outline-secondary" type="button" id="btn-toggle-dana-secret" title="Toggle visibility">
-                                                    <i class="fas fa-eye" id="icon-toggle-dana-secret"></i>
+                                                <input type="password" id="payg_secret" name="payg_secret" class="form-control form-control-sm font-monospace"
+                                                    value="{{ old('payg_secret', $paygConfig['secret'] ? '••••••••••••••••' : '') }}" placeholder="fastcargo-payg-secret-2026">
+                                                <button class="btn btn-outline-secondary" type="button" id="btn-toggle-payg-secret" title="Toggle visibility">
+                                                    <i class="fas fa-eye" id="icon-toggle-payg-secret"></i>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Group 3: Webhook Callback URL -->
+                                <!-- Interactive 3 Tabs Navigation -->
+                                <ul class="nav nav-tabs mb-3" id="paygTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active py-2 px-3 small fw-bold" id="tab-sgpay-btn" data-bs-toggle="tab" data-bs-target="#tab-sgpay" type="button" role="tab">
+                                            <i class="fas fa-bolt text-warning me-1"></i> 1. SGpay (Direct Merchant)
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link py-2 px-3 small fw-bold" id="tab-sobpay-btn" data-bs-toggle="tab" data-bs-target="#tab-sobpay" type="button" role="tab">
+                                            <i class="fas fa-globe-asia text-info me-1"></i> 2. SoBpay (Aggregator &amp; ASEAN)
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link py-2 px-3 small fw-bold" id="tab-simulator-btn" data-bs-toggle="tab" data-bs-target="#tab-simulator" type="button" role="tab">
+                                            <i class="fas fa-flask text-success me-1"></i> 3. Smart Simulator
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                <div class="tab-content" id="paygTabsContent">
+                                    <!-- TAB 1: SGPAY -->
+                                    <div class="tab-pane fade show active" id="tab-sgpay" role="tabpanel">
+                                        <div class="alert alert-light border small mb-3">
+                                            <i class="fas fa-info-circle text-warning me-1"></i>
+                                            <strong>SGpay Architecture:</strong> Uang langsung masuk detik itu juga ke akun ShopeePay/GoBiz pribadi Anda tanpa potongan perantara, menggunakan injeksi EMVCo Tag 54 dan kode unik unik (+Rp 1..999).
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label mb-1 text-muted small fw-bold" for="payg_sgpay_static_qr">Static QRIS String (EMVCo ASPI)</label>
+                                            <textarea id="payg_sgpay_static_qr" name="payg_sgpay_static_qr" class="form-control form-control-sm font-monospace" rows="2"
+                                                placeholder="00020101021126580014ID.DANA.WWW...6304ABCD">{{ old('payg_sgpay_static_qr', $paygConfig['sgpay_static_qr']) }}</textarea>
+                                            <div class="form-text text-muted" style="font-size: 11px;">
+                                                Salin string QRIS statis dari aplikasi ShopeePay / GoBiz merchant Anda. Sistem otomatis menginjeksi Tag 54 &amp; kode unik transaksi.
+                                            </div>
+                                        </div>
+
+                                        <!-- OTP Pairing Control -->
+                                        <div class="border rounded p-3 bg-white shadow-sm mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                                <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                                    <i class="fas fa-mobile-alt me-1 text-primary"></i> ShopeePay / GoBiz Pairing (OTP)
+                                                </span>
+                                                <span class="badge {{ ($paygConfig['status']['engines']['sgpay']['connected'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
+                                                    {{ $paygConfig['status']['engines']['sgpay']['details'] ?? 'Not Paired' }}
+                                                </span>
+                                            </div>
+                                            <div class="row g-2 mb-2">
+                                                <div class="col-md-4">
+                                                    <select id="sgpay_provider" class="form-select form-select-sm">
+                                                        <option value="shopee">ShopeePay</option>
+                                                        <option value="gopay">GoBiz (GoPay)</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <input type="text" id="sgpay_phone" class="form-control form-control-sm" placeholder="081234567890">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm w-100" id="btn-sgpay-request-otp">
+                                                        <i class="fas fa-paper-plane me-1"></i> Send OTP
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="row g-2" id="row-sgpay-otp-verify" style="display: none;">
+                                                <div class="col-md-8">
+                                                    <input type="text" id="sgpay_otp_code" class="form-control form-control-sm font-monospace" placeholder="Masukkan 6-digit kode OTP">
+                                                    <input type="hidden" id="sgpay_challenge">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <button type="button" class="btn btn-success btn-sm w-100" id="btn-sgpay-verify-otp">
+                                                        <i class="fas fa-check me-1"></i> Verify &amp; Pair
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div id="sgpay-otp-feedback" class="mt-2 small" style="display: none;"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- TAB 2: SOBPAY -->
+                                    <div class="tab-pane fade" id="tab-sobpay" role="tabpanel">
+                                        <div class="alert alert-light border small mb-3">
+                                            <i class="fas fa-info-circle text-info me-1"></i>
+                                            <strong>SoBpay Architecture:</strong> Menggunakan platform SociaBuzz untuk menyediakan dynamic QRIS resmi Midtrans/Xendit (nominal pas tanpa kode ganjil), Virtual Account (BCA, Mandiri, BNI, BRI), serta metode ASEAN (Malaysia FPX, Singapore PayNow). Dana terkumpul di saldo SociaBuzz Anda.
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label mb-1 text-muted small fw-bold" for="payg_sobpay_username">SociaBuzz Creator Username</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-light text-muted">@</span>
+                                                <input type="text" id="payg_sobpay_username" name="payg_sobpay_username" class="form-control form-control-sm font-monospace"
+                                                    value="{{ old('payg_sobpay_username', $paygConfig['sobpay_username']) }}" placeholder="username_kreator">
+                                            </div>
+                                            <div class="form-text text-muted" style="font-size: 11px;">
+                                                Cukup masukkan username profil SociaBuzz Anda. Tidak memerlukan login OTP atau kredensial perbankan rahasia.
+                                            </div>
+                                        </div>
+
+                                        <!-- Live Fee Tester -->
+                                        <div class="border rounded p-3 bg-white shadow-sm mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                                <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                                    <i class="fas fa-calculator me-1 text-info"></i> Kalkulator Fee Multi-Channel &amp; ASEAN
+                                                </span>
+                                                <span class="badge bg-light text-dark border">Real-Time Estimator</span>
+                                            </div>
+                                            <div class="row g-2 mb-2">
+                                                <div class="col-md-5">
+                                                    <select id="fee_country" class="form-select form-select-sm">
+                                                        <option value="Indonesia">Indonesia (IDR)</option>
+                                                        <option value="Malaysia">Malaysia (MYR)</option>
+                                                        <option value="Singapore">Singapore (SGD)</option>
+                                                        <option value="Philippines">Philippines (PHP)</option>
+                                                        <option value="Thailand">Thailand (THB)</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input type="number" id="fee_amount" class="form-control form-control-sm" value="5000000" placeholder="Nominal">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <button type="button" class="btn btn-outline-info btn-sm w-100" id="btn-calc-fees">
+                                                        <i class="fas fa-search-dollar me-1"></i> Cek Fee
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div id="fee-calc-results" class="mt-2 small bg-light p-2 rounded border" style="display: none;"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- TAB 3: SIMULATOR -->
+                                    <div class="tab-pane fade" id="tab-simulator" role="tabpanel">
+                                        <div class="alert alert-light border small mb-3">
+                                            <i class="fas fa-flask text-success me-1"></i>
+                                            <strong>Smart Simulator Engine:</strong> Sandbox bawaan tanpa uang riil untuk evaluasi kelulusan skripsi, presentasi dosen, dan continuous integration (CI) tests.
+                                        </div>
+
+                                        <div class="p-3 border rounded bg-white shadow-sm mb-3 text-center">
+                                            <i class="fas fa-vial fa-2x text-success mb-2"></i>
+                                            <h6 class="fw-bold text-dark">Instant Settlement Testbed</h6>
+                                            <p class="text-muted small mb-3">
+                                                Simulasi transaksi 1-klik untuk memeriksa alur escrow (milestone 30/40/30) dan notifikasi WhatsApp otomatis.
+                                            </p>
+                                            <a href="{{ route('admin.simulator.index', [], false) }}" class="btn btn-success btn-sm px-4 fw-bold shadow-sm">
+                                                <i class="fas fa-external-link-alt me-1"></i> Buka Webhook Testbed Console
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Group 4: Webhook Callback URL -->
                                 <div class="border rounded p-3 mb-3 bg-light shadow-sm">
                                     <div class="mb-2 pb-1 border-bottom d-flex justify-content-between align-items-center">
                                         <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
-                                            <i class="fas fa-satellite-dish me-1 text-primary"></i> 3. Notification Webhook Endpoint
+                                            <i class="fas fa-satellite-dish me-1 text-primary"></i> Internal Notification Webhook Endpoint
                                         </span>
-                                        <span class="badge bg-secondary" style="font-size: 10px;">Public POST</span>
+                                        <span class="badge bg-secondary" style="font-size: 10px;">HMAC-SHA256 Protected</span>
                                     </div>
                                     <div class="input-group input-group-sm mb-1">
                                         <span class="input-group-text bg-white text-muted"><i class="fas fa-link"></i></span>
-                                        <input type="text" id="dana_webhook_url" class="form-control font-monospace text-dark bg-white"
-                                            value="{{ $danaConfig['webhook_url'] }}" readonly>
-                                        <button class="btn btn-primary" type="button" id="btn-copy-dana-webhook">
+                                        <input type="text" id="payg_webhook_url" class="form-control font-monospace text-dark bg-white"
+                                            value="{{ $paygConfig['webhook_url'] }}" readonly>
+                                        <button class="btn btn-primary" type="button" id="btn-copy-payg-webhook">
                                             <i class="fas fa-copy me-1"></i> Copy URL
                                         </button>
                                     </div>
                                     <div class="form-text text-muted" style="font-size: 11px;">
-                                        <i class="fas fa-info-circle text-primary me-1"></i> Daftarkan URL ini ke dashboard DANA Developer (Merchant Portal) untuk menerima instant payment notification (IPN) &amp; settlement trigger.
+                                        <i class="fas fa-shield-alt text-success me-1"></i> Daemon <code>services/payG</code> mengirimkan callback bertanda tangan digital ke endpoint ini untuk melunasi invoice dan mendanai escrow.
                                     </div>
                                 </div>
 
                                 <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm">
-                                    <i class="fas fa-save me-1"></i> Save DANA Settings
+                                    <i class="fas fa-save me-1"></i> Save PayG Settings
                                 </button>
                             </form>
                         </div>
 
                         <!-- Diagnostic & Recent Transactions (Right Column) -->
                         <div class="col-lg-5 ps-lg-4">
-                            <!-- Top Box: Live QRIS Simulator Preview -->
+                            <!-- Top Box: Live Dynamic QRIS Preview -->
                             <div class="border rounded p-3 mb-3 bg-white shadow-sm">
                                 <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                     <span class="small fw-bold text-uppercase text-primary" style="font-size: 11.5px;">
-                                        <i class="fas fa-qrcode me-1"></i> Live QRIS Simulator Preview
+                                        <i class="fas fa-qrcode me-1"></i> Live Dynamic QRIS Preview
                                     </span>
-                                    <span class="badge bg-light text-dark border" style="font-size: 10px;">ASPI Standard</span>
+                                    <span class="badge bg-light text-dark border" style="font-size: 10px;">EMVCo Tag 54</span>
                                 </div>
                                 <div class="d-flex flex-column flex-sm-row align-items-center gap-3">
                                     <div class="p-2 border rounded bg-white shadow-sm text-center flex-shrink-0" style="width: 140px; height: 140px; display: flex; align-items: center; justify-content: center;">
                                         <div style="max-width: 100%; max-height: 100%;">
-                                            {!! $danaConfig['sample_qr_svg'] !!}
+                                            {!! $paygConfig['sample_qr_svg'] !!}
                                         </div>
                                     </div>
                                     <div class="flex-grow-1 small">
                                         <div class="fw-bold text-dark mb-1">FASTCARGO ASEAN LOGISTICS</div>
                                         <div class="text-muted mb-1" style="font-size: 11px;">
-                                            <span class="badge bg-primary me-1">NMID</span> ID1020038942110
+                                            <span class="badge bg-primary me-1">ENGINE</span> {{ strtoupper($paygConfig['active_mode'] ?? 'AUTO') }}
                                         </div>
                                         <div class="text-muted mb-2" style="font-size: 11px;">
-                                            Mendukung DANA, GoPay, OVO, ShopeePay, LinkAja &amp; BCA Mobile via QRIS MPM.
+                                            Mendukung ShopeePay, GoPay, DANA, OVO, Virtual Account BCA/Mandiri, dan ASEAN PayNow/FPX.
                                         </div>
                                         <a href="{{ route('admin.simulator.index', [], false) }}" class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size: 11px;">
                                             <i class="fas fa-external-link-alt me-1"></i> Buka Webhook Testbed
@@ -717,7 +845,7 @@
                                     <span class="badge bg-secondary" style="font-size: 10px;">5 Terakhir</span>
                                 </div>
 
-                                @if ($danaConfig['recent_transactions']->isEmpty())
+                                @if ($paygConfig['recent_transactions']->isEmpty())
                                     <div class="text-center py-4">
                                         <i class="fas fa-inbox text-muted fa-2x mb-2 opacity-50"></i>
                                         <div class="small fw-bold text-muted">Belum ada transaksi pembayaran</div>
@@ -730,20 +858,21 @@
                                         <table class="table table-sm table-hover align-middle mb-0" style="font-size: 11.5px;">
                                             <thead class="table-light">
                                                 <tr>
-                                                    <th>Ref / Invoice</th>
+                                                    <th>Ref / Gateway</th>
                                                     <th>Nominal</th>
                                                     <th class="text-center">Status</th>
                                                     <th class="text-end">Waktu</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach ($danaConfig['recent_transactions'] as $tx)
+                                                @foreach ($paygConfig['recent_transactions'] as $tx)
                                                     <tr>
                                                         <td>
-                                                            <div class="fw-bold font-monospace text-truncate" style="max-width: 110px;" title="{{ $tx->transaction_ref }}">
+                                                            <div class="fw-bold font-monospace text-truncate" style="max-width: 120px;" title="{{ $tx->transaction_ref }}">
                                                                 {{ $tx->transaction_ref }}
                                                             </div>
                                                             <div class="text-muted" style="font-size: 10px;">
+                                                                <span class="badge bg-light text-dark border">{{ $tx->payment_gateway ?? 'PAYG' }}</span>
                                                                 {{ $tx->invoice?->invoice_number ?? '-' }}
                                                             </div>
                                                         </td>
@@ -1267,7 +1396,194 @@
                 });
             }
 
-            // DANA Payment Gateway & QRIS Station Handlers
+            // PayG Payment Station Handlers
+            const paygModeSelect = document.getElementById('payg_active_mode');
+            const badgePaygMode = document.getElementById('badge-payg-mode');
+            const btnTogglePaygSecret = document.getElementById('btn-toggle-payg-secret');
+            const paygSecretInput = document.getElementById('payg_secret');
+            const iconTogglePaygSecret = document.getElementById('icon-toggle-payg-secret');
+            const btnCopyPaygWebhook = document.getElementById('btn-copy-payg-webhook');
+            const paygWebhookInput = document.getElementById('payg_webhook_url');
+
+            if (paygModeSelect && badgePaygMode) {
+                paygModeSelect.addEventListener('change', function() {
+                    badgePaygMode.textContent = this.value.toUpperCase() + ' ENGINE';
+                });
+            }
+
+            if (btnTogglePaygSecret && paygSecretInput && iconTogglePaygSecret) {
+                btnTogglePaygSecret.addEventListener('click', function() {
+                    if (paygSecretInput.type === 'password') {
+                        paygSecretInput.type = 'text';
+                        iconTogglePaygSecret.className = 'fas fa-eye-slash';
+                    } else {
+                        paygSecretInput.type = 'password';
+                        iconTogglePaygSecret.className = 'fas fa-eye';
+                    }
+                });
+            }
+
+            if (btnCopyPaygWebhook && paygWebhookInput) {
+                btnCopyPaygWebhook.addEventListener('click', function() {
+                    navigator.clipboard.writeText(paygWebhookInput.value).then(function() {
+                        const orig = btnCopyPaygWebhook.innerHTML;
+                        btnCopyPaygWebhook.className = 'btn btn-success';
+                        btnCopyPaygWebhook.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
+                        setTimeout(function() {
+                            btnCopyPaygWebhook.className = 'btn btn-primary';
+                            btnCopyPaygWebhook.innerHTML = orig;
+                        }, 2000);
+                    });
+                });
+            }
+
+            // SGpay OTP Request
+            const btnSgpayRequestOtp = document.getElementById('btn-sgpay-request-otp');
+            const sgpayPhoneInput = document.getElementById('sgpay_phone');
+            const sgpayProviderSelect = document.getElementById('sgpay_provider');
+            const rowSgpayOtpVerify = document.getElementById('row-sgpay-otp-verify');
+            const sgpayChallengeInput = document.getElementById('sgpay_challenge');
+            const sgpayOtpFeedback = document.getElementById('sgpay-otp-feedback');
+
+            if (btnSgpayRequestOtp && sgpayPhoneInput) {
+                btnSgpayRequestOtp.addEventListener('click', function() {
+                    const phone = sgpayPhoneInput.value.trim();
+                    if (!phone) {
+                        alert('Silakan masukkan nomor HP terlebih dahulu.');
+                        return;
+                    }
+                    btnSgpayRequestOtp.disabled = true;
+                    btnSgpayRequestOtp.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending...';
+
+                    fetch('{{ route('admin.settings.payg.otp.request', [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            provider: sgpayProviderSelect.value,
+                            phone: phone
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnSgpayRequestOtp.disabled = false;
+                        btnSgpayRequestOtp.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Resend OTP';
+                        if (data.success) {
+                            if (rowSgpayOtpVerify) rowSgpayOtpVerify.style.display = 'flex';
+                            if (sgpayChallengeInput) sgpayChallengeInput.value = data.challenge || '';
+                            if (sgpayOtpFeedback) {
+                                sgpayOtpFeedback.className = 'mt-2 small text-success';
+                                sgpayOtpFeedback.style.display = 'block';
+                                sgpayOtpFeedback.innerHTML = '<i class="fas fa-check-circle me-1"></i> ' + (data.message || 'OTP challenge terkirim ke HP.');
+                            }
+                        } else {
+                            if (sgpayOtpFeedback) {
+                                sgpayOtpFeedback.className = 'mt-2 small text-danger';
+                                sgpayOtpFeedback.style.display = 'block';
+                                sgpayOtpFeedback.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> ' + (data.error || 'Gagal mengirim OTP.');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        btnSgpayRequestOtp.disabled = false;
+                        btnSgpayRequestOtp.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Send OTP';
+                    });
+                });
+            }
+
+            // SGpay OTP Verify
+            const btnSgpayVerifyOtp = document.getElementById('btn-sgpay-verify-otp');
+            const sgpayOtpCodeInput = document.getElementById('sgpay_otp_code');
+
+            if (btnSgpayVerifyOtp && sgpayOtpCodeInput) {
+                btnSgpayVerifyOtp.addEventListener('click', function() {
+                    const otp = sgpayOtpCodeInput.value.trim();
+                    if (!otp) {
+                        alert('Silakan masukkan kode OTP.');
+                        return;
+                    }
+                    btnSgpayVerifyOtp.disabled = true;
+                    btnSgpayVerifyOtp.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Verifying...';
+
+                    fetch('{{ route('admin.settings.payg.otp.verify', [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            provider: sgpayProviderSelect.value,
+                            phone: sgpayPhoneInput.value.trim(),
+                            otp: otp,
+                            challenge: sgpayChallengeInput ? sgpayChallengeInput.value : ''
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnSgpayVerifyOtp.disabled = false;
+                        btnSgpayVerifyOtp.innerHTML = '<i class="fas fa-check me-1"></i> Verify & Pair';
+                        if (data.success) {
+                            if (sgpayOtpFeedback) {
+                                sgpayOtpFeedback.className = 'mt-2 small text-success fw-bold';
+                                sgpayOtpFeedback.innerHTML = '<i class="fas fa-check-circle me-1"></i> Akun berhasil terverifikasi dan terhubung!';
+                            }
+                        } else {
+                            if (sgpayOtpFeedback) {
+                                sgpayOtpFeedback.className = 'mt-2 small text-danger';
+                                sgpayOtpFeedback.innerHTML = '<i class="fas fa-times-circle me-1"></i> ' + (data.error || 'Kode OTP tidak valid.');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        btnSgpayVerifyOtp.disabled = false;
+                        btnSgpayVerifyOtp.innerHTML = '<i class="fas fa-check me-1"></i> Verify & Pair';
+                    });
+                });
+            }
+
+            // SoBpay Fee Calculator
+            const btnCalcFees = document.getElementById('btn-calc-fees');
+            const feeCountrySelect = document.getElementById('fee_country');
+            const feeAmountInput = document.getElementById('fee_amount');
+            const feeCalcResults = document.getElementById('fee-calc-results');
+
+            if (btnCalcFees && feeCountrySelect && feeAmountInput && feeCalcResults) {
+                btnCalcFees.addEventListener('click', function() {
+                    btnCalcFees.disabled = true;
+                    btnCalcFees.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Checking...';
+
+                    const country = feeCountrySelect.value;
+                    const amount = feeAmountInput.value || 1000000;
+
+                    fetch(`{{ route('admin.settings.payg.fees', [], false) }}?country=${encodeURIComponent(country)}&amount=${encodeURIComponent(amount)}`, {
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnCalcFees.disabled = false;
+                        btnCalcFees.innerHTML = '<i class="fas fa-search-dollar me-1"></i> Cek Fee';
+                        if (data.success && data.estimates) {
+                            feeCalcResults.style.display = 'block';
+                            let html = `<div class="fw-bold mb-1 text-dark">Estimasi Biaya Transaksi (${country}):</div><ul class="mb-0 ps-3">`;
+                            data.estimates.forEach(est => {
+                                html += `<li><strong>${est.method_name}:</strong> Fee ${est.currency} ${Number(est.estimated_fee).toLocaleString()} &rarr; Total <strong>${est.currency} ${Number(est.total_amount).toLocaleString()}</strong></li>`;
+                            });
+                            html += `</ul>`;
+                            feeCalcResults.innerHTML = html;
+                        }
+                    })
+                    .catch(err => {
+                        btnCalcFees.disabled = false;
+                        btnCalcFees.innerHTML = '<i class="fas fa-search-dollar me-1"></i> Cek Fee';
+                    });
+                });
+            }
+
+            // Legacy DANA fallback handlers (to preserve test compatibility)
             const danaEnvSelect = document.getElementById('dana_env');
             const badgeDanaMode = document.getElementById('badge-dana-mode');
             const btnPresetDana = document.getElementById('btn-preset-dana');

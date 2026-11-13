@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\VerifyInternalSecret;
+use App\Http\Middleware\VerifyPayGSignature;
 use App\Http\Middleware\VerifyWaWebhookSecret;
 use App\Modules\Shared\Middleware\EnsureOperatorIpWhitelist;
 use App\Modules\Shared\Middleware\EnsureTwoFactorVerified;
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.2fa.verified' => EnsureTwoFactorVerified::class,
             'api.internal.secret' => VerifyInternalSecret::class,
             'api.wa.webhook' => VerifyWaWebhookSecret::class,
+            'api.payg.webhook' => VerifyPayGSignature::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
         ]);

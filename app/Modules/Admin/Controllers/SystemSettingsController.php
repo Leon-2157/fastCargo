@@ -6,6 +6,7 @@ use App\Modules\Shared\AI\AiManager;
 use App\Modules\Shared\Models\AdmSystemSetting;
 use App\Modules\Shared\Models\PaymentTransaction;
 use App\Modules\Shared\Services\MailSettingsService;
+use App\Modules\Shared\Services\PayGPaymentGatewayService;
 use App\Modules\Shared\WhatsApp\WaGatewayClient;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -33,10 +34,12 @@ class SystemSettingsController extends Controller
         'gemini_api_key',
         'mail_password',
         'dana_client_secret',
+        'payg_secret',
     ];
 
     public function __construct(
         private readonly WaGatewayClient $waClient,
+        private readonly PayGPaymentGatewayService $paygService,
     ) {}
 
     public function index(): View
@@ -96,6 +99,23 @@ class SystemSettingsController extends Controller
             'recent_transactions' => $recentTransactions,
         ];
 
+        $paygStatus = $this->paygService->getGatewayStatus();
+        $paygActiveMode = AdmSystemSetting::get('payg_active_mode', 'auto');
+        $paygSobUsername = AdmSystemSetting::get('payg_sobpay_username', '');
+        $paygStaticQr = AdmSystemSetting::get('payg_sgpay_static_qr', '');
+        $paygSecret = AdmSystemSetting::get('payg_secret', config('payg.secret'));
+
+        $paygConfig = [
+            'status' => $paygStatus,
+            'active_mode' => (string) $paygActiveMode,
+            'sobpay_username' => (string) $paygSobUsername,
+            'sgpay_static_qr' => (string) $paygStaticQr,
+            'secret' => (string) $paygSecret,
+            'webhook_url' => url('/api/internal/payg/webhook'),
+            'sample_qr_svg' => $sampleQrSvg,
+            'recent_transactions' => $recentTransactions,
+        ];
+
         return view('admin.settings.index', [
             'role' => 'admin',
             'settings' => $settings,
@@ -103,6 +123,7 @@ class SystemSettingsController extends Controller
             'mailConfig' => $mailConfig,
             'waConfig' => $waSnapshot,
             'danaConfig' => $danaConfig,
+            'paygConfig' => $paygConfig,
         ]);
     }
 
@@ -138,6 +159,10 @@ class SystemSettingsController extends Controller
             'dana_merchant_id' => ['nullable', 'string', 'max:100'],
             'dana_client_id' => ['nullable', 'string', 'max:150'],
             'dana_client_secret' => ['nullable', 'string', 'max:255'],
+            'payg_active_mode' => ['nullable', 'string', 'in:auto,sgpay,sobpay,simulator'],
+            'payg_sgpay_static_qr' => ['nullable', 'string'],
+            'payg_sobpay_username' => ['nullable', 'string', 'max:100'],
+            'payg_secret' => ['nullable', 'string', 'max:255'],
         ]);
 
         // Auto-sync custom_ai values with legacy ninerouter keys for backward compatibility
@@ -185,7 +210,27 @@ class SystemSettingsController extends Controller
         Cache::forget('operator_vpn_whitelist');
         Cache::forget('adm_mail_settings');
         Cache::forget('adm_dana_settings');
+        Cache::forget('adm_payg_settings');
         AiManager::reset();
+
+        $daemonConfig = [];
+        if (isset($validated['payg_active_mode'])) {
+            $daemonConfig['active_mode'] = (string) $validated['payg_active_mode'];
+        }
+        if (isset($validated['payg_sgpay_static_qr'])) {
+            $this->paygService->configureStaticQr((string) $validated['payg_sgpay_static_qr']);
+            $daemonConfig['sgpay_static_qr'] = (string) $validated['payg_sgpay_static_qr'];
+        }
+        if (isset($validated['payg_sobpay_username'])) {
+            $this->paygService->configureSobpay((string) $validated['payg_sobpay_username']);
+            $daemonConfig['sobpay_username'] = (string) $validated['payg_sobpay_username'];
+        }
+        if (isset($validated['payg_secret']) && ! empty($validated['payg_secret']) && ! str_starts_with((string) $validated['payg_secret'], '••••')) {
+            $daemonConfig['shared_secret'] = (string) $validated['payg_secret'];
+        }
+        if (! empty($daemonConfig)) {
+            $this->paygService->updateDaemonConfig($daemonConfig);
+        }
 
         $this->recordAudit($request, 'SYSTEM_SETTINGS_UPDATED', $auditChanges);
 
@@ -489,6 +534,67 @@ class SystemSettingsController extends Controller
             'gatewayBaseUrl' => (string) config('wagateway.base_url', 'http://wag:8080'),
             'pairedAt' => $pairedAtFormatted,
         ];
+    }
+
+    /**
+     * Request OTP for SGpay merchant login (ShopeePay or GoPay).
+     */
+    public function requestPaygOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'provider' => ['required', 'string', 'in:shopee,gopay'],
+            'phone' => ['required', 'string', 'max:25'],
+        ]);
+
+        $result = $this->paygService->requestSgpayOtp($validated['provider'], $validated['phone']);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Verify OTP for SGpay merchant login.
+     */
+    public function verifyPaygOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'provider' => ['required', 'string', 'in:shopee,gopay'],
+            'phone' => ['required', 'string', 'max:25'],
+            'otp' => ['required', 'string', 'max:10'],
+            'challenge' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $result = $this->paygService->verifySgpayOtp(
+            $validated['provider'],
+            $validated['phone'],
+            $validated['otp'],
+            $validated['challenge'] ?? ''
+        );
+
+        return response()->json($result);
+    }
+
+    /**
+     * Disconnect active SGpay session.
+     */
+    public function disconnectPayg(Request $request): JsonResponse
+    {
+        $provider = $request->input('provider');
+        $result = $this->paygService->disconnectSgpay($provider ? (string) $provider : null);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Get multi-channel fee calculation for SoBpay.
+     */
+    public function getPaygFees(Request $request): JsonResponse
+    {
+        $country = (string) $request->input('country', 'Indonesia');
+        $amount = (float) $request->input('amount', 100000);
+
+        $result = $this->paygService->getSobpayFees($country, $amount);
+
+        return response()->json($result);
     }
 
     /**

@@ -131,6 +131,35 @@ services:
       retries: 3
       start_period: 15s
 
+  payg:
+    build:
+      context: ./services/payG
+      dockerfile: Dockerfile
+    image: localhost/fastcargo_payg:latest
+    init: true
+    read_only: false
+    environment:
+      PORT: "8085"
+      HTTP_BIND_ADDRESS: "0.0.0.0"
+      APP_NAME: "FastCargo PayG Station"
+      APP_ENV: ${PAYG_APP_ENV:-development}
+      SHARED_SECRET: ${PAYG_SECRET:-fastcargo-payg-secret-2026}
+      WEBHOOK_URL: "http://nginx/api/internal/payg/webhook"
+      SESSION_STORAGE_PATH: "/app/storage"
+    volumes:
+      - payg_data:/app/storage:Z
+    depends_on:
+      - nginx
+    networks:
+      - fastcargo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8085/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+
   cloudflared:
     image: docker.io/cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate run
@@ -150,6 +179,7 @@ volumes:
   mysql_data:
   redis_data:
   wag_data:
+  payg_data:
 
 networks:
   fastcargo:

@@ -20,4 +20,17 @@ class AdmSystemSetting extends Model
     {
         return static::where('key', $key)->value('value') ?? $default;
     }
+
+    // Set atau buat nilai setting berdasarkan key
+    public static function set(string $key, mixed $value, string $type = 'string', ?string $description = null): self
+    {
+        return static::updateOrCreate(
+            ['key' => $key],
+            [
+                'value' => (string) $value,
+                'type' => $type,
+                'description' => $description,
+            ]
+        );
+    }
 }
