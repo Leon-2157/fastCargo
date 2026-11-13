@@ -5,6 +5,11 @@ namespace App\Modules\Admin\Controllers;
 use App\Modules\Shared\AI\AiManager;
 use App\Modules\Shared\Models\AdmSystemSetting;
 use App\Modules\Shared\Services\MailSettingsService;
+use App\Modules\Shared\WhatsApp\WaGatewayClient;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +31,10 @@ class SystemSettingsController extends Controller
         'gemini_api_key',
         'mail_password',
     ];
+
+    public function __construct(
+        private readonly WaGatewayClient $waClient,
+    ) {}
 
     public function index(): View
     {
@@ -50,6 +59,7 @@ class SystemSettingsController extends Controller
             'gemini_key_configured' => $geminiKey !== '',
         ];
 
+        $waSnapshot = $this->resolveGatewaySnapshot();
         $mailConfig = MailSettingsService::getAdminSummary();
 
         return view('admin.settings.index', [
@@ -57,6 +67,7 @@ class SystemSettingsController extends Controller
             'settings' => $settings,
             'aiConfig' => $aiConfig,
             'mailConfig' => $mailConfig,
+            'waConfig' => $waSnapshot,
         ]);
     }
 
@@ -338,6 +349,45 @@ class SystemSettingsController extends Controller
                 'message' => 'Connection test failed: '.$e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * @return array{gatewayStatus: array<string, mixed>, isConnected: bool, qrSvg: ?string, gatewayBaseUrl: string}
+     */
+    private function resolveGatewaySnapshot(): array
+    {
+        $gatewayStatus = $this->waClient->status();
+
+        if ($gatewayStatus['reachable']) {
+            AdmSystemSetting::updateOrCreate(
+                ['key' => 'wag_connected'],
+                [
+                    'value' => $gatewayStatus['connected'] ? '1' : '0',
+                    'type' => 'boolean',
+                    'description' => 'WhatsApp gateway connection status',
+                ]
+            );
+        }
+
+        $isConnected = $gatewayStatus['reachable']
+            ? (bool) $gatewayStatus['connected']
+            : (bool) (AdmSystemSetting::where('key', 'wag_connected')->value('value') ?? false);
+
+        $qrSvg = null;
+        if (($gatewayStatus['reachable'] ?? false) && ! $isConnected) {
+            $qrPayload = $this->waClient->getQrCode();
+            if ($qrPayload !== null) {
+                $renderer = new ImageRenderer(new RendererStyle(180), new SvgImageBackEnd);
+                $qrSvg = (new Writer($renderer))->writeString($qrPayload);
+            }
+        }
+
+        return [
+            'gatewayStatus' => $gatewayStatus,
+            'isConnected' => $isConnected,
+            'qrSvg' => $qrSvg,
+            'gatewayBaseUrl' => (string) config('wagateway.base_url', 'http://wag:8080'),
+        ];
     }
 
     /**

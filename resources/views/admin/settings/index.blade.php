@@ -1,11 +1,17 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Platform Settings & AI Configuration')
+@section('title', 'Platform Settings & System Integrations')
 
 @section('content')
     <div class="d-sm-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="text-dark mb-0 fw-bold">Platform Governance &amp; AI Configuration</h3>
+            <h3 class="text-dark mb-0 fw-bold">Platform Settings &amp; System Integrations</h3>
+            <p class="text-muted small mb-0">Manage AI Intelligence Engines, WhatsApp Go Gateway pairing, and Resend SMTP email delivery.</p>
+        </div>
+        <div>
+            <span class="badge bg-light text-secondary border px-3 py-2 small">
+                <i class="fas fa-network-wired me-1"></i> Operator: <strong>{{ config('app.domains.operator') }}</strong>
+            </span>
         </div>
     </div>
 
@@ -164,64 +170,61 @@
             </div>
         </div>
 
-        <!-- Operator Security & VPN Whitelist -->
+        <!-- WhatsApp Gateway Station Card -->
         <div class="col-lg-6 mb-4">
-            <div class="card shadow border-start-warning">
-                <div class="card-header py-3 bg-white">
-                    <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-shield-alt me-1"></i> Operator Terminal
-                        VPN Whitelist</h6>
+            <div class="card shadow border-start-success h-100">
+                <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fab fa-whatsapp me-1"></i> WhatsApp Gateway Station</h6>
+                    <div id="wag-status-badge">
+                        @if(!($waConfig['gatewayStatus']['reachable'] ?? false))
+                            <span class="badge bg-danger px-2 py-1 small"><i class="fas fa-plug me-1"></i> Offline</span>
+                        @elseif($waConfig['isConnected'])
+                            <span class="badge bg-success px-2 py-1 small"><i class="fas fa-check-circle me-1"></i> Connected</span>
+                        @else
+                            <span class="badge bg-warning text-dark px-2 py-1 small"><i class="fas fa-qrcode me-1"></i> Pairing Needed</span>
+                        @endif
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ route('admin.settings.update', [], false) }}">
+                <div id="wag-pairing-panel" class="card-body p-4 d-flex flex-column justify-content-center align-items-center text-center">
+                    @if($waConfig['qrSvg'])
+                        <div class="p-2 border rounded bg-light mb-2 d-inline-block shadow-sm" style="max-width: 180px;">
+                            {!! $waConfig['qrSvg'] !!}
+                        </div>
+                        <h6 class="fw-bold mb-1 fs-6">Scan QR to Link WhatsApp</h6>
+                        <p class="text-muted small mb-2" style="font-size: 11px;">Buka WhatsApp &gt; Perangkat Tertaut &gt; Tautkan Perangkat. Tampilan terhubung otomatis begitu di-scan.</p>
+                    @elseif($waConfig['isConnected'])
+                        <div class="text-success mb-2"><i class="fas fa-check-circle fa-3x"></i></div>
+                        <h6 class="fw-bold mb-1 fs-6">Active WhatsApp Session</h6>
+                        @if(!empty($waConfig['gatewayStatus']['user']['phone']))
+                            <p class="small fw-semibold text-dark mb-1">
+                                {{ $waConfig['gatewayStatus']['user']['name'] ?? 'Connected Device' }} (<code>+{{ $waConfig['gatewayStatus']['user']['phone'] }}</code>)
+                            </p>
+                        @endif
+                        <p class="text-muted small mb-0" style="font-size: 11px;">
+                            Status: <strong>CONNECTED</strong>. Notifikasi kargo real-time dan bot pelacakan WhatsApp aktif.
+                        </p>
+                    @elseif(!($waConfig['gatewayStatus']['reachable'] ?? false))
+                        <div class="text-danger mb-2"><i class="fas fa-server fa-3x"></i></div>
+                        <h6 class="fw-bold mb-1 fs-6">waG Service Offline</h6>
+                        <p class="text-muted small mb-0" style="font-size: 11px;">
+                            Layanan Go <code>wa-gateway</code> di <code>{{ $waConfig['gatewayBaseUrl'] }}</code> tidak dapat dijangkau.
+                        </p>
+                    @else
+                        <div class="spinner-border text-warning mb-2" role="status"><span class="visually-hidden">Loading...</span></div>
+                        <h6 class="fw-bold mb-1 fs-6">Menunggu QR Pairing</h6>
+                        <p class="text-muted small mb-0" style="font-size: 11px;">
+                            Memeriksa kode QR terbaru dari gateway secara otomatis...
+                        </p>
+                    @endif
+                </div>
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2 px-3 border-top">
+                    <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalWaTestSend">
+                        <i class="fas fa-paper-plane me-1"></i> Send Test Message
+                    </button>
+                    <form method="POST" action="{{ route('admin.wa.reset', [], false) }}" class="m-0">
                         @csrf
-                        @method('PUT')
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted" for="operator_vpn_whitelist">Allowed
-                                Operator VPN CIDR Ranges (JSON array)</label>
-                            <textarea id="operator_vpn_whitelist" name="operator_vpn_whitelist" rows="3"
-                                class="form-control font-monospace" required>{{ $settings['operator_vpn_whitelist']->value ?? '["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]' }}</textarea>
-                            <small class="text-muted">Requests to
-                                <code>{{ config('app.domains.operator', 'operator.fastcargo.local') }}</code> from outside
-                                these CIDRs receive HTTP 403 Forbidden when IP whitelist enforcement is enabled.</small>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold text-muted" for="platform_fee_percent">Platform Fee
-                                    (%)</label>
-                                <input id="platform_fee_percent" type="number" name="platform_fee_percent"
-                                    value="{{ $settings['platform_fee_percent']->value ?? 12 }}" class="form-control"
-                                    required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold text-muted"
-                                    for="escrow_milestone_1_percent">Milestone 1 Gate-In (%)</label>
-                                <input id="escrow_milestone_1_percent" type="number" name="escrow_milestone_1_percent"
-                                    value="{{ $settings['escrow_milestone_1_percent']->value ?? 30 }}"
-                                    class="form-control" required>
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold text-muted"
-                                    for="escrow_milestone_2_percent">Milestone 2 Sailing (%)</label>
-                                <input id="escrow_milestone_2_percent" type="number" name="escrow_milestone_2_percent"
-                                    value="{{ $settings['escrow_milestone_2_percent']->value ?? 40 }}"
-                                    class="form-control" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold text-muted"
-                                    for="escrow_milestone_3_percent">Milestone 3 Delivery (%)</label>
-                                <input id="escrow_milestone_3_percent" type="number" name="escrow_milestone_3_percent"
-                                    value="{{ $settings['escrow_milestone_3_percent']->value ?? 30 }}"
-                                    class="form-control" required>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-outline-warning text-dark btn-sm fw-bold">
-                            <i class="fas fa-save me-1"></i> Save Security &amp; Escrow Rules
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-redo me-1"></i> Reset Session
                         </button>
                     </form>
                 </div>
@@ -410,6 +413,39 @@
                         Tetap Beralih Engine
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Test Dispatch WhatsApp Message -->
+    <div class="modal fade" id="modalWaTestSend" tabindex="-1" aria-labelledby="modalWaTestSendLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold text-success" id="modalWaTestSendLabel">
+                        <i class="fab fa-whatsapp me-1"></i> Test Dispatch WhatsApp Notification
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ route('admin.wa.test', [], false) }}">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted" for="wa_test_phone">Destination Mobile Number (E.164 or 08xx)</label>
+                            <input id="wa_test_phone" type="text" name="phone" value="{{ old('phone', '+62811000003') }}" class="form-control" placeholder="+628123456789" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted" for="wa_test_message">Dispatch Message Template</label>
+                            <textarea id="wa_test_message" name="message" rows="3" class="form-control" required>{{ old('message', '[FastCargo Alert] Test notification sent from FastCargo Platform Settings.') }}</textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-paper-plane me-1"></i> Send Test Message
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -664,6 +700,44 @@
                             updateSaveButtonState();
                         });
                 });
+            }
+
+            // Real-time WhatsApp Gateway Polling
+            const wagStatusUrl = '{{ route('admin.wa.status', [], false) }}';
+            const wagBadgeEl = document.getElementById('wag-status-badge');
+            const wagPanelEl = document.getElementById('wag-pairing-panel');
+
+            if (wagBadgeEl && wagPanelEl) {
+                function checkWagStatus() {
+                    fetch(wagStatusUrl, { headers: { 'Accept': 'application/json' } })
+                        .then(function(res) { return res.json(); })
+                        .then(function(data) {
+                            if (!data.reachable) {
+                                wagBadgeEl.innerHTML = '<span class="badge bg-danger px-2 py-1 small"><i class="fas fa-plug me-1"></i> Offline</span>';
+                            } else if (data.connected) {
+                                wagBadgeEl.innerHTML = '<span class="badge bg-success px-2 py-1 small"><i class="fas fa-check-circle me-1"></i> Connected</span>';
+                                const userName = (data.user && data.user.name) ? data.user.name : 'Connected Device';
+                                const userPhone = (data.user && data.user.phone) ? '+' + data.user.phone : '';
+                                wagPanelEl.innerHTML = `
+                                    <div class="text-success mb-2"><i class="fas fa-check-circle fa-3x"></i></div>
+                                    <h6 class="fw-bold mb-1 fs-6">Active WhatsApp Session</h6>
+                                    <p class="small fw-semibold text-dark mb-1">${userName} (<code>${userPhone}</code>)</p>
+                                    <p class="text-muted small mb-0" style="font-size: 11px;">Status: <strong>CONNECTED</strong>. Notifikasi kargo real-time dan bot pelacakan WhatsApp aktif.</p>
+                                `;
+                            } else if (data.qr_svg) {
+                                wagBadgeEl.innerHTML = '<span class="badge bg-warning text-dark px-2 py-1 small"><i class="fas fa-qrcode me-1"></i> Pairing Needed</span>';
+                                wagPanelEl.innerHTML = `
+                                    <div class="p-2 border rounded bg-light mb-2 d-inline-block shadow-sm" style="max-width: 180px;">
+                                        ${data.qr_svg}
+                                    </div>
+                                    <h6 class="fw-bold mb-1 fs-6">Scan QR to Link WhatsApp</h6>
+                                    <p class="text-muted small mb-2" style="font-size: 11px;">Buka WhatsApp &gt; Perangkat Tertaut &gt; Tautkan Perangkat. Tampilan terhubung otomatis begitu di-scan.</p>
+                                `;
+                            }
+                        })
+                        .catch(function() {});
+                }
+                setInterval(checkWagStatus, 4000);
             }
         });
     </script>
