@@ -176,7 +176,9 @@ class SystemSettingsController extends Controller
             $from = config('mail.from.address', 'noreply@leonproject.my.id');
             $fromName = config('mail.from.name', 'FastCargo');
 
-            Mail::raw("Hello from FastCargo Logistics!\n\nThis is a verified test email sent via Resend SMTP engine.\nTimestamp: ".now()->toIso8601String()."\nSender: {$from} ({$fromName})\n\nIf you received this message, your FastCargo email delivery and 2FA reset dispatch are properly configured and operational.", function ($message) use ($recipient, $from, $fromName) {
+            $activeMailer = config('mail.default', 'smtp');
+
+            Mail::raw("Hello from FastCargo Logistics!\n\nThis is a verified test email sent via ".strtoupper($activeMailer)." engine.\nTimestamp: ".now()->toIso8601String()."\nSender: {$from} ({$fromName})\n\nIf you received this message, your FastCargo email delivery and 2FA reset dispatch are properly configured and operational.", function ($message) use ($recipient, $from, $fromName) {
                 $message->to($recipient)
                     ->from($from, $fromName)
                     ->subject('FastCargo — Email Delivery Test ('.now()->format('H:i:s').')');
@@ -185,7 +187,16 @@ class SystemSettingsController extends Controller
             $this->recordAudit($request, 'TEST_EMAIL_DISPATCHED', [
                 'recipient' => $recipient,
                 'status' => 'SUCCESS',
+                'mailer' => $activeMailer,
             ]);
+
+            if ($activeMailer === 'log') {
+                return back()->with('success', 'Test email berhasil dicatat ke file log server (storage/logs/laravel.log). Mode Local Log aktif, email tidak dikirim ke internet.');
+            }
+
+            if ($activeMailer === 'log') {
+                return back()->with('success', "Test email berhasil dicatat ke file log server (storage/logs/laravel.log). Mode Local Log aktif, email tidak dikirim ke internet.");
+            }
 
             return back()->with('success', "Test email was sent successfully to {$recipient}. Please check your inbox (and spam/promotions tab).");
         } catch (Throwable $e) {

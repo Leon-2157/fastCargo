@@ -6,7 +6,8 @@
     <div class="d-sm-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="text-dark mb-0 fw-bold">Platform Settings &amp; System Integrations</h3>
-            <p class="text-muted small mb-0">Manage AI Intelligence Engines, WhatsApp Go Gateway pairing, and Resend SMTP email delivery.</p>
+            <p class="text-muted small mb-0">Manage AI Intelligence Engines, WhatsApp Go Gateway pairing, and Resend SMTP
+                email delivery.</p>
         </div>
         <div>
             <span class="badge bg-light text-secondary border px-3 py-2 small">
@@ -68,7 +69,8 @@
                                 Google Gemini API</h6>
 
                             <div class="mb-3">
-                                <label class="form-label small fw-bold text-muted mb-1" for="gemini_api_key">Gemini API Key</label>
+                                <label class="form-label small fw-bold text-muted mb-1" for="gemini_api_key">Gemini API
+                                    Key</label>
                                 <input id="gemini_api_key" type="password" name="gemini_api_key"
                                     value="{{ old('gemini_api_key', $aiConfig['gemini_api_key']) }}"
                                     class="form-control ai-dirty-tracker" autocomplete="new-password"
@@ -107,7 +109,8 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label small fw-bold text-muted mb-1" for="custom_ai_api_key">API Key</label>
+                                <label class="form-label small fw-bold text-muted mb-1" for="custom_ai_api_key">API
+                                    Key</label>
                                 <input id="custom_ai_api_key" type="password" name="custom_ai_api_key"
                                     value="{{ old('custom_ai_api_key', $aiConfig['custom_ai_api_key']) }}"
                                     class="form-control ai-dirty-tracker" autocomplete="new-password"
@@ -174,14 +177,17 @@
         <div class="col-lg-6 mb-4 align-self-start">
             <div class="card shadow border-start-success">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-success"><i class="fab fa-whatsapp me-1"></i> WhatsApp Gateway Station</h6>
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fab fa-whatsapp me-1"></i> WhatsApp Gateway
+                        Station</h6>
                     <div id="wag-status-badge">
-                        @if(!($waConfig['gatewayStatus']['reachable'] ?? false))
+                        @if (!($waConfig['gatewayStatus']['reachable'] ?? false))
                             <span class="badge bg-danger px-2 py-1 small"><i class="fas fa-plug me-1"></i> Offline</span>
                         @elseif($waConfig['isConnected'])
-                            <span class="badge bg-success px-2 py-1 small"><i class="fas fa-check-circle me-1"></i> Connected</span>
+                            <span class="badge bg-success px-2 py-1 small"><i class="fas fa-check-circle me-1"></i>
+                                Connected</span>
                         @else
-                            <span class="badge bg-warning text-dark px-2 py-1 small"><i class="fas fa-qrcode me-1"></i> Pairing Needed</span>
+                            <span class="badge bg-warning text-dark px-2 py-1 small"><i class="fas fa-qrcode me-1"></i>
+                                Pairing Needed</span>
                         @endif
                     </div>
                 </div>
@@ -191,9 +197,12 @@
                     <div class="row g-2 mb-3">
                         <!-- Kotak Kiri: QR Code / Status Perangkat -->
                         <div class="col-sm-6">
-                            <div id="wag-left-box" class="border rounded p-2 bg-light d-flex flex-column align-items-center justify-content-center text-center h-100 shadow-sm" style="min-height: 180px;">
-                                @if($waConfig['qrSvg'])
-                                    <div class="p-1 bg-white rounded border mb-1 d-flex align-items-center justify-content-center" style="width: 122px; height: 122px;">
+                            <div id="wag-left-box"
+                                class="border rounded p-2 bg-light d-flex flex-column align-items-center justify-content-center text-center h-100 shadow-sm"
+                                style="min-height: 180px;">
+                                @if ($waConfig['qrSvg'])
+                                    <div class="p-1 bg-white rounded border mb-1 d-flex align-items-center justify-content-center"
+                                        style="width: 122px; height: 122px;">
                                         {!! $waConfig['qrSvg'] !!}
                                     </div>
                                     <div class="fw-bold text-dark" style="font-size: 11px;">
@@ -208,9 +217,10 @@
                                         <i class="fas fa-check-circle me-1"></i> Sesi Terhubung
                                     </span>
                                     <div class="small fw-bold text-dark mb-0" style="font-size: 11px;">
-                                        {{ !empty($waConfig['gatewayStatus']['user']['name']) ? $waConfig['gatewayStatus']['user']['name'] : (!empty($waConfig['gatewayStatus']['user']['phone']) ? 'WhatsApp (+'.$waConfig['gatewayStatus']['user']['phone'].')' : 'Device Connected') }}
+                                        {{ !empty($waConfig['gatewayStatus']['user']['name']) ? $waConfig['gatewayStatus']['user']['name'] : (!empty($waConfig['gatewayStatus']['user']['phone']) ? 'WhatsApp (+' . $waConfig['gatewayStatus']['user']['phone'] . ')' : 'Device Connected') }}
                                     </div>
-                                    <code class="text-muted" style="font-size: 10px;">+{{ $waConfig['gatewayStatus']['user']['phone'] ?? '' }}</code>
+                                    <code class="text-muted"
+                                        style="font-size: 10px;">+{{ $waConfig['gatewayStatus']['user']['phone'] ?? '' }}</code>
                                 @elseif(!($waConfig['gatewayStatus']['reachable'] ?? false))
                                     <div class="text-danger mb-2">
                                         <i class="fas fa-plug fa-3x"></i>
@@ -218,7 +228,8 @@
                                     <span class="badge bg-danger px-2 py-1 mb-1 small">waG Offline</span>
                                     <div class="text-muted" style="font-size: 10px;">Layanan tidak dapat dijangkau</div>
                                 @else
-                                    <div class="spinner-border text-warning mb-2" role="status" style="width: 2rem; height: 2rem;"></div>
+                                    <div class="spinner-border text-warning mb-2" role="status"
+                                        style="width: 2rem; height: 2rem;"></div>
                                     <div class="fw-bold text-dark" style="font-size: 11px;">Menunggu Kode QR...</div>
                                 @endif
                             </div>
@@ -226,29 +237,34 @@
 
                         <!-- Kotak Kanan: Info Detail Layanan & Sesi -->
                         <div class="col-sm-6">
-                            <div id="wag-right-box" class="border rounded p-3 bg-white d-flex flex-column justify-content-between h-100 shadow-sm" style="min-height: 180px;">
+                            <div id="wag-right-box"
+                                class="border rounded p-3 bg-white d-flex flex-column justify-content-between h-100 shadow-sm"
+                                style="min-height: 180px;">
                                 <div>
                                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                         <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">
                                             <i class="fas fa-info-circle me-1 text-info"></i> Info Detail
                                         </span>
-                                        <span id="wag-service-badge" class="badge bg-light text-dark border small" style="font-size: 9px;">
+                                        <span id="wag-service-badge" class="badge bg-light text-dark border small"
+                                            style="font-size: 9px;">
                                             {{ $waConfig['gatewayStatus']['service'] ?? 'waG' }}
                                         </span>
                                     </div>
 
                                     <div class="mb-2">
                                         <div class="text-muted" style="font-size: 10px;">Status Layanan:</div>
-                                        <div id="wag-detail-status" class="fw-bold small {{ $waConfig['isConnected'] ? 'text-success' : (($waConfig['gatewayStatus']['reachable'] ?? false) ? 'text-warning' : 'text-danger') }}">
-                                            <i class="fas {{ $waConfig['isConnected'] ? 'fa-check-circle' : (($waConfig['gatewayStatus']['reachable'] ?? false) ? 'fa-hourglass-half' : 'fa-times-circle') }} me-1"></i>
-                                            {{ $waConfig['isConnected'] ? 'Online & Terhubung' : (($waConfig['gatewayStatus']['reachable'] ?? false) ? 'Menunggu Pairing' : 'Offline / Terputus') }}
+                                        <div id="wag-detail-status"
+                                            class="fw-bold small {{ $waConfig['isConnected'] ? 'text-success' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'text-warning' : 'text-danger') }}">
+                                            <i
+                                                class="fas {{ $waConfig['isConnected'] ? 'fa-check-circle' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'fa-hourglass-half' : 'fa-times-circle') }} me-1"></i>
+                                            {{ $waConfig['isConnected'] ? 'Online & Terhubung' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'Menunggu Pairing' : 'Offline / Terputus') }}
                                         </div>
                                     </div>
 
                                     <div class="mb-2">
                                         <div class="text-muted" style="font-size: 10px;">Nomor Aktif:</div>
                                         <div id="wag-detail-phone" class="fw-bold small text-dark">
-                                            @if(!empty($waConfig['gatewayStatus']['user']['phone']))
+                                            @if (!empty($waConfig['gatewayStatus']['user']['phone']))
                                                 <code>+{{ $waConfig['gatewayStatus']['user']['phone'] }}</code>
                                             @else
                                                 <span class="text-muted fst-italic">Belum Terhubung</span>
@@ -259,7 +275,8 @@
                                     <div>
                                         <div class="text-muted" style="font-size: 10px;">Waktu Pairing:</div>
                                         <div id="wag-detail-paired-at" class="small text-secondary fw-semibold">
-                                            <i class="far fa-clock me-1"></i> {{ $waConfig['pairedAt'] ?? 'Menunggu scan' }}
+                                            <i class="far fa-clock me-1"></i>
+                                            {{ $waConfig['pairedAt'] ?? 'Menunggu scan' }}
                                         </div>
                                     </div>
                                 </div>
@@ -287,12 +304,17 @@
 
                             <div class="row g-2 mb-2">
                                 <div class="col-sm-5">
-                                    <label class="form-label mb-1 text-muted" style="font-size: 10px;" for="wa_direct_phone">Nomor Tujuan (E.164 / 08xx)</label>
-                                    <input id="wa_direct_phone" type="text" name="phone" value="{{ old('phone', '') }}" class="form-control form-control-sm" placeholder="08123456789 atau +628123456789" required>
+                                    <label class="form-label mb-1 text-muted" style="font-size: 10px;"
+                                        for="wa_direct_phone">Nomor Tujuan (E.164 / 08xx)</label>
+                                    <input id="wa_direct_phone" type="text" name="phone"
+                                        value="{{ old('phone', '') }}" class="form-control form-control-sm"
+                                        placeholder="08123456789 atau +628123456789" required>
                                 </div>
                                 <div class="col-sm-7">
-                                    <label class="form-label mb-1 text-muted" style="font-size: 10px;" for="wa_direct_message">Pesan Notifikasi</label>
-                                    <textarea id="wa_direct_message" name="message" rows="2" class="form-control form-control-sm" placeholder="Tulis pesan uji coba notifikasi WhatsApp di sini..." required>{{ old('message', '') }}</textarea>
+                                    <label class="form-label mb-1 text-muted" style="font-size: 10px;"
+                                        for="wa_direct_message">Pesan Notifikasi</label>
+                                    <textarea id="wa_direct_message" name="message" rows="2" class="form-control form-control-sm"
+                                        placeholder="Tulis pesan uji coba notifikasi WhatsApp di sini..." required>{{ old('message', '') }}</textarea>
                                 </div>
                             </div>
 
@@ -300,12 +322,14 @@
                                 <button id="btnWaTestSubmit" type="submit" class="btn btn-success btn-sm px-3">
                                     <i class="fas fa-paper-plane me-1"></i> Send Test Message
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('formWaResetDirect').submit();">
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    onclick="document.getElementById('formWaResetDirect').submit();">
                                     <i class="fas fa-redo me-1"></i> Reset Session
                                 </button>
                             </div>
                         </form>
-                        <form id="formWaResetDirect" method="POST" action="{{ route('admin.wa.reset', [], false) }}" class="d-none">
+                        <form id="formWaResetDirect" method="POST" action="{{ route('admin.wa.reset', [], false) }}"
+                            class="d-none">
                             @csrf
                         </form>
                     </div>
@@ -321,15 +345,20 @@
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-envelope me-1"></i> Email Delivery
-                            Engine (Resend SMTP &amp; Verification)</h6>
-                        <small class="text-muted">Powers Email Verification, Password Reset, and 2-Factor Authentication
-                            Emergency OTP.</small>
+                            Engine</h6>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
-                        <span class="badge bg-secondary">Driver: {{ strtoupper($mailConfig['mail_mailer']) }}</span>
-                        <span class="badge {{ $mailConfig['is_password_configured'] ? 'bg-success' : 'bg-danger' }}">
-                            {{ $mailConfig['is_password_configured'] ? 'API Key Configured' : 'API Key Not Set' }}
-                        </span>
+                        <span id="badge-mail-driver" class="badge bg-secondary">Driver: {{ strtoupper($mailConfig['mail_mailer']) }}</span>
+                        @if ($mailConfig['mail_mailer'] === 'log')
+                            <span id="badge-mail-status" class="badge bg-info text-dark">
+                                <i class="fas fa-file-alt me-1"></i> Local Log Active
+                            </span>
+                        @else
+                            <span id="badge-mail-status" class="badge {{ $mailConfig['is_password_configured'] ? 'bg-success' : 'bg-danger' }}">
+                                <i class="fas {{ $mailConfig['is_password_configured'] ? 'fa-check-circle' : 'fa-exclamation-triangle' }} me-1"></i>
+                                {{ $mailConfig['is_password_configured'] ? 'API Key Configured' : 'API Key Not Set' }}
+                            </span>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body">
@@ -348,62 +377,62 @@
                                 @method('PUT')
 
                                 <div class="row g-3 mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label small fw-bold text-muted" for="mail_mailer">Mail
-                                            Driver</label>
+                                    <div class="col-md-12">
+                                        <label class="form-label small fw-bold text-muted" for="mail_mailer">Mail Driver</label>
                                         <select id="mail_mailer" name="mail_mailer" class="form-select">
-                                            <option value="smtp"
-                                                {{ $mailConfig['mail_mailer'] === 'smtp' ? 'selected' : '' }}>SMTP
-                                                (Recommended / Resend)</option>
-                                            <option value="log"
-                                                {{ $mailConfig['mail_mailer'] === 'log' ? 'selected' : '' }}>Local Log
-                                                (Debug only)</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <label class="form-label small fw-bold text-muted" for="mail_host">SMTP
-                                            Host</label>
-                                        <input id="mail_host" type="text" name="mail_host"
-                                            value="{{ old('mail_host', $mailConfig['mail_host']) }}" class="form-control"
-                                            placeholder="smtp.resend.com">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted" for="mail_port">Port</label>
-                                        <input id="mail_port" type="number" name="mail_port"
-                                            value="{{ old('mail_port', $mailConfig['mail_port']) }}" class="form-control"
-                                            placeholder="465">
-                                    </div>
-                                </div>
-
-                                <div class="row g-3 mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label small fw-bold text-muted"
-                                            for="mail_encryption">Encryption</label>
-                                        <select id="mail_encryption" name="mail_encryption" class="form-select">
-                                            <option value="tls"
-                                                {{ $mailConfig['mail_encryption'] === 'tls' ? 'selected' : '' }}>TLS /
-                                                STARTTLS (Port 587)</option>
-                                            <option value="ssl"
-                                                {{ $mailConfig['mail_encryption'] === 'ssl' ? 'selected' : '' }}>SSL /
-                                                SMTPS (Port 465)</option>
-                                            <option value="none"
-                                                {{ $mailConfig['mail_encryption'] === 'none' ? 'selected' : '' }}>None
+                                            <option value="smtp" {{ $mailConfig['mail_mailer'] === 'smtp' ? 'selected' : '' }}>
+                                                SMTP (Recommended / Resend)
+                                            </option>
+                                            <option value="log" {{ $mailConfig['mail_mailer'] === 'log' ? 'selected' : '' }}>
+                                                Local Log (Debug only)
                                             </option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small fw-bold text-muted" for="mail_username">SMTP
-                                            Username</label>
-                                        <input id="mail_username" type="text" name="mail_username"
-                                            value="{{ old('mail_username', $mailConfig['mail_username']) }}"
-                                            class="form-control" placeholder="resend">
+                                </div>
+
+                                <!-- Local Log Info Box -->
+                                <div id="logModeNotice" class="alert alert-info py-2 px-3 small mb-3 {{ $mailConfig['mail_mailer'] === 'log' ? '' : 'd-none' }}">
+                                    <i class="fas fa-info-circle me-1"></i> <strong>Mode Local Log Aktif:</strong> Email tidak dikirim ke internet, melainkan dicatat langsung di file log server (<code>storage/logs/laravel.log</code>). Server SMTP, Port, dan API Key tidak diperlukan.
+                                </div>
+
+                                <!-- SMTP Server Configuration Fields (Hidden when Local Log is selected) -->
+                                <div id="smtpFieldsContainer" class="{{ $mailConfig['mail_mailer'] === 'log' ? 'd-none' : '' }}">
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-8">
+                                            <label class="form-label small fw-bold text-muted" for="mail_host">SMTP Host</label>
+                                            <input id="mail_host" type="text" name="mail_host"
+                                                value="{{ old('mail_host', $mailConfig['mail_host']) }}" class="form-control"
+                                                placeholder="smtp.resend.com">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-bold text-muted" for="mail_port">Port</label>
+                                            <input id="mail_port" type="number" name="mail_port"
+                                                value="{{ old('mail_port', $mailConfig['mail_port']) }}" class="form-control"
+                                                placeholder="465">
+                                        </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small fw-bold text-muted" for="mail_password">Resend API
-                                            Key (Password)</label>
-                                        <input id="mail_password" type="password" name="mail_password" value=""
-                                            class="form-control" autocomplete="new-password"
-                                            placeholder="{{ $mailConfig['is_password_configured'] ? 'Configured (leave blank to keep)' : 're_xxxxxxxxxxxx' }}">
+
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-bold text-muted" for="mail_encryption">Encryption</label>
+                                            <select id="mail_encryption" name="mail_encryption" class="form-select">
+                                                <option value="tls" {{ $mailConfig['mail_encryption'] === 'tls' ? 'selected' : '' }}>TLS / STARTTLS (Port 587)</option>
+                                                <option value="ssl" {{ $mailConfig['mail_encryption'] === 'ssl' ? 'selected' : '' }}>SSL / SMTPS (Port 465)</option>
+                                                <option value="none" {{ $mailConfig['mail_encryption'] === 'none' ? 'selected' : '' }}>None</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-bold text-muted" for="mail_username">SMTP Username</label>
+                                            <input id="mail_username" type="text" name="mail_username"
+                                                value="{{ old('mail_username', $mailConfig['mail_username']) }}"
+                                                class="form-control" placeholder="resend">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-bold text-muted" for="mail_password">Resend API Key (Password)</label>
+                                            <input id="mail_password" type="password" name="mail_password" value=""
+                                                class="form-control" autocomplete="new-password"
+                                                placeholder="{{ $mailConfig['is_password_configured'] ? 'Configured (leave blank to keep)' : 're_xxxxxxxxxxxx' }}">
+                                        </div>
                                     </div>
                                 </div>
 
@@ -414,8 +443,6 @@
                                         <input id="mail_from_address" type="email" name="mail_from_address"
                                             value="{{ old('mail_from_address', $mailConfig['mail_from_address']) }}"
                                             class="form-control" placeholder="noreply@leonproject.my.id">
-                                        <small class="text-muted">Must use verified domain from Resend (e.g.
-                                            <code>noreply@leonproject.my.id</code>).</small>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold text-muted" for="mail_from_name">From
@@ -501,11 +528,45 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Preset Resend
+            // Email Driver Dynamic Toggler & Resend Preset
+            const mailMailerSelect = document.getElementById('mail_mailer');
+            const smtpFieldsContainer = document.getElementById('smtpFieldsContainer');
+            const logModeNotice = document.getElementById('logModeNotice');
+            const badgeMailDriver = document.getElementById('badge-mail-driver');
+            const badgeMailStatus = document.getElementById('badge-mail-status');
             const presetBtn = document.getElementById('btn-preset-resend');
+
+            function toggleMailDriverFields() {
+                if (!mailMailerSelect) return;
+                const isLog = mailMailerSelect.value === 'log';
+                if (smtpFieldsContainer) {
+                    smtpFieldsContainer.classList.toggle('d-none', isLog);
+                }
+                if (logModeNotice) {
+                    logModeNotice.classList.toggle('d-none', !isLog);
+                }
+                if (badgeMailDriver) {
+                    badgeMailDriver.textContent = 'Driver: ' + (isLog ? 'LOG' : 'SMTP');
+                }
+                if (badgeMailStatus) {
+                    if (isLog) {
+                        badgeMailStatus.className = 'badge bg-info text-dark';
+                        badgeMailStatus.innerHTML = '<i class="fas fa-file-alt me-1"></i> Local Log Active';
+                    }
+                }
+            }
+
+            if (mailMailerSelect) {
+                mailMailerSelect.addEventListener('change', toggleMailDriverFields);
+                toggleMailDriverFields();
+            }
+
             if (presetBtn) {
                 presetBtn.addEventListener('click', function() {
-                    document.getElementById('mail_mailer').value = 'smtp';
+                    if (mailMailerSelect) {
+                        mailMailerSelect.value = 'smtp';
+                        toggleMailDriverFields();
+                    }
                     document.getElementById('mail_host').value = 'smtp.resend.com';
                     document.getElementById('mail_port').value = '465';
                     document.getElementById('mail_encryption').value = 'ssl';
@@ -761,35 +822,51 @@
 
             if (wagBadgeEl && wagLeftBox) {
                 function checkWagStatus() {
-                    fetch(wagStatusUrl, { headers: { 'Accept': 'application/json' } })
-                        .then(function(res) { return res.json(); })
+                    fetch(wagStatusUrl, {
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(function(res) {
+                            return res.json();
+                        })
                         .then(function(data) {
                             if (!data.reachable) {
-                                wagBadgeEl.innerHTML = '<span class="badge bg-danger px-2 py-1 small"><i class="fas fa-plug me-1"></i> Offline</span>';
+                                wagBadgeEl.innerHTML =
+                                    '<span class="badge bg-danger px-2 py-1 small"><i class="fas fa-plug me-1"></i> Offline</span>';
                                 if (wagDetailStatus) {
                                     wagDetailStatus.className = 'fw-bold small text-danger';
-                                    wagDetailStatus.innerHTML = '<i class="fas fa-times-circle me-1"></i> Offline / Terputus';
+                                    wagDetailStatus.innerHTML =
+                                        '<i class="fas fa-times-circle me-1"></i> Offline / Terputus';
                                 }
-                                if (wagDetailPhone) wagDetailPhone.innerHTML = '<span class="text-muted fst-italic">Belum Terhubung</span>';
-                                if (wagDetailPairedAt) wagDetailPairedAt.innerHTML = '<i class="far fa-clock me-1"></i> Menunggu scan';
+                                if (wagDetailPhone) wagDetailPhone.innerHTML =
+                                    '<span class="text-muted fst-italic">Belum Terhubung</span>';
+                                if (wagDetailPairedAt) wagDetailPairedAt.innerHTML =
+                                    '<i class="far fa-clock me-1"></i> Menunggu scan';
                                 wagLeftBox.innerHTML = `
                                     <div class="text-danger mb-2"><i class="fas fa-plug fa-3x"></i></div>
                                     <span class="badge bg-danger px-2 py-1 mb-1 small">waG Offline</span>
                                     <div class="text-muted" style="font-size: 10px;">Layanan tidak dapat dijangkau</div>
                                 `;
                             } else if (data.connected) {
-                                wagBadgeEl.innerHTML = '<span class="badge bg-success px-2 py-1 small"><i class="fas fa-check-circle me-1"></i> Connected</span>';
-                                const userName = (data.user && data.user.name) ? data.user.name : ((data.user && data.user.phone) ? 'WhatsApp (+' + data.user.phone + ')' : 'Device Connected');
+                                wagBadgeEl.innerHTML =
+                                    '<span class="badge bg-success px-2 py-1 small"><i class="fas fa-check-circle me-1"></i> Connected</span>';
+                                const userName = (data.user && data.user.name) ? data.user.name : ((data.user &&
+                                        data.user.phone) ? 'WhatsApp (+' + data.user.phone + ')' :
+                                    'Device Connected');
                                 const userPhone = (data.user && data.user.phone) ? '+' + data.user.phone : '';
                                 if (wagDetailStatus) {
                                     wagDetailStatus.className = 'fw-bold small text-success';
-                                    wagDetailStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i> Online &amp; Terhubung';
+                                    wagDetailStatus.innerHTML =
+                                        '<i class="fas fa-check-circle me-1"></i> Online &amp; Terhubung';
                                 }
                                 if (wagDetailPhone) {
-                                    wagDetailPhone.innerHTML = userPhone ? `<code>${userPhone}</code>` : '<span class="text-muted fst-italic">Terhubung</span>';
+                                    wagDetailPhone.innerHTML = userPhone ? `<code>${userPhone}</code>` :
+                                        '<span class="text-muted fst-italic">Terhubung</span>';
                                 }
                                 if (wagDetailPairedAt && data.paired_at) {
-                                    wagDetailPairedAt.innerHTML = `<i class="far fa-clock me-1"></i> ${data.paired_at}`;
+                                    wagDetailPairedAt.innerHTML =
+                                        `<i class="far fa-clock me-1"></i> ${data.paired_at}`;
                                 }
                                 wagLeftBox.innerHTML = `
                                     <div class="text-success mb-2"><i class="fab fa-whatsapp fa-3x"></i></div>
@@ -798,13 +875,17 @@
                                     <code class="text-muted" style="font-size: 10px;">${userPhone}</code>
                                 `;
                             } else if (data.qr_svg) {
-                                wagBadgeEl.innerHTML = '<span class="badge bg-warning text-dark px-2 py-1 small"><i class="fas fa-qrcode me-1"></i> Pairing Needed</span>';
+                                wagBadgeEl.innerHTML =
+                                    '<span class="badge bg-warning text-dark px-2 py-1 small"><i class="fas fa-qrcode me-1"></i> Pairing Needed</span>';
                                 if (wagDetailStatus) {
                                     wagDetailStatus.className = 'fw-bold small text-warning';
-                                    wagDetailStatus.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Menunggu Pairing';
+                                    wagDetailStatus.innerHTML =
+                                        '<i class="fas fa-hourglass-half me-1"></i> Menunggu Pairing';
                                 }
-                                if (wagDetailPhone) wagDetailPhone.innerHTML = '<span class="text-muted fst-italic">Belum Terhubung</span>';
-                                if (wagDetailPairedAt) wagDetailPairedAt.innerHTML = '<i class="far fa-clock me-1"></i> Menunggu scan';
+                                if (wagDetailPhone) wagDetailPhone.innerHTML =
+                                    '<span class="text-muted fst-italic">Belum Terhubung</span>';
+                                if (wagDetailPairedAt) wagDetailPairedAt.innerHTML =
+                                    '<i class="far fa-clock me-1"></i> Menunggu scan';
                                 wagLeftBox.innerHTML = `
                                     <div class="p-1 bg-white rounded border mb-1 d-flex align-items-center justify-content-center" style="width: 122px; height: 122px;">
                                         ${data.qr_svg}
@@ -829,11 +910,13 @@
                     e.preventDefault();
                     const originalHtml = btnWaTestSubmit.innerHTML;
                     btnWaTestSubmit.disabled = true;
-                    btnWaTestSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sending...';
+                    btnWaTestSubmit.innerHTML =
+                        '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sending...';
 
                     if (waTestAlertBox) {
                         waTestAlertBox.className = 'alert alert-info py-1 px-2 small mb-2';
-                        waTestAlertBox.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Mengirim notifikasi WhatsApp via gateway...';
+                        waTestAlertBox.innerHTML =
+                            '<i class="fas fa-spinner fa-spin me-1"></i> Mengirim notifikasi WhatsApp via gateway...';
                         waTestAlertBox.classList.remove('d-none');
                     }
 
@@ -843,43 +926,54 @@
                     };
 
                     fetch(formWaTest.action, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    })
-                    .then(function(res) {
-                        return res.json().then(function(data) {
-                            return { ok: res.ok, data: data };
-                        });
-                    })
-                    .then(function(result) {
-                        btnWaTestSubmit.disabled = false;
-                        btnWaTestSubmit.innerHTML = originalHtml;
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(payload)
+                        })
+                        .then(function(res) {
+                            return res.json().then(function(data) {
+                                return {
+                                    ok: res.ok,
+                                    data: data
+                                };
+                            });
+                        })
+                        .then(function(result) {
+                            btnWaTestSubmit.disabled = false;
+                            btnWaTestSubmit.innerHTML = originalHtml;
 
-                        if (result.ok && result.data.success) {
-                            if (waTestAlertBox) {
-                                waTestAlertBox.className = 'alert alert-success py-1 px-2 small mb-2';
-                                waTestAlertBox.innerHTML = '<i class="fas fa-check-circle me-1"></i> <strong>Berhasil:</strong> ' + result.data.message;
+                            if (result.ok && result.data.success) {
+                                if (waTestAlertBox) {
+                                    waTestAlertBox.className =
+                                        'alert alert-success py-1 px-2 small mb-2';
+                                    waTestAlertBox.innerHTML =
+                                        '<i class="fas fa-check-circle me-1"></i> <strong>Berhasil:</strong> ' +
+                                        result.data.message;
+                                }
+                            } else {
+                                if (waTestAlertBox) {
+                                    waTestAlertBox.className =
+                                        'alert alert-danger py-1 px-2 small mb-2';
+                                    waTestAlertBox.innerHTML =
+                                        '<i class="fas fa-times-circle me-1"></i> <strong>Gagal:</strong> ' +
+                                        (result.data.message || 'Gagal mengirim pesan.');
+                                }
                             }
-                        } else {
+                        })
+                        .catch(function(err) {
+                            btnWaTestSubmit.disabled = false;
+                            btnWaTestSubmit.innerHTML = originalHtml;
                             if (waTestAlertBox) {
                                 waTestAlertBox.className = 'alert alert-danger py-1 px-2 small mb-2';
-                                waTestAlertBox.innerHTML = '<i class="fas fa-times-circle me-1"></i> <strong>Gagal:</strong> ' + (result.data.message || 'Gagal mengirim pesan.');
+                                waTestAlertBox.innerHTML =
+                                    '<i class="fas fa-exclamation-triangle me-1"></i> <strong>Error:</strong> ' +
+                                    (err.message || 'Gagal menghubungi server.');
                             }
-                        }
-                    })
-                    .catch(function(err) {
-                        btnWaTestSubmit.disabled = false;
-                        btnWaTestSubmit.innerHTML = originalHtml;
-                        if (waTestAlertBox) {
-                            waTestAlertBox.className = 'alert alert-danger py-1 px-2 small mb-2';
-                            waTestAlertBox.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> <strong>Error:</strong> ' + (err.message || 'Gagal menghubungi server.');
-                        }
-                    });
+                        });
                 });
             }
         });
