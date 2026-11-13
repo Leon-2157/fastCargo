@@ -24,8 +24,8 @@
 
     <div class="row">
         <!-- AI Intelligence Engine Configuration -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow border-start-primary h-100 d-flex flex-column">
+        <div class="col-lg-6 mb-4 align-self-start">
+            <div class="card shadow border-start-primary">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence Engine
                     </h6>
@@ -37,7 +37,7 @@
                         Active: {{ $aiConfig['active_label'] ?? strtoupper($currentAi) }}
                     </span>
                 </div>
-                <div class="card-body d-flex flex-column justify-content-between flex-grow-1">
+                <div class="card-body">
                     <form id="aiSwitchForm" method="POST" action="{{ route('admin.settings.ai.switch', [], false) }}"
                         class="mb-4">
                         @csrf
@@ -58,8 +58,7 @@
                         </div>
                     </form>
 
-                    <form id="formAiSettings" method="POST" action="{{ route('admin.settings.update', [], false) }}"
-                        class="d-flex flex-column justify-content-between flex-grow-1">
+                    <form id="formAiSettings" method="POST" action="{{ route('admin.settings.update', [], false) }}">
                         @csrf
                         @method('PUT')
 
@@ -158,7 +157,7 @@
                         <div id="aiTestFeedback" class="d-none alert py-2 px-3 small mb-3"></div>
 
                         <!-- Footer Action Buttons -->
-                        <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-auto">
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
                             <button id="btnTestAiConnection" type="button" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-satellite-dish me-1 text-primary"></i> Test Connection
                             </button>
@@ -172,8 +171,8 @@
         </div>
 
         <!-- WhatsApp Gateway Station Card -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow border-start-success h-100 d-flex flex-column">
+        <div class="col-lg-6 mb-4 align-self-start">
+            <div class="card shadow border-start-success">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-success"><i class="fab fa-whatsapp me-1"></i> WhatsApp Gateway Station</h6>
                     <div id="wag-status-badge">
@@ -187,7 +186,7 @@
                     </div>
                 </div>
 
-                <div class="card-body p-3 d-flex flex-column justify-content-between flex-grow-1">
+                <div class="card-body p-3">
                     <!-- BARIS ATAS: 2 KOTAK BERSEBELAHAN -->
                     <div class="row g-2 mb-3">
                         <!-- Kotak Kiri: QR Code / Status Perangkat -->
