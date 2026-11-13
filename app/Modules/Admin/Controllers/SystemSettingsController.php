@@ -190,17 +190,44 @@ class SystemSettingsController extends Controller
                 'mailer' => $activeMailer,
             ]);
 
-            if ($activeMailer === 'log') {
-                return back()->with('success', 'Test email berhasil dicatat ke file log server (storage/logs/laravel.log). Mode Local Log aktif, email tidak dikirim ke internet.');
-            }
+            AdmSystemSetting::updateOrCreate(
+                ['key' => 'mail_last_test'],
+                [
+                    'value' => json_encode([
+                        'recipient' => $recipient,
+                        'mailer' => $activeMailer,
+                        'status' => 'SUCCESS',
+                        'timestamp' => now()->toIso8601String(),
+                        'formatted_time' => now()->format('d M Y, H:i').' WIB',
+                    ]),
+                    'type' => 'json',
+                    'description' => 'Last email delivery test audit result',
+                ]
+            );
 
             if ($activeMailer === 'log') {
-                return back()->with('success', "Test email berhasil dicatat ke file log server (storage/logs/laravel.log). Mode Local Log aktif, email tidak dikirim ke internet.");
+                return back()->with('success', 'Test email berhasil dicatat ke file log server (storage/logs/laravel.log). Mode Local Log aktif, email tidak dikirim ke internet.');
             }
 
             return back()->with('success', "Test email was sent successfully to {$recipient}. Please check your inbox (and spam/promotions tab).");
         } catch (Throwable $e) {
             Log::error('Send test email failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            AdmSystemSetting::updateOrCreate(
+                ['key' => 'mail_last_test'],
+                [
+                    'value' => json_encode([
+                        'recipient' => $validated['test_email'] ?? 'unknown',
+                        'mailer' => $activeMailer ?? 'unknown',
+                        'status' => 'FAILED',
+                        'error' => $e->getMessage(),
+                        'timestamp' => now()->toIso8601String(),
+                        'formatted_time' => now()->format('d M Y, H:i').' WIB',
+                    ]),
+                    'type' => 'json',
+                    'description' => 'Last email delivery test audit result',
+                ]
+            );
 
             return back()->with('error', 'Failed to dispatch test email: '.$e->getMessage());
         }

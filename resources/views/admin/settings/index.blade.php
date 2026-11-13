@@ -239,7 +239,7 @@
                         <div class="col-sm-6">
                             <div id="wag-right-box"
                                 class="border rounded p-3 bg-white d-flex flex-column justify-content-between h-100 shadow-sm"
-                                style="min-height: 180px;">
+                                style="min-height: 150px;">
                                 <div>
                                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                         <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">
@@ -297,7 +297,6 @@
                                 <span class="small fw-bold text-uppercase text-muted" style="font-size: 11px;">
                                     <i class="fas fa-paper-plane me-1 text-success"></i> Test Send Message
                                 </span>
-                                <span class="text-muted" style="font-size: 10px;">Live Direct Dispatch</span>
                             </div>
 
                             <div id="waTestAlertBox" class="alert py-1 px-2 small mb-2 d-none" role="alert"></div>
@@ -305,7 +304,7 @@
                             <div class="row g-2 mb-2">
                                 <div class="col-sm-5">
                                     <label class="form-label mb-1 text-muted" style="font-size: 10px;"
-                                        for="wa_direct_phone">Nomor Tujuan (E.164 / 08xx)</label>
+                                        for="wa_direct_phone">Nomor Tujuan</label>
                                     <input id="wa_direct_phone" type="text" name="phone"
                                         value="{{ old('phone', '') }}" class="form-control form-control-sm"
                                         placeholder="08123456789 atau +628123456789" required>
@@ -346,147 +345,273 @@
                     <div>
                         <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-envelope me-1"></i> Email Delivery
                             Engine</h6>
+                        <small class="text-muted">Powers Email Verification, Password Reset, and 2-Factor Authentication
+                            Emergency OTP.</small>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
-                        <span id="badge-mail-driver" class="badge bg-secondary">Driver: {{ strtoupper($mailConfig['mail_mailer']) }}</span>
+                        <span id="badge-mail-driver" class="badge bg-secondary">Driver:
+                            {{ strtoupper($mailConfig['mail_mailer']) }}</span>
                         @if ($mailConfig['mail_mailer'] === 'log')
                             <span id="badge-mail-status" class="badge bg-info text-dark">
                                 <i class="fas fa-file-alt me-1"></i> Local Log Active
                             </span>
                         @else
-                            <span id="badge-mail-status" class="badge {{ $mailConfig['is_password_configured'] ? 'bg-success' : 'bg-danger' }}">
-                                <i class="fas {{ $mailConfig['is_password_configured'] ? 'fa-check-circle' : 'fa-exclamation-triangle' }} me-1"></i>
+                            <span id="badge-mail-status"
+                                class="badge {{ $mailConfig['is_password_configured'] ? 'bg-success' : 'bg-danger' }}">
+                                <i
+                                    class="fas {{ $mailConfig['is_password_configured'] ? 'fa-check-circle' : 'fa-exclamation-triangle' }} me-1"></i>
                                 {{ $mailConfig['is_password_configured'] ? 'API Key Configured' : 'API Key Not Set' }}
                             </span>
                         @endif
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <!-- Configuration Form -->
-                        <div class="col-lg-8 border-end pe-lg-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="small fw-bold text-uppercase text-muted mb-0">SMTP Server Configuration</h6>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="btn-preset-resend">
-                                    <i class="fas fa-magic me-1"></i> Auto-fill Resend SMTP Preset
-                                </button>
-                            </div>
-
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <!-- Configuration Form (Left Column) -->
+                        <div class="col-lg-7 border-end pe-lg-4">
                             <form method="POST" action="{{ route('admin.settings.update', [], false) }}">
                                 @csrf
                                 @method('PUT')
 
-                                <div class="row g-3 mb-3">
-                                    <div class="col-md-12">
-                                        <label class="form-label small fw-bold text-muted" for="mail_mailer">Mail Driver</label>
-                                        <select id="mail_mailer" name="mail_mailer" class="form-select">
-                                            <option value="smtp" {{ $mailConfig['mail_mailer'] === 'smtp' ? 'selected' : '' }}>
-                                                SMTP (Recommended / Resend)
-                                            </option>
-                                            <option value="log" {{ $mailConfig['mail_mailer'] === 'log' ? 'selected' : '' }}>
-                                                Local Log (Debug only)
-                                            </option>
-                                        </select>
-                                    </div>
+                                <!-- Mail Driver Selection -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-muted mb-1" for="mail_mailer">
+                                        <i class="fas fa-paper-plane me-1 text-primary"></i> Mail Delivery Driver Engine
+                                    </label>
+                                    <select id="mail_mailer" name="mail_mailer" class="form-select">
+                                        <option value="smtp"
+                                            {{ $mailConfig['mail_mailer'] === 'smtp' ? 'selected' : '' }}>
+                                            SMTP (Recommended / Resend Production)
+                                        </option>
+                                        <option value="log"
+                                            {{ $mailConfig['mail_mailer'] === 'log' ? 'selected' : '' }}>
+                                            Local Log (Development / Debug Only)
+                                        </option>
+                                    </select>
                                 </div>
 
                                 <!-- Local Log Info Box -->
-                                <div id="logModeNotice" class="alert alert-info py-2 px-3 small mb-3 {{ $mailConfig['mail_mailer'] === 'log' ? '' : 'd-none' }}">
-                                    <i class="fas fa-info-circle me-1"></i> <strong>Mode Local Log Aktif:</strong> Email tidak dikirim ke internet, melainkan dicatat langsung di file log server (<code>storage/logs/laravel.log</code>). Server SMTP, Port, dan API Key tidak diperlukan.
-                                </div>
-
-                                <!-- SMTP Server Configuration Fields (Hidden when Local Log is selected) -->
-                                <div id="smtpFieldsContainer" class="{{ $mailConfig['mail_mailer'] === 'log' ? 'd-none' : '' }}">
-                                    <div class="row g-3 mb-3">
-                                        <div class="col-md-8">
-                                            <label class="form-label small fw-bold text-muted" for="mail_host">SMTP Host</label>
-                                            <input id="mail_host" type="text" name="mail_host"
-                                                value="{{ old('mail_host', $mailConfig['mail_host']) }}" class="form-control"
-                                                placeholder="smtp.resend.com">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small fw-bold text-muted" for="mail_port">Port</label>
-                                            <input id="mail_port" type="number" name="mail_port"
-                                                value="{{ old('mail_port', $mailConfig['mail_port']) }}" class="form-control"
-                                                placeholder="465">
+                                <div id="logModeNotice"
+                                    class="alert alert-info py-2 px-3 small mb-3 shadow-sm {{ $mailConfig['mail_mailer'] === 'log' ? '' : 'd-none' }}">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-file-alt fa-2x text-info me-3"></i>
+                                        <div>
+                                            <strong>Mode Local Log Aktif:</strong> Email tidak dikirim ke internet,
+                                            melainkan dicatat langsung di file log server
+                                            (<code>storage/logs/laravel.log</code>). Server SMTP, Port, dan API Key tidak
+                                            diperlukan.
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div class="row g-3 mb-3">
+                                <!-- Group 1: Server Connection (Hidden when Local Log) -->
+                                <div id="smtpServerGroup"
+                                    class="border rounded p-3 mb-3 bg-light shadow-sm {{ $mailConfig['mail_mailer'] === 'log' ? 'd-none' : '' }}">
+                                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                            <i class="fas fa-server me-1 text-primary"></i> 1. Server Connection
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2"
+                                            id="btn-preset-resend" style="font-size: 11px;">
+                                            <i class="fas fa-magic me-1"></i> Auto-fill Resend SMTP Preset
+                                        </button>
+                                    </div>
+
+                                    <div class="row g-2">
+                                        <div class="col-md-5">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                                for="mail_host">SMTP Host</label>
+                                            <input id="mail_host" type="text" name="mail_host"
+                                                value="{{ old('mail_host', $mailConfig['mail_host']) }}"
+                                                class="form-control form-control-sm" placeholder="smtp.resend.com">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                                for="mail_port">Port</label>
+                                            <input id="mail_port" type="number" name="mail_port"
+                                                value="{{ old('mail_port', $mailConfig['mail_port']) }}"
+                                                class="form-control form-control-sm" placeholder="465">
+                                        </div>
                                         <div class="col-md-4">
-                                            <label class="form-label small fw-bold text-muted" for="mail_encryption">Encryption</label>
-                                            <select id="mail_encryption" name="mail_encryption" class="form-select">
-                                                <option value="tls" {{ $mailConfig['mail_encryption'] === 'tls' ? 'selected' : '' }}>TLS / STARTTLS (Port 587)</option>
-                                                <option value="ssl" {{ $mailConfig['mail_encryption'] === 'ssl' ? 'selected' : '' }}>SSL / SMTPS (Port 465)</option>
-                                                <option value="none" {{ $mailConfig['mail_encryption'] === 'none' ? 'selected' : '' }}>None</option>
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                                for="mail_encryption">Encryption</label>
+                                            <select id="mail_encryption" name="mail_encryption"
+                                                class="form-select form-select-sm">
+                                                <option value="tls"
+                                                    {{ $mailConfig['mail_encryption'] === 'tls' ? 'selected' : '' }}>TLS /
+                                                    STARTTLS (587)</option>
+                                                <option value="ssl"
+                                                    {{ $mailConfig['mail_encryption'] === 'ssl' ? 'selected' : '' }}>SSL /
+                                                    SMTPS (465)</option>
+                                                <option value="none"
+                                                    {{ $mailConfig['mail_encryption'] === 'none' ? 'selected' : '' }}>None
+                                                </option>
                                             </select>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small fw-bold text-muted" for="mail_username">SMTP Username</label>
+                                    </div>
+                                </div>
+
+                                <!-- Group 2: Authentication & Sender Identity -->
+                                <div class="border rounded p-3 mb-3 bg-white shadow-sm">
+                                    <div class="mb-2 pb-1 border-bottom">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
+                                            <i class="fas fa-shield-alt me-1 text-primary"></i> 2. Authentication &amp;
+                                            Sender Identity
+                                        </span>
+                                    </div>
+
+                                    <!-- Credentials Row (Hidden when Local Log) -->
+                                    <div id="smtpCredentialsRow"
+                                        class="row g-2 mb-2 {{ $mailConfig['mail_mailer'] === 'log' ? 'd-none' : '' }}">
+                                        <div class="col-md-6">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                                for="mail_username">SMTP Username</label>
                                             <input id="mail_username" type="text" name="mail_username"
                                                 value="{{ old('mail_username', $mailConfig['mail_username']) }}"
-                                                class="form-control" placeholder="resend">
+                                                class="form-control form-control-sm" placeholder="resend">
                                         </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small fw-bold text-muted" for="mail_password">Resend API Key (Password)</label>
-                                            <input id="mail_password" type="password" name="mail_password" value=""
-                                                class="form-control" autocomplete="new-password"
+                                        <div class="col-md-6">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                                for="mail_password">Resend API Key (Password)</label>
+                                            <input id="mail_password" type="password" name="mail_password"
+                                                value="" class="form-control form-control-sm"
+                                                autocomplete="new-password"
                                                 placeholder="{{ $mailConfig['is_password_configured'] ? 'Configured (leave blank to keep)' : 're_xxxxxxxxxxxx' }}">
                                         </div>
                                     </div>
+
+                                    <!-- Sender Identity Row (Always Visible) -->
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                                for="mail_from_address">From Address</label>
+                                            <input id="mail_from_address" type="email" name="mail_from_address"
+                                                value="{{ old('mail_from_address', $mailConfig['mail_from_address']) }}"
+                                                class="form-control form-control-sm"
+                                                placeholder="noreply@leonproject.my.id">
+                                            <div class="text-muted" style="font-size: 10px;">Domain terverifikasi Resend /
+                                                DNS.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                                for="mail_from_name">From Sender Name</label>
+                                            <input id="mail_from_name" type="text" name="mail_from_name"
+                                                value="{{ old('mail_from_name', $mailConfig['mail_from_name']) }}"
+                                                class="form-control form-control-sm" placeholder="FastCargo">
+                                            <div class="text-muted" style="font-size: 10px;">Nama pengirim pada header
+                                                email.</div>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div class="row g-3 mb-4">
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted" for="mail_from_address">From
-                                            Address</label>
-                                        <input id="mail_from_address" type="email" name="mail_from_address"
-                                            value="{{ old('mail_from_address', $mailConfig['mail_from_address']) }}"
-                                            class="form-control" placeholder="noreply@leonproject.my.id">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted" for="mail_from_name">From
-                                            Sender Name</label>
-                                        <input id="mail_from_name" type="text" name="mail_from_name"
-                                            value="{{ old('mail_from_name', $mailConfig['mail_from_name']) }}"
-                                            class="form-control" placeholder="FastCargo">
-                                    </div>
-                                </div>
-
-                                <button type="submit" class="btn btn-outline-success btn-sm fw-bold">
+                                <button type="submit" class="btn btn-success btn-sm px-4 fw-bold shadow-sm">
                                     <i class="fas fa-save me-1"></i> Save Mail Settings
                                 </button>
                             </form>
                         </div>
 
-                        <!-- Send Live Test Email Card -->
-                        <div class="col-lg-4 ps-lg-4 mt-4 mt-lg-0 d-flex flex-column justify-content-between">
-                            <div>
-                                <h6 class="small fw-bold text-uppercase text-primary mb-2">Live Delivery Verification</h6>
-                                <p class="text-muted small">
-                                    Verify that your Resend DNS records and API key are operating properly by sending an
-                                    instant test email.
-                                </p>
+                        <!-- Diagnostic & Live Delivery Verification (Right Column) -->
+                        <div class="col-lg-5 ps-lg-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                <span class="small fw-bold text-uppercase text-primary" style="font-size: 11.5px;">
+                                    <i class="fas fa-satellite-dish me-1"></i> Live Delivery Verification
+                                </span>
+                                <span class="badge bg-light text-secondary border small"
+                                    style="font-size: 9.5px;">Diagnostic Tool</span>
+                            </div>
+                            <p class="text-muted small mb-3" style="font-size: 11px;">
+                                Validasi kesiapan server pengiriman email, autentikasi kredensial, dan pastikan email sampai
+                                ke inbox tujuan.
+                            </p>
 
+                            <!-- Direct Dispatch Form -->
+                            <div class="border rounded p-3 mb-3 bg-light shadow-sm">
                                 <form method="POST" action="{{ route('admin.settings.mail.test', [], false) }}">
                                     @csrf
-                                    <div class="mb-3">
-                                        <label class="form-label small fw-bold text-muted" for="test_email">Recipient
-                                            Email Address</label>
+                                    <div class="mb-2">
+                                        <label class="form-label mb-1 text-muted fw-bold" style="font-size: 10.5px;"
+                                            for="test_email">
+                                            Recipient Email Address
+                                        </label>
                                         <input id="test_email" type="email" name="test_email"
                                             value="{{ Auth::guard('admin')->user()?->email ?? 'mtaufiq2157@gmail.com' }}"
-                                            class="form-control" placeholder="your-email@gmail.com" required>
+                                            class="form-control form-control-sm" placeholder="nama@gmail.com" required>
                                     </div>
-                                    <button type="submit" class="btn btn-success w-100 fw-bold py-2">
+                                    <button type="submit" class="btn btn-success btn-sm w-100 fw-bold py-2 shadow-sm">
                                         <i class="fas fa-paper-plane me-1"></i> Dispatch Test Email
                                     </button>
                                 </form>
                             </div>
 
-                            <div class="alert alert-light border small mt-4 mb-0 text-muted">
-                                <i class="fas fa-info-circle text-primary me-1"></i>
-                                <strong>DNS Tip:</strong> Ensure DKIM, SPF (TXT), and MX records are set to <em>DNS
-                                    Only</em> (Gray Cloud) in Cloudflare.
+                            <!-- Hasil Pengujian Terakhir (Last Test Diagnostic) -->
+                            <div class="border rounded p-3 mb-3 bg-white shadow-sm">
+                                <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                    <span class="small fw-bold text-muted text-uppercase" style="font-size: 10px;">
+                                        <i class="fas fa-history me-1 text-info"></i> Riwayat Uji Terakhir
+                                    </span>
+                                    @if (!empty($mailConfig['last_test']['status']) && $mailConfig['last_test']['status'] === 'SUCCESS')
+                                        <span class="badge bg-success px-2 py-1 small" style="font-size: 9px;">
+                                            <i class="fas fa-check-circle me-1"></i> Berhasil
+                                        </span>
+                                    @elseif (!empty($mailConfig['last_test']['status']) && $mailConfig['last_test']['status'] === 'FAILED')
+                                        <span class="badge bg-danger px-2 py-1 small" style="font-size: 9px;">
+                                            <i class="fas fa-times-circle me-1"></i> Gagal
+                                        </span>
+                                    @else
+                                        <span class="badge bg-secondary px-2 py-1 small" style="font-size: 9px;">Belum
+                                            Diuji</span>
+                                    @endif
+                                </div>
+
+                                @if (!empty($mailConfig['last_test']))
+                                    <div class="row g-1 small" style="font-size: 10.5px;">
+                                        <div class="col-4 text-muted">Waktu:</div>
+                                        <div class="col-8 text-dark fw-bold">
+                                            {{ $mailConfig['last_test']['formatted_time'] ?? '-' }}</div>
+
+                                        <div class="col-4 text-muted">Penerima:</div>
+                                        <div class="col-8 text-truncate text-dark fw-bold">
+                                            {{ $mailConfig['last_test']['recipient'] ?? '-' }}</div>
+
+                                        <div class="col-4 text-muted">Driver:</div>
+                                        <div class="col-8">
+                                            <span
+                                                class="badge bg-light text-dark border">{{ strtoupper($mailConfig['last_test']['mailer'] ?? '-') }}</span>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="text-muted small fst-italic" style="font-size: 10.5px;">
+                                        Belum ada pengujian yang dijalankan pada sesi ini. Masukkan email di atas lalu klik
+                                        Dispatch Test Email.
+                                    </div>
+                                @endif
+                            </div>
+
+                            <!-- Pratinjau Pesan Uji Coba -->
+                            <div class="border rounded p-2 mb-3 bg-light small" style="font-size: 10.5px;">
+                                <div class="text-muted fw-bold mb-1">
+                                    <i class="fas fa-envelope-open-text me-1 text-primary"></i> Pratinjau Payload Pesan Uji
+                                    Coba:
+                                </div>
+                                <div class="text-dark"><strong>Subjek:</strong> FastCargo — Email Delivery Test</div>
+                                <div class="text-dark"><strong>Pengirim:</strong> {{ $mailConfig['mail_from_name'] }}
+                                    &lt;{{ $mailConfig['mail_from_address'] }}&gt;</div>
+                                <div class="text-muted mt-1" style="font-size: 10px;">Isi: Verifikasi kesiapan sistem
+                                    autentikasi 2FA OTP &amp; reset password FastCargo.</div>
+                            </div>
+
+                            <!-- DNS & Deliverability Checklist (Cloudflare / Resend) -->
+                            <div class="alert alert-light border small mb-0 text-muted shadow-sm"
+                                style="font-size: 10.5px;">
+                                <div class="fw-bold text-dark mb-1">
+                                    <i class="fas fa-shield-alt text-primary me-1"></i> Deliverability &amp; DNS Checklist:
+                                </div>
+                                <ul class="mb-0 ps-3" style="line-height: 1.5;">
+                                    <li><strong>SPF (TXT):</strong> <code>v=spf1 include:amazonses.com ~all</code></li>
+                                    <li><strong>DKIM (CNAME):</strong> Key domain terverifikasi di Resend</li>
+                                    <li><strong>Cloudflare Proxy:</strong> Pastikan MX &amp; SPF diset <em>DNS Only</em>
+                                        (Awan Abu-abu)</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
@@ -530,7 +655,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Email Driver Dynamic Toggler & Resend Preset
             const mailMailerSelect = document.getElementById('mail_mailer');
-            const smtpFieldsContainer = document.getElementById('smtpFieldsContainer');
+            const smtpServerGroup = document.getElementById('smtpServerGroup');
+            const smtpCredentialsRow = document.getElementById('smtpCredentialsRow');
             const logModeNotice = document.getElementById('logModeNotice');
             const badgeMailDriver = document.getElementById('badge-mail-driver');
             const badgeMailStatus = document.getElementById('badge-mail-status');
@@ -539,11 +665,17 @@
             function toggleMailDriverFields() {
                 if (!mailMailerSelect) return;
                 const isLog = mailMailerSelect.value === 'log';
-                if (smtpFieldsContainer) {
-                    smtpFieldsContainer.classList.toggle('d-none', isLog);
+                if (smtpServerGroup) {
+                    smtpServerGroup.classList.toggle('d-none', isLog);
+                }
+                if (smtpCredentialsRow) {
+                    smtpCredentialsRow.classList.toggle('d-none', isLog);
                 }
                 if (logModeNotice) {
                     logModeNotice.classList.toggle('d-none', !isLog);
+                }
+                if (presetBtn) {
+                    presetBtn.classList.toggle('d-none', isLog);
                 }
                 if (badgeMailDriver) {
                     badgeMailDriver.textContent = 'Driver: ' + (isLog ? 'LOG' : 'SMTP');

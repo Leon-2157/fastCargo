@@ -96,6 +96,8 @@ class MailSettingsService
         ])->pluck('value', 'key');
 
         $password = $settings->get('mail_password', (string) config('mail.mailers.smtp.password', ''));
+        $lastTestRaw = AdmSystemSetting::where('key', 'mail_last_test')->value('value');
+        $lastTest = $lastTestRaw ? json_decode((string) $lastTestRaw, true) : null;
 
         return [
             'mail_mailer' => $settings->get('mail_mailer', config('mail.default', 'smtp')),
@@ -106,6 +108,7 @@ class MailSettingsService
             'mail_from_address' => $settings->get('mail_from_address', config('mail.from.address', 'noreply@leonproject.my.id')),
             'mail_from_name' => $settings->get('mail_from_name', config('mail.from.name', 'FastCargo')),
             'is_password_configured' => trim((string) $password) !== '',
+            'last_test' => is_array($lastTest) ? $lastTest : null,
         ];
     }
 }
