@@ -156,13 +156,13 @@ class FastCargoEndToEndTest extends TestCase
     }
 
     /**
-     * Test 9router AI Provider resolution.
+     * Test Custom AI Provider resolution.
      */
     public function test_ai_provider_resolution(): void
     {
         $provider = AiManager::provider();
         $this->assertNotNull($provider);
-        $this->assertEquals('9router (FastCargo)', $provider->name());
+        $this->assertEquals('Custom AI', $provider->name());
     }
 
     /**

@@ -21,9 +21,9 @@ use Throwable;
 class SystemSettingsController extends Controller
 {
     private const SECRET_KEYS = [
+        'custom_ai_api_key',
         'ninerouter_api_key',
         'gemini_api_key',
-        'custom_ai_api_key',
         'mail_password',
     ];
 
@@ -31,19 +31,19 @@ class SystemSettingsController extends Controller
     {
         $settings = AdmSystemSetting::all()->keyBy('key');
 
-        $nineRouterKey = AiManager::settingValue('custom_ai_api_key', AiManager::settingValue('ninerouter_api_key', (string) config('ai.providers.9router.api_key', '')));
+        $customAiKey = AiManager::settingValue('custom_ai_api_key', AiManager::settingValue('ninerouter_api_key', (string) config('ai.providers.custom.api_key', '')));
         $geminiKey = AiManager::settingValue('gemini_api_key', (string) config('ai.providers.gemini.api_key', ''));
 
         $aiConfig = [
             'active_provider' => AiManager::activeProviderKey(),
             'active_label' => AiManager::activeProviderLabel(),
-            'custom_ai_provider_name' => AiManager::settingValue('custom_ai_provider_name', '9router Gateway'),
-            'custom_ai_base_url' => AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.9router.base_url', 'http://host.containers.internal:20128/v1'))),
-            'custom_ai_model' => AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.9router.model', 'ag/gemini-3.8-flash-high'))),
+            'custom_ai_provider_name' => AiManager::settingValue('custom_ai_provider_name', (string) config('ai.providers.custom.name', 'Custom AI')),
+            'custom_ai_base_url' => AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.custom.base_url', 'http://localhost:20128/v1'))),
+            'custom_ai_model' => AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-high'))),
             'custom_ai_max_completion_tokens' => AiManager::settingValue('custom_ai_max_completion_tokens', '4096'),
             'custom_ai_max_output_tokens' => AiManager::settingValue('custom_ai_max_output_tokens', '2048'),
             'custom_ai_max_tokens' => AiManager::settingValue('custom_ai_max_tokens', '8192'),
-            'custom_ai_key_configured' => $nineRouterKey !== '',
+            'custom_ai_key_configured' => $customAiKey !== '',
             'gemini_model' => AiManager::settingValue('gemini_model', (string) config('ai.providers.gemini.model', 'gemini-2.0-flash')),
             'gemini_key_configured' => $geminiKey !== '',
         ];
@@ -89,7 +89,7 @@ class SystemSettingsController extends Controller
             'mail_from_name' => ['nullable', 'string', 'max:255'],
         ]);
 
-        // Auto-sync custom_ai values with legacy ninerouter keys
+        // Auto-sync custom_ai values with legacy ninerouter keys for backward compatibility
         if (! empty($validated['custom_ai_base_url'])) {
             $validated['ninerouter_base_url'] = $validated['custom_ai_base_url'];
         }
@@ -102,7 +102,7 @@ class SystemSettingsController extends Controller
 
         // Auto-activate selected provider if submitted from AI form
         if (! empty($validated['ai_form_type'])) {
-            $validated['ai_provider'] = $validated['ai_form_type'] === 'gemini' ? 'gemini' : '9router';
+            $validated['ai_provider'] = $validated['ai_form_type'] === 'gemini' ? 'gemini' : 'custom';
         }
 
         if (isset($validated['operator_vpn_whitelist'])) {
@@ -139,13 +139,10 @@ class SystemSettingsController extends Controller
         Cache::forget('operator_vpn_whitelist');
         Cache::forget('adm_mail_settings');
         AiManager::reset();
-        MailSettingsService::apply();
 
-        if (! empty($auditChanges)) {
-            $this->recordAudit($request, 'SYSTEM_SETTINGS_UPDATED', $auditChanges);
-        }
+        $this->recordAudit($request, 'SYSTEM_SETTINGS_UPDATED', $auditChanges);
 
-        return back()->with('success', 'System parameters, mail delivery engine, and operational configurations updated successfully.');
+        return back()->with('success', 'System settings have been updated successfully.');
     }
 
     /**
@@ -186,10 +183,10 @@ class SystemSettingsController extends Controller
     public function switchAiProvider(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'ai_provider' => ['required', 'in:9router,gemini'],
+            'ai_provider' => ['required', 'in:custom,9router,gemini'],
         ]);
 
-        $provider = $validated['ai_provider'];
+        $provider = $validated['ai_provider'] === '9router' ? 'custom' : $validated['ai_provider'];
         $previous = AdmSystemSetting::where('key', 'ai_provider')->value('value');
 
         AdmSystemSetting::updateOrCreate(
@@ -197,7 +194,7 @@ class SystemSettingsController extends Controller
             [
                 'value' => $provider,
                 'type' => 'string',
-                'description' => 'Active AI provider: 9router or gemini',
+                'description' => 'Active AI provider: custom or gemini',
             ]
         );
 
@@ -220,6 +217,7 @@ class SystemSettingsController extends Controller
             'provider' => ['required', 'string', 'in:gemini,custom,9router'],
             'gemini_api_key' => ['nullable', 'string'],
             'gemini_model' => ['nullable', 'string'],
+            'custom_ai_provider_name' => ['nullable', 'string', 'max:120'],
             'custom_ai_base_url' => ['nullable', 'string'],
             'custom_ai_api_key' => ['nullable', 'string'],
             'custom_ai_model' => ['nullable', 'string'],
@@ -274,7 +272,7 @@ class SystemSettingsController extends Controller
             } else {
                 $baseUrl = rtrim(trim((string) ($validated['custom_ai_base_url'] ?? '')), '/');
                 if ($baseUrl === '') {
-                    $baseUrl = rtrim(AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', 'http://host.containers.internal:20128/v1')), '/');
+                    $baseUrl = rtrim(AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.custom.base_url', 'http://localhost:20128/v1'))), '/');
                 }
 
                 $apiKey = trim((string) ($validated['custom_ai_api_key'] ?? ''));
@@ -284,22 +282,29 @@ class SystemSettingsController extends Controller
 
                 $model = trim((string) ($validated['custom_ai_model'] ?? ''));
                 if ($model === '') {
-                    $model = AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', 'ag/gemini-3.8-flash-high'));
+                    $model = AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-high')));
+                }
+
+                $providerName = trim((string) ($validated['custom_ai_provider_name'] ?? ''));
+                if ($providerName === '') {
+                    $providerName = AiManager::settingValue('custom_ai_provider_name', 'Custom AI');
                 }
 
                 if ($baseUrl === '') {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Base URL is required to test Custom Gateway.',
+                        'message' => 'Base URL is required to test Custom AI.',
                     ]);
                 }
+
+                $resolvedUrl = AiManager::resolveNetworkUrl($baseUrl);
 
                 $client = Http::timeout(8);
                 if ($apiKey !== '') {
                     $client = $client->withToken($apiKey);
                 }
 
-                $response = $client->post("{$baseUrl}/chat/completions", [
+                $response = $client->post("{$resolvedUrl}/chat/completions", [
                     'model' => $model,
                     'messages' => [
                         ['role' => 'user', 'content' => 'FastCargo health ping. Reply with only: OK'],
@@ -312,7 +317,7 @@ class SystemSettingsController extends Controller
 
                     return response()->json([
                         'success' => false,
-                        'message' => "Gateway request rejected: {$errorMsg}",
+                        'message' => "Custom AI request rejected: {$errorMsg}",
                     ]);
                 }
 
@@ -320,7 +325,7 @@ class SystemSettingsController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => "Verified successfully with Gateway model ({$model}). Latency: {$latency}ms.",
+                    'message' => "Verified successfully with {$providerName} ({$model}). Latency: {$latency}ms.",
                     'latency_ms' => $latency,
                 ]);
             }

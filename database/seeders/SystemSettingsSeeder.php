@@ -12,9 +12,9 @@ class SystemSettingsSeeder extends Seeder
         $settings = [
             [
                 'key' => 'ai_provider',
-                'value' => '9router',
+                'value' => 'custom',
                 'type' => 'string',
-                'description' => 'Active AI provider: 9router or gemini',
+                'description' => 'Active AI provider: custom or gemini',
             ],
             [
                 'key' => 'operator_vpn_whitelist',

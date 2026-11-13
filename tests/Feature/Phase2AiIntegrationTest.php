@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Livewire\AiChatWidget;
 use App\Livewire\AiInsightCard;
 use App\Modules\Shared\AI\AiManager;
+use App\Modules\Shared\AI\Providers\CustomAiProvider;
 use App\Modules\Shared\AI\Providers\GeminiProvider;
-use App\Modules\Shared\AI\Providers\NineRouterProvider;
 use App\Modules\Shared\Models\AdmSystemSetting;
 use App\Modules\Shared\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,16 +52,16 @@ class Phase2AiIntegrationTest extends TestCase
         $this->assertNotNull($audit);
         $this->assertStringContainsString('gemini', (string) $audit->after);
 
-        // Switching back to 9router takes effect immediately without restart
+        // Switching back to custom takes effect immediately without restart
         $this->actingAs($admin, 'admin')
             ->withSession(['admin_two_factor_verified' => true])
             ->withHeader('Sec-Fetch-Site', 'same-origin')
             ->post('http://admin.fastcargo.local/settings/ai/switch', [
-                'ai_provider' => '9router',
+                'ai_provider' => 'custom',
             ])
             ->assertRedirect();
 
-        $this->assertInstanceOf(NineRouterProvider::class, AiManager::provider());
+        $this->assertInstanceOf(CustomAiProvider::class, AiManager::provider());
     }
 
     public function test_admin_switch_ai_provider_rejects_invalid_engine(): void
@@ -76,7 +76,7 @@ class Phase2AiIntegrationTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('ai_provider');
-        $this->assertSame('9router', AiManager::activeProviderKey());
+        $this->assertSame('custom', AiManager::activeProviderKey());
     }
 
     public function test_admin_settings_masks_secrets_in_html_and_preserves_existing_keys_when_blank(): void

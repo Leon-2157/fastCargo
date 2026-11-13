@@ -3,8 +3,8 @@
 namespace App\Modules\Shared\AI;
 
 use App\Modules\Shared\AI\Contracts\AiProviderInterface;
+use App\Modules\Shared\AI\Providers\CustomAiProvider;
 use App\Modules\Shared\AI\Providers\GeminiProvider;
-use App\Modules\Shared\AI\Providers\NineRouterProvider;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,7 +28,7 @@ class AiManager
         $providerName = static::activeProviderKey();
 
         static::$instance = match ($providerName) {
-            '9router', 'custom' => new NineRouterProvider,
+            'custom', '9router' => new CustomAiProvider,
             'gemini' => new GeminiProvider,
             default => throw new InvalidArgumentException("Unknown AI provider: {$providerName}"),
         };
@@ -38,7 +38,9 @@ class AiManager
 
     public static function activeProviderKey(): string
     {
-        return static::settingValue('ai_provider', (string) config('ai.default', '9router'));
+        $raw = static::settingValue('ai_provider', (string) config('ai.default', 'custom'));
+
+        return $raw === '9router' ? 'custom' : $raw;
     }
 
     public static function activeProviderLabel(): string
@@ -51,13 +53,14 @@ class AiManager
             return "Gemini / {$model}";
         }
 
-        $model = static::settingValue('ninerouter_model', (string) config('ai.providers.9router.model', 'ag/gemini-3.8-flash-high'));
+        $providerName = static::settingValue('custom_ai_provider_name', (string) config('ai.providers.custom.name', 'Custom AI'));
+        $model = static::settingValue('custom_ai_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-high'));
 
-        return "9router / {$model}";
+        return "{$providerName} / {$model}";
     }
 
     /**
-     * Jalankan chat melalui provider aktif, dengan fallback ke Gemini bila 9router gagal dan Gemini key tersedia.
+     * Jalankan chat melalui provider aktif, dengan fallback ke Gemini bila provider custom gagal dan Gemini key tersedia.
      *
      * @param  array<string, mixed>  $context
      */
@@ -73,7 +76,7 @@ class AiManager
                 'error' => $e->getMessage(),
             ]);
 
-            if ($primaryKey === '9router' && static::canFallbackToGemini()) {
+            if ($primaryKey === 'custom' && static::canFallbackToGemini()) {
                 try {
                     return (new GeminiProvider)->chat($prompt, $context, $systemPrompt);
                 } catch (Throwable $fallbackError) {
@@ -104,7 +107,7 @@ class AiManager
                 'error' => $e->getMessage(),
             ]);
 
-            if ($primaryKey === '9router' && static::canFallbackToGemini()) {
+            if ($primaryKey === 'custom' && static::canFallbackToGemini()) {
                 try {
                     return (new GeminiProvider)->summarize($data, $context);
                 } catch (Throwable $fallbackError) {
@@ -116,6 +119,33 @@ class AiManager
 
             throw $e;
         }
+    }
+
+    /**
+     * Resolve localhost/127.0.0.1 to host.containers.internal/host.docker.internal
+     * when running inside a containerized environment (Docker/Podman).
+     */
+    public static function resolveNetworkUrl(string $url): string
+    {
+        $parsed = parse_url($url);
+        $host = $parsed['host'] ?? '';
+
+        if (in_array(strtolower($host), ['localhost', '127.0.0.1'], true) && (file_exists('/run/.containerenv') || file_exists('/.dockerenv'))) {
+            $containerHost = 'host.containers.internal';
+            if (gethostbyname($containerHost) === $containerHost) {
+                $containerHost = 'host.docker.internal';
+            }
+            if (gethostbyname($containerHost) !== $containerHost) {
+                $scheme = $parsed['scheme'] ?? 'http';
+                $port = isset($parsed['port']) ? ":{$parsed['port']}" : '';
+                $path = $parsed['path'] ?? '';
+                $query = isset($parsed['query']) ? "?{$parsed['query']}" : '';
+
+                return "{$scheme}://{$containerHost}{$port}{$path}{$query}";
+            }
+        }
+
+        return $url;
     }
 
     /**
@@ -207,11 +237,19 @@ class AiManager
                 return DB::table('adm_system_settings')
                     ->whereIn('key', [
                         'ai_provider',
+                        'custom_ai_provider_name',
+                        'custom_ai_base_url',
+                        'custom_ai_api_key',
+                        'custom_ai_model',
+                        'custom_ai_max_completion_tokens',
+                        'custom_ai_max_output_tokens',
+                        'custom_ai_max_tokens',
+                        'gemini_api_key',
+                        'gemini_model',
+                        // Legacy fallback keys
                         'ninerouter_base_url',
                         'ninerouter_api_key',
                         'ninerouter_model',
-                        'gemini_api_key',
-                        'gemini_model',
                     ])
                     ->pluck('value', 'key')
                     ->all();
