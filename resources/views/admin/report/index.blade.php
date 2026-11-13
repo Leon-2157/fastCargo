@@ -28,7 +28,7 @@
         </div>
         <div class="card-body">
           <p class="text-muted small">Download itemized payment records including Dana QRIS transaction references, gross values, tax, and settlement status.</p>
-          
+
           <form action="{{ route('admin.reports.export', ['category' => 'invoices']) }}" method="GET">
             <div class="mb-3">
               <label class="form-label small text-muted fw-bold">Quick Presets</label>
