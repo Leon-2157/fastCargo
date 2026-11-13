@@ -93,12 +93,12 @@
 
           <div class="mb-3">
             <label class="form-label small fw-bold text-muted" for="wa_test_phone">Destination Mobile Number (E.164 or 08xx)</label>
-            <input id="wa_test_phone" type="text" name="phone" autocomplete="tel" value="{{ old('phone', '+62811000003') }}" class="form-control" placeholder="+628123456789" required>
+            <input id="wa_test_phone" type="text" name="phone" autocomplete="tel" value="{{ old('phone', '') }}" class="form-control" placeholder="08123456789 atau +628123456789" required>
           </div>
 
           <div class="mb-3">
             <label class="form-label small fw-bold text-muted" for="wa_test_message">Dispatch Message Template</label>
-            <textarea id="wa_test_message" name="message" rows="4" class="form-control" required>{{ old('message', '[FastCargo Alert] Your consignment RPN-20261106-001 has cleared customs at Tanjung Priok Hub and is currently SAILING aboard MV Nusantara Express to Singapore. Real-time telemetry: '.rtrim(config('app.portal_urls.landing', 'http://fastcargo.local:8080'), '/').'/track/RPN-20261106-001') }}</textarea>
+            <textarea id="wa_test_message" name="message" rows="4" class="form-control" placeholder="Tulis pesan uji coba notifikasi WhatsApp di sini..." required>{{ old('message', '') }}</textarea>
           </div>
 
           <button type="submit" class="btn btn-success shadow">

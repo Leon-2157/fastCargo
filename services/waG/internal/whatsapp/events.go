@@ -30,17 +30,39 @@ func (m *Manager) handleEvent(rawEvt interface{}) {
 
 		userID := ""
 		userPhone := ""
-		if m.client != nil && m.client.Store != nil && m.client.Store.ID != nil {
-			userID = m.client.Store.ID.String()
-			userPhone = m.client.Store.ID.User
+		userName := ""
+		if m.client != nil && m.client.Store != nil {
+			if m.client.Store.ID != nil {
+				userID = m.client.Store.ID.String()
+				userPhone = m.client.Store.ID.User
+			}
+			if push := strings.TrimSpace(m.client.Store.PushName); push != "" {
+				userName = push
+			} else if bname := strings.TrimSpace(m.client.Store.BusinessName); bname != "" {
+				userName = bname
+			}
+		}
+		if userName == "" {
+			if userPhone != "" {
+				userName = "WhatsApp (+" + userPhone + ")"
+			} else {
+				userName = "WhatsApp"
+			}
 		}
 		m.connectedUser = &UserInfo{
 			ID:    userID,
 			Phone: userPhone,
-			Name:  config.Get().Snapshot().AppName + " Official",
+			Name:  userName,
 		}
 		m.mu.Unlock()
-		fmt.Printf("[WHATSAPP] Terhubung ke WhatsApp! Akun: %s\n", userPhone)
+		fmt.Printf("[WHATSAPP] Terhubung ke WhatsApp! Akun: %s (%s)\n", userPhone, userName)
+
+	case *events.PushNameSetting:
+		m.mu.Lock()
+		if m.connectedUser != nil && evt.Action != nil && evt.Action.Name != nil && strings.TrimSpace(*evt.Action.Name) != "" {
+			m.connectedUser.Name = strings.TrimSpace(*evt.Action.Name)
+		}
+		m.mu.Unlock()
 
 	case *events.LoggedOut:
 		fmt.Println("[WHATSAPP] Sesi dikeluarkan (Logged Out). Menyiapkan QR baru...")

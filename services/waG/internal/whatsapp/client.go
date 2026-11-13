@@ -597,13 +597,33 @@ func (m *Manager) GetStatus() GatewayStatus {
 	uptime := int64(time.Since(m.startTime).Seconds())
 	paired := m.state == "connected"
 
+	user := m.connectedUser
+	if user != nil {
+		userCopy := *user
+		if m.client != nil && m.client.Store != nil {
+			if push := strings.TrimSpace(m.client.Store.PushName); push != "" {
+				userCopy.Name = push
+			} else if bname := strings.TrimSpace(m.client.Store.BusinessName); bname != "" {
+				userCopy.Name = bname
+			}
+		}
+		if userCopy.Name == "" || strings.HasSuffix(userCopy.Name, " Official") {
+			if userCopy.Phone != "" {
+				userCopy.Name = "WhatsApp (+" + userCopy.Phone + ")"
+			} else {
+				userCopy.Name = "WhatsApp"
+			}
+		}
+		user = &userCopy
+	}
+
 	return GatewayStatus{
 		Service:       config.Get().Snapshot().AppName + " WhatsApp Gateway",
 		Status:        m.state,
 		Paired:        paired,
 		QrImage:       m.currentQrImage,
 		PairingCode:   m.currentPairCode,
-		User:          m.connectedUser,
+		User:          user,
 		UptimeSeconds: uptime,
 		Sandbox:       !paired,
 		Timestamp:     time.Now().Format(time.RFC3339),

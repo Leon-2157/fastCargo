@@ -208,7 +208,7 @@
                                         <i class="fas fa-check-circle me-1"></i> Sesi Terhubung
                                     </span>
                                     <div class="small fw-bold text-dark mb-0" style="font-size: 11px;">
-                                        {{ $waConfig['gatewayStatus']['user']['name'] ?? 'Device Connected' }}
+                                        {{ !empty($waConfig['gatewayStatus']['user']['name']) ? $waConfig['gatewayStatus']['user']['name'] : (!empty($waConfig['gatewayStatus']['user']['phone']) ? 'WhatsApp (+'.$waConfig['gatewayStatus']['user']['phone'].')' : 'Device Connected') }}
                                     </div>
                                     <code class="text-muted" style="font-size: 10px;">+{{ $waConfig['gatewayStatus']['user']['phone'] ?? '' }}</code>
                                 @elseif(!($waConfig['gatewayStatus']['reachable'] ?? false))
@@ -288,11 +288,11 @@
                             <div class="row g-2 mb-2">
                                 <div class="col-sm-5">
                                     <label class="form-label mb-1 text-muted" style="font-size: 10px;" for="wa_direct_phone">Nomor Tujuan (E.164 / 08xx)</label>
-                                    <input id="wa_direct_phone" type="text" name="phone" value="{{ old('phone', '+62811000003') }}" class="form-control form-control-sm" placeholder="+628123456789" required>
+                                    <input id="wa_direct_phone" type="text" name="phone" value="{{ old('phone', '') }}" class="form-control form-control-sm" placeholder="08123456789 atau +628123456789" required>
                                 </div>
                                 <div class="col-sm-7">
                                     <label class="form-label mb-1 text-muted" style="font-size: 10px;" for="wa_direct_message">Pesan Notifikasi</label>
-                                    <textarea id="wa_direct_message" name="message" rows="2" class="form-control form-control-sm" placeholder="Isi pesan uji coba..." required>[FastCargo Alert] Test notifikasi WhatsApp dari Platform Settings.</textarea>
+                                    <textarea id="wa_direct_message" name="message" rows="2" class="form-control form-control-sm" placeholder="Tulis pesan uji coba notifikasi WhatsApp di sini..." required>{{ old('message', '') }}</textarea>
                                 </div>
                             </div>
 
@@ -779,7 +779,7 @@
                                 `;
                             } else if (data.connected) {
                                 wagBadgeEl.innerHTML = '<span class="badge bg-success px-2 py-1 small"><i class="fas fa-check-circle me-1"></i> Connected</span>';
-                                const userName = (data.user && data.user.name) ? data.user.name : 'Device Connected';
+                                const userName = (data.user && data.user.name) ? data.user.name : ((data.user && data.user.phone) ? 'WhatsApp (+' + data.user.phone + ')' : 'Device Connected');
                                 const userPhone = (data.user && data.user.phone) ? '+' + data.user.phone : '';
                                 if (wagDetailStatus) {
                                     wagDetailStatus.className = 'fw-bold small text-success';
