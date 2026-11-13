@@ -6,12 +6,14 @@ use App\Modules\Shared\AI\AiManager;
 use App\Modules\Shared\Models\AdmSystemSetting;
 use App\Modules\Shared\Services\MailSettingsService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -21,6 +23,7 @@ class SystemSettingsController extends Controller
     private const SECRET_KEYS = [
         'ninerouter_api_key',
         'gemini_api_key',
+        'custom_ai_api_key',
         'mail_password',
     ];
 
@@ -28,15 +31,19 @@ class SystemSettingsController extends Controller
     {
         $settings = AdmSystemSetting::all()->keyBy('key');
 
-        $nineRouterKey = AiManager::settingValue('ninerouter_api_key', (string) config('ai.providers.9router.api_key', ''));
+        $nineRouterKey = AiManager::settingValue('custom_ai_api_key', AiManager::settingValue('ninerouter_api_key', (string) config('ai.providers.9router.api_key', '')));
         $geminiKey = AiManager::settingValue('gemini_api_key', (string) config('ai.providers.gemini.api_key', ''));
 
         $aiConfig = [
             'active_provider' => AiManager::activeProviderKey(),
             'active_label' => AiManager::activeProviderLabel(),
-            'ninerouter_base_url' => AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.9router.base_url', 'http://localhost:20128/v1')),
-            'ninerouter_model' => AiManager::settingValue('ninerouter_model', (string) config('ai.providers.9router.model', 'ag/gemini-3.8-flash-high')),
-            'ninerouter_key_configured' => $nineRouterKey !== '',
+            'custom_ai_provider_name' => AiManager::settingValue('custom_ai_provider_name', '9router Gateway'),
+            'custom_ai_base_url' => AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.9router.base_url', 'http://host.containers.internal:20128/v1'))),
+            'custom_ai_model' => AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.9router.model', 'ag/gemini-3.8-flash-high'))),
+            'custom_ai_max_completion_tokens' => AiManager::settingValue('custom_ai_max_completion_tokens', '4096'),
+            'custom_ai_max_output_tokens' => AiManager::settingValue('custom_ai_max_output_tokens', '2048'),
+            'custom_ai_max_tokens' => AiManager::settingValue('custom_ai_max_tokens', '8192'),
+            'custom_ai_key_configured' => $nineRouterKey !== '',
             'gemini_model' => AiManager::settingValue('gemini_model', (string) config('ai.providers.gemini.model', 'gemini-2.0-flash')),
             'gemini_key_configured' => $geminiKey !== '',
         ];
@@ -54,11 +61,19 @@ class SystemSettingsController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'ai_form_type' => ['nullable', 'string', 'in:gemini,custom'],
+            'custom_ai_provider_name' => ['nullable', 'string', 'max:120'],
+            'custom_ai_base_url' => ['nullable', 'url', 'max:255'],
+            'custom_ai_api_key' => ['nullable', 'string', 'max:255'],
+            'custom_ai_model' => ['nullable', 'string', 'max:120'],
+            'custom_ai_max_completion_tokens' => ['nullable', 'integer', 'min:1'],
+            'custom_ai_max_output_tokens' => ['nullable', 'integer', 'min:1'],
+            'custom_ai_max_tokens' => ['nullable', 'integer', 'min:1'],
+            'gemini_api_key' => ['nullable', 'string', 'max:255'],
+            'gemini_model' => ['nullable', 'string', 'max:120'],
             'ninerouter_base_url' => ['nullable', 'url', 'max:255'],
             'ninerouter_api_key' => ['nullable', 'string', 'max:255'],
             'ninerouter_model' => ['nullable', 'string', 'max:120'],
-            'gemini_api_key' => ['nullable', 'string', 'max:255'],
-            'gemini_model' => ['nullable', 'string', 'max:120'],
             'operator_vpn_whitelist' => ['nullable', 'string', 'max:2000'],
             'platform_fee_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'escrow_milestone_1_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
@@ -73,6 +88,22 @@ class SystemSettingsController extends Controller
             'mail_from_address' => ['nullable', 'email', 'max:255'],
             'mail_from_name' => ['nullable', 'string', 'max:255'],
         ]);
+
+        // Auto-sync custom_ai values with legacy ninerouter keys
+        if (! empty($validated['custom_ai_base_url'])) {
+            $validated['ninerouter_base_url'] = $validated['custom_ai_base_url'];
+        }
+        if (! empty($validated['custom_ai_api_key'])) {
+            $validated['ninerouter_api_key'] = $validated['custom_ai_api_key'];
+        }
+        if (! empty($validated['custom_ai_model'])) {
+            $validated['ninerouter_model'] = $validated['custom_ai_model'];
+        }
+
+        // Auto-activate selected provider if submitted from AI form
+        if (! empty($validated['ai_form_type'])) {
+            $validated['ai_provider'] = $validated['ai_form_type'] === 'gemini' ? 'gemini' : '9router';
+        }
 
         if (isset($validated['operator_vpn_whitelist'])) {
             $decoded = json_decode($validated['operator_vpn_whitelist'], true);
@@ -178,6 +209,127 @@ class SystemSettingsController extends Controller
         ]);
 
         return back()->with('success', "Active AI intelligence engine switched to {$provider}.");
+    }
+
+    /**
+     * Real-time AJAX verification of AI engine credentials and live endpoint ping.
+     */
+    public function testAiConnection(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'provider' => ['required', 'string', 'in:gemini,custom,9router'],
+            'gemini_api_key' => ['nullable', 'string'],
+            'gemini_model' => ['nullable', 'string'],
+            'custom_ai_base_url' => ['nullable', 'string'],
+            'custom_ai_api_key' => ['nullable', 'string'],
+            'custom_ai_model' => ['nullable', 'string'],
+        ]);
+
+        $provider = $validated['provider'] === 'gemini' ? 'gemini' : 'custom';
+        $startTime = microtime(true);
+
+        try {
+            if ($provider === 'gemini') {
+                $apiKey = trim((string) ($validated['gemini_api_key'] ?? ''));
+                if ($apiKey === '') {
+                    $apiKey = AiManager::settingValue('gemini_api_key', (string) config('ai.providers.gemini.api_key', ''));
+                }
+                if ($apiKey === '') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Gemini API Key is required to perform connection test.',
+                    ]);
+                }
+
+                $model = trim((string) ($validated['gemini_model'] ?? 'gemini-2.0-flash'));
+                if ($model === '') {
+                    $model = 'gemini-2.0-flash';
+                }
+
+                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
+                $response = Http::timeout(8)->post($url, [
+                    'contents' => [
+                        [
+                            'parts' => [['text' => 'FastCargo health ping. Reply with only: OK']],
+                        ],
+                    ],
+                ]);
+
+                if ($response->failed()) {
+                    $errorMsg = $response->json('error.message') ?? "HTTP {$response->status()} {$response->reason()}";
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Gemini API rejected request: {$errorMsg}",
+                    ]);
+                }
+
+                $latency = round((microtime(true) - $startTime) * 1000);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "Verified successfully with Google Gemini ({$model}). Latency: {$latency}ms.",
+                    'latency_ms' => $latency,
+                ]);
+            } else {
+                $baseUrl = rtrim(trim((string) ($validated['custom_ai_base_url'] ?? '')), '/');
+                if ($baseUrl === '') {
+                    $baseUrl = rtrim(AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', 'http://host.containers.internal:20128/v1')), '/');
+                }
+
+                $apiKey = trim((string) ($validated['custom_ai_api_key'] ?? ''));
+                if ($apiKey === '') {
+                    $apiKey = AiManager::settingValue('custom_ai_api_key', AiManager::settingValue('ninerouter_api_key', ''));
+                }
+
+                $model = trim((string) ($validated['custom_ai_model'] ?? ''));
+                if ($model === '') {
+                    $model = AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', 'ag/gemini-3.8-flash-high'));
+                }
+
+                if ($baseUrl === '') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Base URL is required to test Custom Gateway.',
+                    ]);
+                }
+
+                $client = Http::timeout(8);
+                if ($apiKey !== '') {
+                    $client = $client->withToken($apiKey);
+                }
+
+                $response = $client->post("{$baseUrl}/chat/completions", [
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'user', 'content' => 'FastCargo health ping. Reply with only: OK'],
+                    ],
+                    'stream' => false,
+                ]);
+
+                if ($response->failed()) {
+                    $errorMsg = $response->json('error.message') ?? "HTTP {$response->status()} {$response->reason()}";
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Gateway request rejected: {$errorMsg}",
+                    ]);
+                }
+
+                $latency = round((microtime(true) - $startTime) * 1000);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "Verified successfully with Gateway model ({$model}). Latency: {$latency}ms.",
+                    'latency_ms' => $latency,
+                ]);
+            }
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Connection test failed: '.$e->getMessage(),
+            ]);
+        }
     }
 
     /**

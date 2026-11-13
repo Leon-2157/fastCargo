@@ -25,78 +25,118 @@
         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence Engine (FastCargo AI)</h6>
         @php
           $currentAi = $aiConfig['active_provider'] ?? '9router';
+          $isGemini = in_array($currentAi, ['gemini'], true);
         @endphp
-        <span class="badge {{ $currentAi === '9router' ? 'bg-primary' : 'bg-info text-dark' }} px-3 py-2">
+        <span id="activeAiBadge" class="badge {{ $isGemini ? 'bg-info text-dark' : 'bg-primary' }} px-3 py-2">
           Active: {{ $aiConfig['active_label'] ?? strtoupper($currentAi) }}
         </span>
       </div>
       <div class="card-body">
-        <form method="POST" action="{{ route('admin.settings.ai.switch', [], false) }}" class="mb-4">
+        <form id="aiSwitchForm" method="POST" action="{{ route('admin.settings.ai.switch', [], false) }}" class="mb-4">
           @csrf
           <label class="form-label small fw-bold text-muted" for="ai_provider_select">Select Active AI Provider Engine</label>
           <div class="input-group">
             <select id="ai_provider_select" name="ai_provider" class="form-select">
-              <option value="9router" {{ $currentAi === '9router' ? 'selected' : '' }}>
-                9router Proxy ({{ $aiConfig['ninerouter_model'] }})
-              </option>
-              <option value="gemini" {{ $currentAi === 'gemini' ? 'selected' : '' }}>
+              <option value="gemini" {{ $isGemini ? 'selected' : '' }}>
                 Direct Google Gemini API ({{ $aiConfig['gemini_model'] }})
               </option>
+              <option value="9router" {{ ! $isGemini ? 'selected' : '' }}>
+                Custom Gateway / OpenAI Compatible ({{ $aiConfig['custom_ai_model'] }})
+              </option>
             </select>
-            <button type="submit" class="btn btn-primary">
+            <button id="btnSwitchEngine" type="submit" class="btn btn-primary">
               <i class="fas fa-sync-alt me-1"></i> Switch Engine
             </button>
           </div>
           <small class="text-muted">Switches active provider across all dashboards immediately without restarting services.</small>
         </form>
 
-        <form method="POST" action="{{ route('admin.settings.update', [], false) }}">
+        <form id="formAiSettings" method="POST" action="{{ route('admin.settings.update', [], false) }}">
           @csrf
           @method('PUT')
+          <input type="hidden" name="ai_form_type" id="ai_form_type" value="{{ $isGemini ? 'gemini' : 'custom' }}">
 
-          <h6 class="small fw-bold text-uppercase text-primary mb-2">9router Gateway</h6>
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-muted" for="ninerouter_base_url">9router Base URL</label>
-            <input id="ninerouter_base_url" type="url" name="ninerouter_base_url" value="{{ old('ninerouter_base_url', $aiConfig['ninerouter_base_url']) }}" class="form-control" placeholder="http://host.containers.internal:20128/v1">
-          </div>
+          <!-- SECTION GOOGLE GEMINI (Gambar 3) -->
+          <div id="aiSectionGemini" class="{{ $isGemini ? '' : 'd-none' }}">
+            <h6 class="small fw-bold text-uppercase text-info mb-2"><i class="fab fa-google me-1"></i> Direct Google Gemini API</h6>
 
-          <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <label class="form-label small fw-bold text-muted mb-0" for="ninerouter_api_key">9router API Key</label>
-              <span class="badge {{ $aiConfig['ninerouter_key_configured'] ? 'bg-success' : 'bg-secondary' }}">
-                {{ $aiConfig['ninerouter_key_configured'] ? 'Configured' : 'Not Set' }}
-              </span>
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label small fw-bold text-muted mb-0" for="gemini_api_key">Gemini API Key</label>
+                <span class="badge {{ $aiConfig['gemini_key_configured'] ? 'bg-success' : 'bg-secondary' }}">
+                  {{ $aiConfig['gemini_key_configured'] ? 'Configured' : 'Not Set' }}
+                </span>
+              </div>
+              <input id="gemini_api_key" type="password" name="gemini_api_key" value="" class="form-control ai-dirty-tracker" autocomplete="new-password" placeholder="{{ $aiConfig['gemini_key_configured'] ? 'Configured (leave blank to keep current key)' : 'Enter Google Gemini API key' }}">
             </div>
-            <input id="ninerouter_api_key" type="password" name="ninerouter_api_key" value="" class="form-control" autocomplete="new-password" placeholder="{{ $aiConfig['ninerouter_key_configured'] ? 'Configured (leave blank to keep current key)' : 'Enter 9router API key' }}">
-          </div>
 
-          <div class="mb-4">
-            <label class="form-label small fw-bold text-muted" for="ninerouter_model">9router Model Identifier</label>
-            <input id="ninerouter_model" type="text" name="ninerouter_model" value="{{ old('ninerouter_model', $aiConfig['ninerouter_model']) }}" class="form-control">
-          </div>
-
-          <hr class="my-3">
-          <h6 class="small fw-bold text-uppercase text-info mb-2">Direct Google Gemini API (Primary or Fallback)</h6>
-
-          <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <label class="form-label small fw-bold text-muted mb-0" for="gemini_api_key">Gemini API Key</label>
-              <span class="badge {{ $aiConfig['gemini_key_configured'] ? 'bg-success' : 'bg-secondary' }}">
-                {{ $aiConfig['gemini_key_configured'] ? 'Configured' : 'Not Set' }}
-              </span>
+            <div class="mb-4">
+              <label class="form-label small fw-bold text-muted" for="gemini_model">Gemini Model Identifier</label>
+              <input id="gemini_model" type="text" name="gemini_model" value="{{ old('gemini_model', $aiConfig['gemini_model']) }}" class="form-control ai-dirty-tracker" placeholder="gemini-2.0-flash">
+              <small class="text-muted">FastCargo AI Assistant uses active engine settings for live chat &amp; operational summaries.</small>
             </div>
-            <input id="gemini_api_key" type="password" name="gemini_api_key" value="" class="form-control" autocomplete="new-password" placeholder="{{ $aiConfig['gemini_key_configured'] ? 'Configured (leave blank to keep current key)' : 'Enter Google Gemini API key' }}">
           </div>
 
-          <div class="mb-4">
-            <label class="form-label small fw-bold text-muted" for="gemini_model">Gemini Model Identifier</label>
-            <input id="gemini_model" type="text" name="gemini_model" value="{{ old('gemini_model', $aiConfig['gemini_model']) }}" class="form-control" placeholder="gemini-2.0-flash">
-            <small class="text-muted">FastCargo AI Assistant uses active engine settings for live chat &amp; operational summaries.</small>
+          <!-- SECTION CUSTOM / OPENAI GATEWAY (Gambar 2 & Upload Image) -->
+          <div id="aiSectionCustom" class="{{ $isGemini ? 'd-none' : '' }}">
+            <h6 class="small fw-bold text-uppercase text-primary mb-2"><i class="fas fa-server me-1"></i> Custom Gateway / OpenAI Compatible</h6>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted" for="custom_ai_provider_name">Provider Name</label>
+              <input id="custom_ai_provider_name" type="text" name="custom_ai_provider_name" value="{{ old('custom_ai_provider_name', $aiConfig['custom_ai_provider_name']) }}" class="form-control ai-dirty-tracker" placeholder="e.g. 9router Gateway, OpenAI Official, Local Ollama">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted" for="custom_ai_base_url">Base URL</label>
+              <input id="custom_ai_base_url" type="url" name="custom_ai_base_url" value="{{ old('custom_ai_base_url', $aiConfig['custom_ai_base_url']) }}" class="form-control ai-dirty-tracker" placeholder="http://host.containers.internal:20128/v1">
+            </div>
+
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label small fw-bold text-muted mb-0" for="custom_ai_api_key">API Key</label>
+                <span class="badge {{ $aiConfig['custom_ai_key_configured'] ? 'bg-success' : 'bg-secondary' }}">
+                  {{ $aiConfig['custom_ai_key_configured'] ? 'Configured' : 'Not Set' }}
+                </span>
+              </div>
+              <input id="custom_ai_api_key" type="password" name="custom_ai_api_key" value="" class="form-control ai-dirty-tracker" autocomplete="new-password" placeholder="{{ $aiConfig['custom_ai_key_configured'] ? 'Configured (leave blank to keep current key)' : 'Enter API Key' }}">
+            </div>
+
+            <hr class="my-3">
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted" for="custom_ai_model">Model Name</label>
+              <input id="custom_ai_model" type="text" name="custom_ai_model" value="{{ old('custom_ai_model', $aiConfig['custom_ai_model']) }}" class="form-control ai-dirty-tracker" placeholder="e.g. ag/gemini-3.8-flash-high, gpt-4o-mini">
+            </div>
+
+            <!-- 3 Kolom Token Samping-Sampingan Sesuai Permintaan User -->
+            <div class="row g-2 mb-4">
+              <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted" style="font-size: 0.72rem;" for="custom_ai_max_completion_tokens">Max Completion Token</label>
+                <input id="custom_ai_max_completion_tokens" type="number" name="custom_ai_max_completion_tokens" value="{{ old('custom_ai_max_completion_tokens', $aiConfig['custom_ai_max_completion_tokens']) }}" class="form-control ai-dirty-tracker" placeholder="4096">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted" style="font-size: 0.72rem;" for="custom_ai_max_output_tokens">Max Output Token</label>
+                <input id="custom_ai_max_output_tokens" type="number" name="custom_ai_max_output_tokens" value="{{ old('custom_ai_max_output_tokens', $aiConfig['custom_ai_max_output_tokens']) }}" class="form-control ai-dirty-tracker" placeholder="2048">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted" style="font-size: 0.72rem;" for="custom_ai_max_tokens">Max Token</label>
+                <input id="custom_ai_max_tokens" type="number" name="custom_ai_max_tokens" value="{{ old('custom_ai_max_tokens', $aiConfig['custom_ai_max_tokens']) }}" class="form-control ai-dirty-tracker" placeholder="8192">
+              </div>
+            </div>
           </div>
 
-          <button type="submit" class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-save me-1"></i> Save AI Engine Settings
-          </button>
+          <!-- Test Connection Feedback Message -->
+          <div id="aiTestFeedback" class="d-none alert py-2 px-3 small mb-3"></div>
+
+          <!-- Footer Action Buttons -->
+          <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+            <button id="btnTestAiConnection" type="button" class="btn btn-outline-secondary btn-sm">
+              <i class="fas fa-satellite-dish me-1 text-primary"></i> Test Connection
+            </button>
+            <button id="btnSaveAiSettings" type="submit" class="btn btn-primary btn-sm">
+              <i class="fas fa-save me-1"></i> Save AI Engine Settings
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -267,8 +307,35 @@
   </div>
 </div>
 
+<!-- Modal Peringatan Perubahan Belum Disimpan Saat Switch Engine -->
+<div class="modal fade" id="unsavedAiChangesModal" tabindex="-1" aria-labelledby="unsavedAiChangesModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25 py-3">
+        <h6 class="modal-title text-warning-emphasis fw-bold mb-0" id="unsavedAiChangesModalLabel">
+          <i class="fas fa-exclamation-triangle me-2 text-warning"></i> Perubahan Konfigurasi Belum Disimpan
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-4">
+        <p class="mb-2 text-dark fw-bold">Terdapat perubahan konfigurasi AI yang belum diuji coba dan disimpan.</p>
+        <p class="mb-0 text-muted small">Jika Anda beralih engine sekarang, nilai yang baru Anda ketik akan dibatalkan. Silakan jalankan <strong>"Test Connection"</strong> lalu klik <strong>"Save AI Engine Settings"</strong> terlebih dahulu agar konfigurasi Anda tersimpan.</p>
+      </div>
+      <div class="modal-footer bg-light border-top py-2">
+        <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-dismiss="modal" onclick="focusTestButton()">
+          <i class="fas fa-satellite-dish me-1"></i> Kembali untuk Test &amp; Save
+        </button>
+        <button type="button" class="btn btn-outline-danger btn-sm" id="btnConfirmSwitchAnyway">
+          Tetap Beralih Engine
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // Preset Resend
   const presetBtn = document.getElementById('btn-preset-resend');
   if (presetBtn) {
     presetBtn.addEventListener('click', function() {
@@ -280,6 +347,144 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('mail_from_address').value = 'noreply@leonproject.my.id';
       document.getElementById('mail_from_name').value = 'FastCargo';
       document.getElementById('mail_password').focus();
+    });
+  }
+
+  // AI Provider Dynamic Switcher
+  const providerSelect = document.getElementById('ai_provider_select');
+  const geminiSection = document.getElementById('aiSectionGemini');
+  const customSection = document.getElementById('aiSectionCustom');
+  const formTypeInput = document.getElementById('ai_form_type');
+  const btnSwitchEngine = document.getElementById('btnSwitchEngine');
+  const btnSaveAi = document.getElementById('btnSaveAiSettings');
+  const btnTestAi = document.getElementById('btnTestAiConnection');
+  const testFeedback = document.getElementById('aiTestFeedback');
+  const aiSwitchForm = document.getElementById('aiSwitchForm');
+  const btnConfirmSwitch = document.getElementById('btnConfirmSwitchAnyway');
+
+  let aiFormIsDirty = false;
+  let aiConnectionVerified = true;
+
+  if (providerSelect) {
+    providerSelect.addEventListener('change', function() {
+      if (this.value === 'gemini') {
+        geminiSection.classList.remove('d-none');
+        customSection.classList.add('d-none');
+        formTypeInput.value = 'gemini';
+      } else {
+        geminiSection.classList.add('d-none');
+        customSection.classList.remove('d-none');
+        formTypeInput.value = 'custom';
+      }
+      testFeedback.classList.add('d-none');
+    });
+  }
+
+  // Dirty State Tracker on AI Inputs
+  document.querySelectorAll('.ai-dirty-tracker').forEach(function(el) {
+    el.addEventListener('input', function() {
+      aiFormIsDirty = true;
+      aiConnectionVerified = false;
+      updateSaveButtonState();
+    });
+  });
+
+  function updateSaveButtonState() {
+    if (aiFormIsDirty && !aiConnectionVerified) {
+      btnSaveAi.classList.remove('btn-primary');
+      btnSaveAi.classList.add('btn-secondary');
+      btnSaveAi.setAttribute('disabled', 'disabled');
+      btnSaveAi.setAttribute('title', 'Jalankan Test Connection terlebih dahulu untuk memvalidasi perubahan');
+    } else {
+      btnSaveAi.classList.remove('btn-secondary');
+      btnSaveAi.classList.add('btn-primary');
+      btnSaveAi.removeAttribute('disabled');
+      btnSaveAi.removeAttribute('title');
+    }
+  }
+
+  // Intercept Switch Engine if Unsaved Changes Exist
+  if (btnSwitchEngine) {
+    btnSwitchEngine.addEventListener('click', function(e) {
+      if (aiFormIsDirty) {
+        e.preventDefault();
+        const modalEl = document.getElementById('unsavedAiChangesModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      }
+    });
+  }
+
+  if (btnConfirmSwitch) {
+    btnConfirmSwitch.addEventListener('click', function() {
+      aiFormIsDirty = false;
+      aiSwitchForm.submit();
+    });
+  }
+
+  window.focusTestButton = function() {
+    if (btnTestAi) {
+      btnTestAi.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      btnTestAi.focus();
+    }
+  };
+
+  // Real-time AJAX Test Connection
+  if (btnTestAi) {
+    btnTestAi.addEventListener('click', function() {
+      const originalHtml = btnTestAi.innerHTML;
+      btnTestAi.disabled = true;
+      btnTestAi.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Testing...';
+
+      testFeedback.className = 'alert alert-info py-2 px-3 small mb-3';
+      testFeedback.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Menghubungi endpoint AI untuk verifikasi realtime...';
+      testFeedback.classList.remove('d-none');
+
+      const selectedProvider = providerSelect ? providerSelect.value : 'gemini';
+      const payload = {
+        provider: selectedProvider,
+        gemini_api_key: document.getElementById('gemini_api_key') ? document.getElementById('gemini_api_key').value : '',
+        gemini_model: document.getElementById('gemini_model') ? document.getElementById('gemini_model').value : '',
+        custom_ai_provider_name: document.getElementById('custom_ai_provider_name') ? document.getElementById('custom_ai_provider_name').value : '',
+        custom_ai_base_url: document.getElementById('custom_ai_base_url') ? document.getElementById('custom_ai_base_url').value : '',
+        custom_ai_api_key: document.getElementById('custom_ai_api_key') ? document.getElementById('custom_ai_api_key').value : '',
+        custom_ai_model: document.getElementById('custom_ai_model') ? document.getElementById('custom_ai_model').value : ''
+      };
+
+      fetch('{{ route("admin.settings.ai.test", [], false) }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': '{{ csrf_token() }}',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        btnTestAi.disabled = false;
+        btnTestAi.innerHTML = originalHtml;
+
+        if (data.success) {
+          testFeedback.className = 'alert alert-success py-2 px-3 small mb-3';
+          testFeedback.innerHTML = '<i class="fas fa-check-circle me-2"></i> <strong>Koneksi Berhasil:</strong> ' + data.message;
+          aiConnectionVerified = true;
+          updateSaveButtonState();
+        } else {
+          testFeedback.className = 'alert alert-danger py-2 px-3 small mb-3';
+          testFeedback.innerHTML = '<i class="fas fa-times-circle me-2"></i> <strong>Koneksi Gagal:</strong> ' + data.message;
+          aiConnectionVerified = false;
+          updateSaveButtonState();
+        }
+      })
+      .catch(function(err) {
+        btnTestAi.disabled = false;
+        btnTestAi.innerHTML = originalHtml;
+        testFeedback.className = 'alert alert-danger py-2 px-3 small mb-3';
+        testFeedback.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> <strong>Error:</strong> ' + (err.message || 'Gagal menghubungi server.');
+        aiConnectionVerified = false;
+        updateSaveButtonState();
+      });
     });
   }
 });

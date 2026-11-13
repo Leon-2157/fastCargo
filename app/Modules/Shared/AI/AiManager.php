@@ -28,7 +28,7 @@ class AiManager
         $providerName = static::activeProviderKey();
 
         static::$instance = match ($providerName) {
-            '9router' => new NineRouterProvider,
+            '9router', 'custom' => new NineRouterProvider,
             'gemini' => new GeminiProvider,
             default => throw new InvalidArgumentException("Unknown AI provider: {$providerName}"),
         };

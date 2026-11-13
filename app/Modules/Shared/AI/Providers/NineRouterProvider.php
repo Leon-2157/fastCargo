@@ -22,9 +22,9 @@ class NineRouterProvider implements AiProviderInterface
 
     public function __construct(?string $baseUrl = null, ?string $apiKey = null, ?string $model = null)
     {
-        $this->baseUrl = rtrim($baseUrl ?? AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.9router.base_url', '')), '/');
-        $this->apiKey = $apiKey ?? AiManager::settingValue('ninerouter_api_key', (string) config('ai.providers.9router.api_key', ''));
-        $this->model = $model ?? AiManager::settingValue('ninerouter_model', (string) config('ai.providers.9router.model', 'ag/gemini-3.8-flash-high'));
+        $this->baseUrl = rtrim($baseUrl ?? AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.9router.base_url', ''))), '/');
+        $this->apiKey = $apiKey ?? AiManager::settingValue('custom_ai_api_key', AiManager::settingValue('ninerouter_api_key', (string) config('ai.providers.9router.api_key', '')));
+        $this->model = $model ?? AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.9router.model', 'ag/gemini-3.8-flash-high')));
         $this->timeout = (int) config('ai.timeout', 30);
     }
 

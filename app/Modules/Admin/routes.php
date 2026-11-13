@@ -99,6 +99,7 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
         Route::get('/', [SystemSettingsController::class, 'index'])->name('index');
         Route::put('/', [SystemSettingsController::class, 'update'])->name('update');
         Route::post('/ai/switch', [SystemSettingsController::class, 'switchAiProvider'])->name('ai.switch');
+        Route::post('/ai/test', [SystemSettingsController::class, 'testAiConnection'])->name('ai.test');
         Route::post('/mail/test', [SystemSettingsController::class, 'sendTestEmail'])->name('mail.test');
     });
 
