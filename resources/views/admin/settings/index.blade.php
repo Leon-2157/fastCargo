@@ -852,6 +852,15 @@
                                             <strong>SGpay Architecture:</strong> Uang langsung masuk detik itu juga ke akun ShopeePay/GoBiz pribadi Anda tanpa potongan perantara, menggunakan injeksi EMVCo Tag 54 dan kode unik unik (+Rp 1..999).
                                         </div>
 
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="small fw-bold text-muted text-uppercase" style="font-size: 11px;">
+                                                <i class="fas fa-bolt text-warning me-1"></i> ShopeePay &amp; GoBiz Direct Integration
+                                            </span>
+                                            <button type="button" class="btn btn-sm btn-outline-warning fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#modalLiveTestSgpay">
+                                                🧪 Live Testing
+                                            </button>
+                                        </div>
+
                                         <div class="mb-3">
                                             <label class="form-label mb-1 text-muted small fw-bold" for="payg_sgpay_static_qr">Static QRIS String (EMVCo ASPI)</label>
                                             <textarea id="payg_sgpay_static_qr" name="payg_sgpay_static_qr" class="form-control form-control-sm font-monospace" rows="2"
@@ -907,6 +916,15 @@
                                         <div class="alert alert-light border small mb-3">
                                             <i class="fas fa-info-circle text-info me-1"></i>
                                             <strong>SoBpay Architecture:</strong> Menggunakan platform SociaBuzz untuk menyediakan dynamic QRIS resmi Midtrans/Xendit (nominal pas tanpa kode ganjil), Virtual Account (BCA, Mandiri, BNI, BRI), serta metode ASEAN (Malaysia FPX, Singapore PayNow). Dana terkumpul di saldo SociaBuzz Anda.
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="small fw-bold text-muted text-uppercase" style="font-size: 11px;">
+                                                <i class="fas fa-globe-asia text-info me-1"></i> SociaBuzz Aggregator &amp; ASEAN Platform
+                                            </span>
+                                            <button type="button" class="btn btn-sm btn-outline-info fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalLiveTestSobpay">
+                                                🧪 Live Testing
+                                            </button>
                                         </div>
 
                                         <div class="mb-3">
@@ -1342,6 +1360,196 @@
                     <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnSubmitAddAiModel">
                         <i class="fas fa-save me-1"></i> Simpan Model
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Live Testing SGpay (Direct Dynamic QRIS) -->
+    <div class="modal fade" id="modalLiveTestSgpay" tabindex="-1" aria-labelledby="modalLiveTestSgpayLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25 py-3">
+                    <h6 class="modal-title text-warning-emphasis fw-bold mb-0" id="modalLiveTestSgpayLabel">
+                        <i class="fas fa-bolt text-warning me-2"></i> 🧪 Live Testing SGpay (Direct Dynamic QRIS)
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border small mb-3">
+                        <i class="fas fa-info-circle text-warning me-1"></i>
+                        Simulasi alur transaksi SGpay: nominal tagihan otomatis diinjeksi dengan kode unik (Tag 54) ke string QRIS statis merchant, menghasilkan Dynamic QRIS siap bayar.
+                    </div>
+
+                    <div class="row g-3 align-items-end mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-muted mb-1" for="sgpayTestAmount">Nominal Tagihan (IDR)</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light fw-bold">Rp</span>
+                                <input type="number" id="sgpayTestAmount" class="form-control form-control-sm" value="500000" min="1000" step="1000" placeholder="500000">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-warning btn-sm w-100 fw-bold shadow-sm" id="btnSgpayTestGenerate">
+                                <i class="fas fa-bolt me-1"></i> ⚡ Generate Dynamic QRIS
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="sgpayTestFeedback" class="alert alert-danger py-2 px-3 small d-none mb-3"></div>
+
+                    <!-- Output Container -->
+                    <div id="sgpayTestResult" class="d-none border rounded p-3 bg-light shadow-sm">
+                        <div class="row g-3 align-items-center">
+                            <!-- QR SVG Display -->
+                            <div class="col-md-5 text-center">
+                                <div class="p-2 border rounded bg-white shadow-sm d-inline-block">
+                                    <div id="sgpayTestQrContainer" style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                        <!-- Dynamic QR SVG will be inserted here -->
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-muted small" style="font-size: 11px;">
+                                    <span class="badge bg-success">EMVCo Tag 54 Injected</span>
+                                    <span class="badge bg-secondary font-monospace" id="sgpayTestRefBadge">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Breakdown & Details -->
+                            <div class="col-md-7">
+                                <h6 class="fw-bold text-dark mb-2 border-bottom pb-1" style="font-size: 13px;">
+                                    <i class="fas fa-receipt me-1 text-primary"></i> Rincian Pembayaran QRIS
+                                </h6>
+                                <div class="bg-white p-2 rounded border mb-2 small" style="font-size: 12px;">
+                                    <div class="d-flex justify-content-between py-1 border-bottom">
+                                        <span class="text-muted">Tagihan Pokok:</span>
+                                        <span class="fw-bold text-dark" id="sgpayTestBaseAmount">Rp 500.000</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between py-1 border-bottom text-warning-emphasis">
+                                        <span><i class="fas fa-plus-circle me-1"></i> Kode Unik Otomatis:</span>
+                                        <span class="fw-bold font-monospace" id="sgpayTestUniqueCode">+Rp 0</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between pt-1 text-success fw-bold">
+                                        <span>Total Transfer Pas:</span>
+                                        <span class="fs-6" id="sgpayTestTotalAmount">Rp 500.xxx</span>
+                                    </div>
+                                </div>
+
+                                <!-- Copyable Raw EMVCo QR String -->
+                                <div class="mb-3">
+                                    <label class="form-label text-muted small fw-bold mb-1" style="font-size: 11px;">Raw EMVCo ASPI QR String</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="sgpayTestRawQr" class="form-control form-control-sm font-monospace text-muted" readonly style="font-size: 10px;">
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" id="btnCopySgpayRawQr" title="Salin QR string">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Simulasikan Mutasi Masuk Button -->
+                                <button type="button" class="btn btn-success btn-sm w-100 py-2 fw-bold shadow-sm" id="btnSgpayTestSettle">
+                                    <i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Mutasi Masuk (Instant Settlement)
+                                </button>
+                                <div id="sgpaySettleFeedback" class="mt-2 text-center small fw-bold d-none"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Live Testing SoBpay (SociaBuzz Aggregator & ASEAN) -->
+    <div class="modal fade" id="modalLiveTestSobpay" tabindex="-1" aria-labelledby="modalLiveTestSobpayLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-info bg-opacity-10 border-bottom border-info border-opacity-25 py-3">
+                    <h6 class="modal-title text-info-emphasis fw-bold mb-0" id="modalLiveTestSobpayLabel">
+                        <i class="fas fa-globe-asia text-info me-2"></i> 🧪 Live Testing SoBpay (SociaBuzz Aggregator &amp; ASEAN)
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border small mb-3">
+                        <i class="fas fa-info-circle text-info me-1"></i>
+                        Simulasi alur transaksi SoBpay: invoice terhubung ke checkout page SociaBuzz dengan dukungan multi-channel lengkap (QRIS Midtrans/Xendit pas, VA 4 bank besar, E-Wallet, dan ASEAN Cross-Border).
+                    </div>
+
+                    <div class="row g-3 align-items-end mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-muted mb-1" for="sobpayTestAmount">Nominal Tagihan (IDR)</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light fw-bold">Rp</span>
+                                <input type="number" id="sobpayTestAmount" class="form-control form-control-sm" value="2500000" min="1000" step="1000" placeholder="2500000">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-info btn-sm w-100 fw-bold text-white shadow-sm" id="btnSobpayTestGenerate">
+                                <i class="fas fa-bolt me-1"></i> ⚡ Generate SoBpay Checkout
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="sobpayTestFeedback" class="alert alert-danger py-2 px-3 small d-none mb-3"></div>
+
+                    <!-- Output Container -->
+                    <div id="sobpayTestResult" class="d-none border rounded p-3 bg-light shadow-sm">
+                        <h6 class="fw-bold text-dark mb-2 border-bottom pb-1" style="font-size: 13px;">
+                            <i class="fas fa-link me-1 text-info"></i> Hasil Generate SoBpay Checkout
+                        </h6>
+
+                        <!-- Preview Payment URL -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 11px;">Preview Payment URL (SociaBuzz Hosted Checkout)</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white text-info"><i class="fas fa-external-link-alt"></i></span>
+                                <input type="text" id="sobpayTestPaymentUrl" class="form-control form-control-sm font-monospace text-primary bg-white" readonly>
+                                <button class="btn btn-outline-secondary btn-sm" type="button" id="btnCopySobpayUrl" title="Salin URL">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <a href="#" id="btnSobpayOpenUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm disabled">
+                                    <i class="fas fa-external-link-alt me-1"></i> Buka Link di Tab Baru
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Active Multi-Channel Badges -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 11px;">Saluran Pembayaran Aktif (Multi-Channel &amp; ASEAN)</label>
+                            <div class="d-flex flex-wrap gap-1" id="sobpayChannelsContainer">
+                                <span class="badge bg-white text-dark border"><i class="fas fa-qrcode text-primary me-1"></i> QRIS (Xendit/Midtrans)</span>
+                                <span class="badge bg-white text-dark border"><i class="fas fa-university text-info me-1"></i> BCA VA</span>
+                                <span class="badge bg-white text-dark border"><i class="fas fa-university text-info me-1"></i> Mandiri VA</span>
+                                <span class="badge bg-white text-dark border"><i class="fas fa-university text-info me-1"></i> BNI VA</span>
+                                <span class="badge bg-white text-dark border"><i class="fas fa-university text-info me-1"></i> BRI VA</span>
+                                <span class="badge bg-white text-dark border"><i class="fas fa-wallet text-success me-1"></i> E-Wallet</span>
+                                <span class="badge bg-white text-dark border"><i class="fas fa-globe text-warning me-1"></i> ASEAN PayNow &amp; FPX</span>
+                            </div>
+                        </div>
+
+                        <!-- Transaction Reference & Nominal Summary -->
+                        <div class="bg-white p-2 rounded border mb-3 small d-flex justify-content-between align-items-center" style="font-size: 12px;">
+                            <div>
+                                <span class="text-muted">Transaction Ref:</span>
+                                <span class="fw-bold font-monospace ms-1" id="sobpayTestRefBadge">-</span>
+                            </div>
+                            <div>
+                                <span class="text-muted">Nominal:</span>
+                                <span class="fw-bold text-dark ms-1 fs-6" id="sobpayTestAmountDisplay">Rp 2.500.000</span>
+                            </div>
+                        </div>
+
+                        <!-- Simulasikan Callback SociaBuzz Button -->
+                        <button type="button" class="btn btn-success btn-sm w-100 py-2 fw-bold shadow-sm" id="btnSobpayTestSettle">
+                            <i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Callback SociaBuzz (Instant Settlement)
+                        </button>
+                        <div id="sobpaySettleFeedback" class="mt-2 text-center small fw-bold d-none"></div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
                 </div>
             </div>
         </div>
@@ -2933,6 +3141,322 @@
             if (btnCopyDirectRes && jsonDirectRes) {
                 btnCopyDirectRes.addEventListener('click', function() {
                     copyDirectJson(jsonDirectRes.textContent, btnCopyDirectRes);
+                });
+            }
+
+            // --- PayG Live Testing Modals Logic ---
+
+            // 1. SGpay Live Test Logic
+            const btnSgpayTestGenerate = document.getElementById('btnSgpayTestGenerate');
+            const sgpayTestAmount = document.getElementById('sgpayTestAmount');
+            const sgpayTestFeedback = document.getElementById('sgpayTestFeedback');
+            const sgpayTestResult = document.getElementById('sgpayTestResult');
+            const sgpayTestQrContainer = document.getElementById('sgpayTestQrContainer');
+            const sgpayTestRefBadge = document.getElementById('sgpayTestRefBadge');
+            const sgpayTestBaseAmount = document.getElementById('sgpayTestBaseAmount');
+            const sgpayTestUniqueCode = document.getElementById('sgpayTestUniqueCode');
+            const sgpayTestTotalAmount = document.getElementById('sgpayTestTotalAmount');
+            const sgpayTestRawQr = document.getElementById('sgpayTestRawQr');
+            const btnCopySgpayRawQr = document.getElementById('btnCopySgpayRawQr');
+            const btnSgpayTestSettle = document.getElementById('btnSgpayTestSettle');
+            const sgpaySettleFeedback = document.getElementById('sgpaySettleFeedback');
+
+            let currentSgpayTxRef = '';
+            let currentSgpayInvoice = '';
+            let currentSgpayPayable = 0;
+
+            if (btnSgpayTestGenerate) {
+                btnSgpayTestGenerate.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const amount = sgpayTestAmount ? sgpayTestAmount.value : 500000;
+                    btnSgpayTestGenerate.disabled = true;
+                    btnSgpayTestGenerate.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generating...';
+                    if (sgpayTestFeedback) sgpayTestFeedback.classList.add('d-none');
+                    if (sgpaySettleFeedback) sgpaySettleFeedback.classList.add('d-none');
+
+                    fetch('{{ route('admin.settings.payg.test.sgpay', [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ amount: amount })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnSgpayTestGenerate.disabled = false;
+                        btnSgpayTestGenerate.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Generate Dynamic QRIS';
+
+                        if (data.success) {
+                            currentSgpayTxRef = data.transaction_ref;
+                            currentSgpayInvoice = data.invoice_number;
+                            currentSgpayPayable = data.payable_amount;
+
+                            if (sgpayTestQrContainer) sgpayTestQrContainer.innerHTML = data.qr_svg;
+                            if (sgpayTestRefBadge) sgpayTestRefBadge.textContent = data.transaction_ref;
+                            if (sgpayTestBaseAmount) sgpayTestBaseAmount.textContent = 'Rp ' + Number(data.amount).toLocaleString('id-ID');
+                            if (sgpayTestUniqueCode) sgpayTestUniqueCode.textContent = '+Rp ' + Number(data.unique_code).toLocaleString('id-ID');
+                            if (sgpayTestTotalAmount) sgpayTestTotalAmount.textContent = 'Rp ' + Number(data.payable_amount).toLocaleString('id-ID');
+                            if (sgpayTestRawQr) sgpayTestRawQr.value = data.qr_string;
+
+                            if (btnSgpayTestSettle) {
+                                btnSgpayTestSettle.disabled = false;
+                                btnSgpayTestSettle.className = 'btn btn-success btn-sm w-100 py-2 fw-bold shadow-sm';
+                                btnSgpayTestSettle.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Mutasi Masuk (Instant Settlement)';
+                            }
+
+                            if (sgpayTestResult) sgpayTestResult.classList.remove('d-none');
+
+                            updateRecentTransactionsTable(
+                                data.transaction_ref,
+                                'PENDING',
+                                data.payable_amount,
+                                data.invoice_number
+                            );
+                        } else {
+                            if (sgpayTestFeedback) {
+                                sgpayTestFeedback.textContent = data.message || 'Gagal generate SGpay QRIS';
+                                sgpayTestFeedback.classList.remove('d-none');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        btnSgpayTestGenerate.disabled = false;
+                        btnSgpayTestGenerate.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Generate Dynamic QRIS';
+                        if (sgpayTestFeedback) {
+                            sgpayTestFeedback.textContent = 'Terjadi kesalahan sistem: ' + err;
+                            sgpayTestFeedback.classList.remove('d-none');
+                        }
+                    });
+                });
+            }
+
+            function copyToClipboard(text, btnElement) {
+                if (!text || !btnElement) return;
+                const showSuccess = () => {
+                    const orig = btnElement.innerHTML;
+                    btnElement.innerHTML = '<i class="fas fa-check text-success"></i>';
+                    setTimeout(() => btnElement.innerHTML = orig, 1500);
+                };
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(showSuccess).catch(() => fallbackDirectCopy(text, showSuccess));
+                } else {
+                    fallbackDirectCopy(text, showSuccess);
+                }
+            }
+
+            if (btnCopySgpayRawQr && sgpayTestRawQr) {
+                btnCopySgpayRawQr.addEventListener('click', function() {
+                    copyToClipboard(sgpayTestRawQr.value, btnCopySgpayRawQr);
+                });
+            }
+
+            if (btnSgpayTestSettle) {
+                btnSgpayTestSettle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (!currentSgpayTxRef) return;
+
+                    btnSgpayTestSettle.disabled = true;
+                    btnSgpayTestSettle.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Settlement in progress...';
+
+                    fetch('{{ route('admin.settings.payg.test.settle', [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ transaction_ref: currentSgpayTxRef })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            btnSgpayTestSettle.className = 'btn btn-outline-success btn-sm w-100 py-2 fw-bold';
+                            btnSgpayTestSettle.innerHTML = '<i class="fas fa-check-circle me-1"></i> ✓ Mutasi Berhasil Disimulasikan (Settled)';
+
+                            if (sgpaySettleFeedback) {
+                                sgpaySettleFeedback.className = 'mt-2 text-center small fw-bold text-success';
+                                const escAmt = data.ledger_state && data.ledger_state.escrow_amount_held ? Number(data.ledger_state.escrow_amount_held).toLocaleString('id-ID') : Number(currentSgpayPayable).toLocaleString('id-ID');
+                                sgpaySettleFeedback.innerHTML = '<i class="fas fa-shield-alt me-1"></i> Invoice ' + (currentSgpayInvoice || '') + ' PAID_SETTLED & Escrow HELD (Rp ' + escAmt + ')';
+                                sgpaySettleFeedback.classList.remove('d-none');
+                            }
+
+                            updateRecentTransactionsTable(
+                                data.transaction?.transaction_ref || currentSgpayTxRef,
+                                'SETTLEMENT',
+                                data.transaction?.amount || currentSgpayPayable,
+                                data.transaction?.invoice_number || currentSgpayInvoice
+                            );
+                        } else {
+                            btnSgpayTestSettle.disabled = false;
+                            btnSgpayTestSettle.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Mutasi Masuk (Instant Settlement)';
+                            if (sgpaySettleFeedback) {
+                                sgpaySettleFeedback.className = 'mt-2 text-center small fw-bold text-danger';
+                                sgpaySettleFeedback.textContent = data.message || 'Settlement gagal.';
+                                sgpaySettleFeedback.classList.remove('d-none');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        btnSgpayTestSettle.disabled = false;
+                        btnSgpayTestSettle.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Mutasi Masuk (Instant Settlement)';
+                        if (sgpaySettleFeedback) {
+                            sgpaySettleFeedback.className = 'mt-2 text-center small fw-bold text-danger';
+                            sgpaySettleFeedback.textContent = 'Network error: ' + err;
+                            sgpaySettleFeedback.classList.remove('d-none');
+                        }
+                    });
+                });
+            }
+
+            // 2. SoBpay Live Test Logic
+            const btnSobpayTestGenerate = document.getElementById('btnSobpayTestGenerate');
+            const sobpayTestAmount = document.getElementById('sobpayTestAmount');
+            const sobpayTestFeedback = document.getElementById('sobpayTestFeedback');
+            const sobpayTestResult = document.getElementById('sobpayTestResult');
+            const sobpayTestPaymentUrl = document.getElementById('sobpayTestPaymentUrl');
+            const btnCopySobpayUrl = document.getElementById('btnCopySobpayUrl');
+            const btnSobpayOpenUrl = document.getElementById('btnSobpayOpenUrl');
+            const sobpayTestRefBadge = document.getElementById('sobpayTestRefBadge');
+            const sobpayTestAmountDisplay = document.getElementById('sobpayTestAmountDisplay');
+            const btnSobpayTestSettle = document.getElementById('btnSobpayTestSettle');
+            const sobpaySettleFeedback = document.getElementById('sobpaySettleFeedback');
+
+            let currentSobpayTxRef = '';
+            let currentSobpayInvoice = '';
+            let currentSobpayAmount = 0;
+
+            if (btnSobpayTestGenerate) {
+                btnSobpayTestGenerate.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const amount = sobpayTestAmount ? sobpayTestAmount.value : 2500000;
+                    btnSobpayTestGenerate.disabled = true;
+                    btnSobpayTestGenerate.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generating...';
+                    if (sobpayTestFeedback) sobpayTestFeedback.classList.add('d-none');
+                    if (sobpaySettleFeedback) sobpaySettleFeedback.classList.add('d-none');
+
+                    fetch('{{ route('admin.settings.payg.test.sobpay', [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ amount: amount })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnSobpayTestGenerate.disabled = false;
+                        btnSobpayTestGenerate.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Generate SoBpay Checkout';
+
+                        if (data.success) {
+                            currentSobpayTxRef = data.transaction_ref;
+                            currentSobpayInvoice = data.invoice_number;
+                            currentSobpayAmount = data.amount;
+
+                            if (sobpayTestPaymentUrl) sobpayTestPaymentUrl.value = data.payment_url;
+                            if (btnSobpayOpenUrl) {
+                                btnSobpayOpenUrl.href = data.payment_url;
+                                btnSobpayOpenUrl.classList.remove('disabled');
+                            }
+                            if (sobpayTestRefBadge) sobpayTestRefBadge.textContent = data.transaction_ref;
+                            if (sobpayTestAmountDisplay) sobpayTestAmountDisplay.textContent = 'Rp ' + Number(data.amount).toLocaleString('id-ID');
+
+                            if (btnSobpayTestSettle) {
+                                btnSobpayTestSettle.disabled = false;
+                                btnSobpayTestSettle.className = 'btn btn-success btn-sm w-100 py-2 fw-bold shadow-sm';
+                                btnSobpayTestSettle.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Callback SociaBuzz (Instant Settlement)';
+                            }
+
+                            if (sobpayTestResult) sobpayTestResult.classList.remove('d-none');
+
+                            updateRecentTransactionsTable(
+                                data.transaction_ref,
+                                'PENDING',
+                                data.amount,
+                                data.invoice_number
+                            );
+                        } else {
+                            if (sobpayTestFeedback) {
+                                sobpayTestFeedback.textContent = data.message || 'Gagal generate SoBpay Checkout';
+                                sobpayTestFeedback.classList.remove('d-none');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        btnSobpayTestGenerate.disabled = false;
+                        btnSobpayTestGenerate.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Generate SoBpay Checkout';
+                        if (sobpayTestFeedback) {
+                            sobpayTestFeedback.textContent = 'Terjadi kesalahan sistem: ' + err;
+                            sobpayTestFeedback.classList.remove('d-none');
+                        }
+                    });
+                });
+            }
+
+            if (btnCopySobpayUrl && sobpayTestPaymentUrl) {
+                btnCopySobpayUrl.addEventListener('click', function() {
+                    copyToClipboard(sobpayTestPaymentUrl.value, btnCopySobpayUrl);
+                });
+            }
+
+            if (btnSobpayTestSettle) {
+                btnSobpayTestSettle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (!currentSobpayTxRef) return;
+
+                    btnSobpayTestSettle.disabled = true;
+                    btnSobpayTestSettle.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Settlement in progress...';
+
+                    fetch('{{ route('admin.settings.payg.test.settle', [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ transaction_ref: currentSobpayTxRef })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            btnSobpayTestSettle.className = 'btn btn-outline-success btn-sm w-100 py-2 fw-bold';
+                            btnSobpayTestSettle.innerHTML = '<i class="fas fa-check-circle me-1"></i> ✓ Callback SociaBuzz Berhasil Disimulasikan (Settled)';
+
+                            if (sobpaySettleFeedback) {
+                                sobpaySettleFeedback.className = 'mt-2 text-center small fw-bold text-success';
+                                const escAmt = data.ledger_state && data.ledger_state.escrow_amount_held ? Number(data.ledger_state.escrow_amount_held).toLocaleString('id-ID') : Number(currentSobpayAmount).toLocaleString('id-ID');
+                                sobpaySettleFeedback.innerHTML = '<i class="fas fa-shield-alt me-1"></i> Invoice ' + (currentSobpayInvoice || '') + ' PAID_SETTLED & Escrow HELD (Rp ' + escAmt + ')';
+                                sobpaySettleFeedback.classList.remove('d-none');
+                            }
+
+                            updateRecentTransactionsTable(
+                                data.transaction?.transaction_ref || currentSobpayTxRef,
+                                'SETTLEMENT',
+                                data.transaction?.amount || currentSobpayAmount,
+                                data.transaction?.invoice_number || currentSobpayInvoice
+                            );
+                        } else {
+                            btnSobpayTestSettle.disabled = false;
+                            btnSobpayTestSettle.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Callback SociaBuzz (Instant Settlement)';
+                            if (sobpaySettleFeedback) {
+                                sobpaySettleFeedback.className = 'mt-2 text-center small fw-bold text-danger';
+                                sobpaySettleFeedback.textContent = data.message || 'Settlement gagal.';
+                                sobpaySettleFeedback.classList.remove('d-none');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        btnSobpayTestSettle.disabled = false;
+                        btnSobpayTestSettle.innerHTML = '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Callback SociaBuzz (Instant Settlement)';
+                        if (sobpaySettleFeedback) {
+                            sobpaySettleFeedback.className = 'mt-2 text-center small fw-bold text-danger';
+                            sobpaySettleFeedback.textContent = 'Network error: ' + err;
+                            sobpaySettleFeedback.classList.remove('d-none');
+                        }
+                    });
                 });
             }
         });

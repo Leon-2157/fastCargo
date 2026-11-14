@@ -516,4 +516,231 @@ class PayGPaymentGatewayTest extends TestCase
         $this->assertEquals(4, strlen($crc));
         $this->assertEquals('3699', $crc);
     }
+
+    public function test_admin_payg_live_testing_sgpay_endpoint(): void
+    {
+        $admin = User::create([
+            'id' => Str::uuid()->toString(),
+            'name' => 'Admin PayG Live Test',
+            'username' => 'admin_lt_'.Str::random(4),
+            'email' => 'admin_lt_'.Str::random(4).'@example.com',
+            'password' => bcrypt('password123'),
+            'user_type' => 'ADMIN_USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->postJson('http://admin.fastcargo.local/settings/payg/test/sgpay', [
+                'amount' => 500000,
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'engine' => 'sgpay',
+            'currency' => 'IDR',
+        ]);
+
+        $data = $response->json();
+        $this->assertNotEmpty($data['transaction_ref']);
+        $this->assertNotEmpty($data['qr_string']);
+        $this->assertNotEmpty($data['qr_svg']);
+        $this->assertGreaterThanOrEqual(500000, $data['payable_amount']);
+
+        $this->assertDatabaseHas('payment_transactions', [
+            'transaction_ref' => $data['transaction_ref'],
+            'payment_status' => 'PENDING',
+        ]);
+    }
+
+    public function test_admin_payg_live_testing_sobpay_endpoint(): void
+    {
+        $admin = User::create([
+            'id' => Str::uuid()->toString(),
+            'name' => 'Admin SoBpay Live Test',
+            'username' => 'admin_sob_'.Str::random(4),
+            'email' => 'admin_sob_'.Str::random(4).'@example.com',
+            'password' => bcrypt('password123'),
+            'user_type' => 'ADMIN_USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->postJson('http://admin.fastcargo.local/settings/payg/test/sobpay', [
+                'amount' => 2500000,
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'engine' => 'sobpay',
+        ]);
+
+        $data = $response->json();
+        $this->assertNotEmpty($data['transaction_ref']);
+        $this->assertNotEmpty($data['payment_url']);
+        $this->assertIsArray($data['channels']);
+        $this->assertNotEmpty($data['channels']);
+
+        $this->assertDatabaseHas('payment_transactions', [
+            'transaction_ref' => $data['transaction_ref'],
+            'payment_status' => 'PENDING',
+        ]);
+    }
+
+    public function test_admin_payg_live_testing_settle_endpoint(): void
+    {
+        $admin = User::create([
+            'id' => Str::uuid()->toString(),
+            'name' => 'Admin Settle Live Test',
+            'username' => 'admin_stl_'.Str::random(4),
+            'email' => 'admin_stl_'.Str::random(4).'@example.com',
+            'password' => bcrypt('password123'),
+            'user_type' => 'ADMIN_USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        // 1. Generate live test transaction
+        $genResponse = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->postJson('http://admin.fastcargo.local/settings/payg/test/sgpay', [
+                'amount' => 500000,
+            ]);
+
+        $genResponse->assertStatus(200);
+        $txRef = $genResponse->json('transaction_ref');
+        $this->assertNotEmpty($txRef);
+
+        // 2. Settle the transaction
+        $settleResponse = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->postJson('http://admin.fastcargo.local/settings/payg/test/settle', [
+                'transaction_ref' => $txRef,
+            ]);
+
+        $settleResponse->assertStatus(200);
+        $settleResponse->assertJson([
+            'success' => true,
+            'transaction' => [
+                'transaction_ref' => $txRef,
+                'payment_status' => 'SETTLEMENT',
+            ],
+            'ledger_state' => [
+                'transaction_status' => 'SETTLEMENT',
+                'invoice_status' => 'PAID_SETTLED',
+                'escrow_status' => 'HELD_IN_ESCROW',
+            ],
+        ]);
+
+        $this->assertDatabaseHas('payment_transactions', [
+            'transaction_ref' => $txRef,
+            'payment_status' => 'SETTLEMENT',
+        ]);
+    }
+
+    public function test_admin_payg_live_testing_settle_not_found(): void
+    {
+        $admin = User::create([
+            'id' => Str::uuid()->toString(),
+            'name' => 'Admin Settle 404 Test',
+            'username' => 'admin_404_'.Str::random(4),
+            'email' => 'admin_404_'.Str::random(4).'@example.com',
+            'password' => bcrypt('password123'),
+            'user_type' => 'ADMIN_USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $nonExistentRef = 'NON-EXISTENT-TX-REF-'.Str::random(6);
+
+        $settleResponse = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->postJson('http://admin.fastcargo.local/settings/payg/test/settle', [
+                'transaction_ref' => $nonExistentRef,
+            ]);
+
+        $settleResponse->assertStatus(200);
+        $settleResponse->assertJson([
+            'success' => false,
+        ]);
+        $settleResponse->assertJsonMissing([
+            'ledger_state' => [
+                'invoice_status' => 'PAID_SETTLED',
+            ],
+        ]);
+
+        // Verify audit trail integrity: failed/non-existent settlement must NEVER record a success audit
+        $this->assertDatabaseMissing('adm_immutable_audit_trails', [
+            'action' => 'PAYG_LIVE_TEST_SETTLED',
+            'before' => json_encode(['transaction_ref' => $nonExistentRef]),
+        ]);
+    }
+
+    public function test_admin_payg_live_testing_validation_rules(): void
+    {
+        $admin = User::create([
+            'id' => Str::uuid()->toString(),
+            'name' => 'Admin Validation Test',
+            'username' => 'admin_val_'.Str::random(4),
+            'email' => 'admin_val_'.Str::random(4).'@example.com',
+            'password' => bcrypt('password123'),
+            'user_type' => 'ADMIN_USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        // SGpay amount < 1000
+        $resSgpay = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->postJson('http://admin.fastcargo.local/settings/payg/test/sgpay', [
+                'amount' => 500,
+            ]);
+        $resSgpay->assertStatus(422);
+
+        // SoBpay amount < 1000
+        $resSobpay = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->postJson('http://admin.fastcargo.local/settings/payg/test/sobpay', [
+                'amount' => -100,
+            ]);
+        $resSobpay->assertStatus(422);
+
+        // Settle missing transaction_ref
+        $resSettle = $this->actingAs($admin, 'admin')
+            ->withSession(['admin_two_factor_verified' => true])
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->postJson('http://admin.fastcargo.local/settings/payg/test/settle', []);
+        $resSettle->assertStatus(422);
+    }
+
+    public function test_payg_standalone_fallback_for_sgpay_and_sobpay_when_daemon_unreachable(): void
+    {
+        // Mock daemon failure by setting unreachable service URL
+        config(['payg.service_url' => 'http://unreachable-daemon-host.invalid:9999']);
+        config(['payg.timeout' => 1]);
+
+        $service = app(PayGPaymentGatewayService::class);
+
+        // 1. SGpay fallback generates unique code (+1..999) and dynamic QRIS
+        $sgpayResult = $service->generateCheckout($this->invoice, $this->customer, ['engine' => 'sgpay']);
+        $this->assertEquals('sgpay', $sgpayResult['engine']);
+        $this->assertGreaterThan(0, $sgpayResult['unique_code']);
+        $this->assertLessThanOrEqual(999, $sgpayResult['unique_code']);
+        $this->assertEquals($sgpayResult['amount'] + $sgpayResult['unique_code'], $sgpayResult['payable_amount']);
+        $this->assertNotEmpty($sgpayResult['qr_string']);
+        $this->assertNotEmpty($sgpayResult['qr_svg']);
+
+        // 2. SoBpay fallback generates payment URL with configured username
+        $sobpayResult = $service->generateCheckout($this->invoice, $this->customer, ['engine' => 'sobpay']);
+        $this->assertEquals('sobpay', $sobpayResult['engine']);
+        $this->assertNotEmpty($sobpayResult['payment_url']);
+        $this->assertStringContainsString('sociabuzz.com/@', $sobpayResult['payment_url']);
+    }
 }

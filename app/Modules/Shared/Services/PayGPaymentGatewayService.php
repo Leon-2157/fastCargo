@@ -195,23 +195,53 @@ class PayGPaymentGatewayService
             Log::info('PayG service checkout call failed, using built-in smart fallback', ['error' => $e->getMessage()]);
         }
 
-        // Fallback Standalone Generator (Instant Simulator)
-        $ref = 'PAYG-SIM-'.date('Ymd').'-'.strtoupper(Str::random(8));
+        // Fallback Standalone Generator
         $expiresAt = now()->addMinutes(15);
-        $qrString = $this->buildEmvcoPayload($ref, $amount, $merchantName);
-        $qrSvg = $this->renderQrSvg($qrString);
+        $uniqueCode = 0;
+        $payableAmount = $amount;
+        $paymentUrl = '';
+        $channel = 'QRIS';
+
+        if ($enginePref === 'sgpay') {
+            $uniqueCode = random_int(1, 999);
+            $payableAmount = $amount + $uniqueCode;
+            $ref = 'SGPAY-'.date('YmdHis').'-'.sprintf('%03d', $uniqueCode);
+            $engine = 'sgpay';
+            $channel = 'QRIS';
+            $qrString = $this->buildEmvcoPayload($ref, $payableAmount, $merchantName);
+            $qrSvg = $this->renderQrSvg($qrString);
+        } elseif ($enginePref === 'sobpay') {
+            $username = (string) AdmSystemSetting::get('payg_sobpay_username', 'fastcargotest');
+            if (empty($username)) {
+                $username = 'fastcargotest';
+            }
+            $ref = 'SOBPAY-sbz_'.time().Str::random(6);
+            $engine = 'sobpay';
+            $channel = 'MULTI_CHANNEL';
+            $paymentUrl = "https://sociabuzz.com/@{$username}/tribe";
+            $qrString = '';
+            $qrSvg = '';
+        } else {
+            $ref = 'PAYG-SIM-'.date('Ymd').'-'.strtoupper(Str::random(8));
+            $engine = 'simulator';
+            $channel = 'QRIS';
+            $qrString = $this->buildEmvcoPayload($ref, $amount, $merchantName);
+            $qrSvg = $this->renderQrSvg($qrString);
+        }
 
         $this->recordPendingTransaction(
             $invoice,
             $customer,
             $ref,
-            $amount,
-            'SIMULATOR',
-            'QRIS',
+            $payableAmount,
+            strtoupper($engine),
+            $channel,
             [
                 'merchant_name' => $merchantName,
-                'gateway_mode' => 'SMART_SANDBOX',
+                'gateway_mode' => 'STANDALONE_FALLBACK',
+                'unique_code' => $uniqueCode,
                 'qr_string' => $qrString,
+                'payment_url' => $paymentUrl,
                 'expires_at' => $expiresAt->toIso8601String(),
             ]
         );
@@ -219,18 +249,19 @@ class PayGPaymentGatewayService
         return [
             'transaction_ref' => $ref,
             'amount' => $amount,
-            'payable_amount' => $amount,
-            'unique_code' => 0,
+            'payable_amount' => $payableAmount,
+            'unique_code' => $uniqueCode,
             'currency' => $currency,
             'qr_string' => $qrString,
             'qr_svg' => $qrSvg,
+            'payment_url' => $paymentUrl,
             'expires_at' => $expiresAt,
             'is_mock' => true,
             'merchant_name' => $merchantName,
-            'engine' => 'simulator',
-            'channel' => 'QRIS',
+            'engine' => $engine,
+            'channel' => $channel,
             'instructions' => [
-                'Smart Simulator Mode: Simulated transaction ready for instant testing.',
+                'Smart Standalone Mode: Simulated transaction ready for instant testing.',
                 'Click "Simulate Instant Pay" to trigger escrow funding and booking confirmation.',
             ],
         ];

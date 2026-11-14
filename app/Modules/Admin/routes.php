@@ -107,6 +107,9 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
         Route::post('/payg/otp/verify', [SystemSettingsController::class, 'verifyPaygOtp'])->name('payg.otp.verify');
         Route::post('/payg/disconnect', [SystemSettingsController::class, 'disconnectPayg'])->name('payg.disconnect');
         Route::get('/payg/fees', [SystemSettingsController::class, 'getPaygFees'])->name('payg.fees');
+        Route::post('/payg/test/sgpay', [SystemSettingsController::class, 'testPaygSgpay'])->name('payg.test.sgpay');
+        Route::post('/payg/test/sobpay', [SystemSettingsController::class, 'testPaygSobpay'])->name('payg.test.sobpay');
+        Route::post('/payg/test/settle', [SystemSettingsController::class, 'testPaygSettle'])->name('payg.test.settle');
     });
 
     Route::prefix('wa-gateway')->name('admin.wa.')->group(function () {

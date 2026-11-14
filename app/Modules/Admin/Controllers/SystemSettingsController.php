@@ -3,8 +3,15 @@
 namespace App\Modules\Admin\Controllers;
 
 use App\Modules\Shared\AI\AiManager;
+use App\Modules\Shared\Models\AdmEscrowLedger;
+use App\Modules\Shared\Models\AdmInvoice;
 use App\Modules\Shared\Models\AdmSystemSetting;
+use App\Modules\Shared\Models\Company;
+use App\Modules\Shared\Models\OpsCargoBooking;
 use App\Modules\Shared\Models\PaymentTransaction;
+use App\Modules\Shared\Models\Port;
+use App\Modules\Shared\Models\Route;
+use App\Modules\Shared\Models\User;
 use App\Modules\Shared\Services\MailSettingsService;
 use App\Modules\Shared\Services\PayGPaymentGatewayService;
 use App\Modules\Shared\WhatsApp\WaGatewayClient;
@@ -21,9 +28,11 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Throwable;
 
 class SystemSettingsController extends Controller
@@ -776,6 +785,207 @@ class SystemSettingsController extends Controller
         $result = $this->paygService->getSobpayFees($country, $amount);
 
         return response()->json($result);
+    }
+
+    /**
+     * Live testing endpoint for SGpay (Direct Dynamic QRIS).
+     */
+    public function testPaygSgpay(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['nullable', 'numeric', 'min:1000'],
+        ]);
+
+        $amount = (float) ($validated['amount'] ?? 500000.00);
+        [$invoice, $user] = $this->createSandboxInvoice($amount);
+
+        $result = $this->paygService->generateCheckout($invoice, $user, ['engine' => 'sgpay']);
+
+        return response()->json([
+            'success' => true,
+            'engine' => 'sgpay',
+            'transaction_ref' => $result['transaction_ref'],
+            'invoice_number' => $invoice->invoice_number,
+            'amount' => (float) $result['amount'],
+            'unique_code' => (int) ($result['unique_code'] ?? 0),
+            'payable_amount' => (float) ($result['payable_amount'] ?? $result['amount']),
+            'qr_string' => $result['qr_string'] ?? '',
+            'qr_svg' => $result['qr_svg'] ?? '',
+            'channel' => $result['channel'] ?? 'QRIS',
+            'currency' => $result['currency'] ?? 'IDR',
+        ]);
+    }
+
+    /**
+     * Live testing endpoint for SoBpay (SociaBuzz Aggregator & ASEAN).
+     */
+    public function testPaygSobpay(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['nullable', 'numeric', 'min:1000'],
+        ]);
+
+        $amount = (float) ($validated['amount'] ?? 2500000.00);
+        [$invoice, $user] = $this->createSandboxInvoice($amount);
+
+        $result = $this->paygService->generateCheckout($invoice, $user, ['engine' => 'sobpay']);
+
+        $paymentUrl = $result['payment_url'] ?? '';
+        if (empty($paymentUrl)) {
+            $username = AdmSystemSetting::get('payg_sobpay_username') ?: 'fastcargotest';
+            $paymentUrl = "https://sociabuzz.com/@{$username}/tribe";
+        }
+
+        return response()->json([
+            'success' => true,
+            'engine' => 'sobpay',
+            'transaction_ref' => $result['transaction_ref'],
+            'invoice_number' => $invoice->invoice_number,
+            'amount' => (float) $result['amount'],
+            'payable_amount' => (float) ($result['payable_amount'] ?? $result['amount']),
+            'payment_url' => $paymentUrl,
+            'channels' => [
+                'QRIS (Xendit / Midtrans)',
+                'BCA Virtual Account',
+                'Mandiri Virtual Account',
+                'BNI Virtual Account',
+                'BRI Virtual Account',
+                'E-Wallet (OVO / DANA / GoPay / ShopeePay)',
+                'ASEAN PayNow (SGD) & FPX (MYR)',
+            ],
+        ]);
+    }
+
+    /**
+     * Simulate instant settlement for live test transaction.
+     */
+    public function testPaygSettle(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'transaction_ref' => ['required', 'string'],
+        ]);
+
+        $ref = $validated['transaction_ref'];
+        $settleResult = $this->paygService->simulateSettlement($ref, 'SETTLEMENT');
+
+        if (! ($settleResult['success'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'message' => $settleResult['message'] ?? 'Settlement simulation failed.',
+            ]);
+        }
+
+        $tx = PaymentTransaction::where('transaction_ref', $ref)->first();
+        $invoice = $tx ? AdmInvoice::find($tx->invoice_id) : null;
+        $escrow = $invoice ? AdmEscrowLedger::where('cargo_booking_id', $invoice->cargo_booking_id)->first() : null;
+
+        $admin = Auth::guard('admin')->user();
+        DB::table('adm_immutable_audit_trails')->insert([
+            'actor_id' => $admin?->id,
+            'actor_type' => 'ADMIN',
+            'action' => 'PAYG_LIVE_TEST_SETTLED',
+            'target_type' => 'payment_transactions',
+            'target_id' => $tx?->id,
+            'before' => json_encode(['transaction_ref' => $ref]),
+            'after' => json_encode([
+                'tx_status' => $tx?->payment_status,
+                'invoice_status' => $invoice?->payment_status,
+                'escrow_status' => $escrow?->escrow_status,
+            ]),
+            'ip_address' => $request->ip(),
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $settleResult['message'] ?? 'Settlement simulated successfully.',
+            'transaction' => [
+                'id' => $tx?->id,
+                'transaction_ref' => $tx?->transaction_ref ?? $ref,
+                'amount' => (float) ($tx?->amount ?? 0),
+                'payment_status' => $tx?->payment_status ?? 'SETTLEMENT',
+                'invoice_number' => $invoice?->invoice_number ?? null,
+                'payment_gateway' => $tx?->payment_gateway ?? 'PAYG',
+                'created_at_human' => 'Baru saja',
+            ],
+            'ledger_state' => [
+                'transaction_status' => $tx?->payment_status ?? 'SETTLEMENT',
+                'invoice_status' => $invoice?->payment_status ?? 'PAID_SETTLED',
+                'escrow_status' => $escrow?->escrow_status ?? 'HELD_IN_ESCROW',
+                'escrow_amount_held' => $escrow ? number_format((float) $escrow->total_paid_amount, 2, '.', '') : '0.00',
+            ],
+        ]);
+    }
+
+    /**
+     * Helper to create an isolated sandbox booking & invoice for live testing.
+     *
+     * @return array{0: AdmInvoice, 1: User}
+     */
+    private function createSandboxInvoice(float $amount = 500000.00): array
+    {
+        $user = User::firstOrCreate(
+            ['email' => 'sandbox.merchant@fastcargo.test'],
+            [
+                'name' => 'Sandbox ASEAN Merchant',
+                'password' => Hash::make('Sandbox123!'),
+                'user_type' => 'CORPORATE_USER',
+                'status' => 'ACTIVE',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $company = Company::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'company_name' => 'FastCargo Sandbox Enterprise Ltd',
+                'email' => $user->email,
+            ]
+        );
+
+        $origin = Port::firstOrCreate(
+            ['id' => 'IDJKT'],
+            ['name' => 'Tanjung Priok', 'city' => 'Jakarta', 'country_code' => 'ID', 'port_type' => 'SEAPORT', 'latitude' => -6.102, 'longitude' => 106.885]
+        );
+
+        $dest = Port::firstOrCreate(
+            ['id' => 'MYPKG'],
+            ['name' => 'Port Klang', 'city' => 'Klang', 'country_code' => 'MY', 'port_type' => 'SEAPORT', 'latitude' => 3.002, 'longitude' => 101.398]
+        );
+
+        $route = Route::firstOrCreate(
+            ['origin_port_id' => $origin->id, 'destination_port_id' => $dest->id],
+            ['id' => Str::uuid()->toString(), 'transport_mode' => 'SEA', 'transit_days' => 2, 'base_rate_idr' => 5000000, 'is_active' => true]
+        );
+
+        $randomSuffix = strtoupper(Str::random(6));
+        $trackingNo = "FC-SBX-{$randomSuffix}";
+
+        $booking = OpsCargoBooking::create([
+            'id' => Str::uuid()->toString(),
+            'tracking_number' => $trackingNo,
+            'shipper_id' => $user->id,
+            'company_id' => $company->id,
+            'route_id' => $route->id,
+            'cargo_status' => 'GATE_IN',
+            'total_weight_kg' => 250,
+            'total_volume_cbm' => 1.5,
+            'declared_goods_value' => 25000000,
+            'currency' => 'IDR',
+        ]);
+
+        $invoice = AdmInvoice::create([
+            'id' => Str::uuid()->toString(),
+            'company_id' => $company->id,
+            'cargo_booking_id' => $booking->id,
+            'invoice_number' => "SANDBOX-INV-{$randomSuffix}",
+            'total_invoice_amount' => $amount,
+            'currency' => 'IDR',
+            'due_date' => now()->addDays(3),
+            'payment_status' => 'PENDING',
+        ]);
+
+        return [$invoice, $user];
     }
 
     /**
