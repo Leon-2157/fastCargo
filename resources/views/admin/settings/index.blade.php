@@ -100,34 +100,48 @@
                             </div>
 
                             <div class="mb-4">
-                                <label class="form-label small fw-bold text-muted" for="gemini_model">Gemini Model Identifier</label>
+                                <label class="form-label small fw-bold text-muted" for="dropdownGeminiModelBtn">Gemini Model Identifier</label>
+                                @php
+                                    $selectedGeminiModel = old('gemini_model', $aiConfig['gemini_model']);
+                                    $geminiModels = $aiModelsRegistry['google_gemini_api'] ?? [];
+                                    $hasSelectedGemini = collect($geminiModels)->contains('model', $selectedGeminiModel);
+                                @endphp
+                                <input type="hidden" id="gemini_model" name="gemini_model" value="{{ $selectedGeminiModel }}" class="ai-dirty-tracker">
                                 <div class="input-group">
-                                    <select id="gemini_model" name="gemini_model" class="form-select ai-dirty-tracker">
-                                        @php
-                                            $selectedGeminiModel = old('gemini_model', $aiConfig['gemini_model']);
-                                            $geminiModels = $aiModelsRegistry['google_gemini_api'] ?? [];
-                                            $hasSelectedGemini = collect($geminiModels)->contains('model', $selectedGeminiModel);
-                                        @endphp
+                                    <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start d-flex align-items-center justify-content-between"
+                                        type="button"
+                                        id="dropdownGeminiModelBtn"
+                                        data-bs-toggle="dropdown"
+                                        aria-expanded="false">
+                                        <span id="gemini_model_label" class="text-truncate">{{ $selectedGeminiModel ?: 'Pilih Model Gemini' }}</span>
+                                    </button>
+                                    <ul class="dropdown-menu w-100 shadow-sm" id="dropdownGeminiModelList" style="max-height: 260px; overflow-y: auto;" aria-labelledby="dropdownGeminiModelBtn">
                                         @if(!$hasSelectedGemini && !empty($selectedGeminiModel))
-                                            <option value="{{ $selectedGeminiModel }}" selected>{{ $selectedGeminiModel }} (Active)</option>
+                                            <li class="d-flex align-items-center justify-content-between px-2 py-1 model-item" data-engine="google_gemini_api" data-model="{{ $selectedGeminiModel }}">
+                                                <a class="dropdown-item py-1 px-2 text-truncate rounded flex-grow-1 me-1 active fw-semibold" style="min-width: 0;" href="#" data-action="select-model" data-engine="google_gemini_api" data-model="{{ $selectedGeminiModel }}" data-completion="4096" data-output="2048" data-max="8192">
+                                                    {{ $selectedGeminiModel }} (Active)
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model" data-action="delete-model" data-engine="google_gemini_api" data-model="{{ $selectedGeminiModel }}" title="Hapus model {{ $selectedGeminiModel }}" aria-label="Hapus model {{ $selectedGeminiModel }}">
+                                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                                </button>
+                                            </li>
                                         @endif
                                         @foreach($geminiModels as $m)
-                                            <option value="{{ $m['model'] }}"
-                                                data-completion="{{ $m['completion_tokens'] ?? 4096 }}"
-                                                data-output="{{ $m['output_tokens'] ?? 2048 }}"
-                                                data-max="{{ $m['max_tokens'] ?? 8192 }}"
-                                                {{ $selectedGeminiModel === $m['model'] ? 'selected' : '' }}>
-                                                {{ $m['model'] }}
-                                            </option>
+                                            <li class="d-flex align-items-center justify-content-between px-2 py-1 model-item" data-engine="google_gemini_api" data-model="{{ $m['model'] }}">
+                                                <a class="dropdown-item py-1 px-2 text-truncate rounded flex-grow-1 me-1 {{ $selectedGeminiModel === $m['model'] ? 'active fw-semibold' : '' }}" style="min-width: 0;" href="#" data-action="select-model" data-engine="google_gemini_api" data-model="{{ $m['model'] }}" data-completion="{{ $m['completion_tokens'] ?? 4096 }}" data-output="{{ $m['output_tokens'] ?? 2048 }}" data-max="{{ $m['max_tokens'] ?? 8192 }}">
+                                                    {{ $m['model'] }}
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model" data-action="delete-model" data-engine="google_gemini_api" data-model="{{ $m['model'] }}" title="Hapus model {{ $m['model'] }}" aria-label="Hapus model {{ $m['model'] }}">
+                                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                                </button>
+                                            </li>
                                         @endforeach
-                                    </select>
+                                    </ul>
                                     <button type="button" class="btn btn-outline-primary" id="btnAddGeminiModel">
                                         <i class="fas fa-plus me-1"></i> Tambah
                                     </button>
-                                    <button type="button" class="btn btn-outline-danger" id="btnDeleteGeminiModel" title="Hapus model terpilih">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
                                 </div>
+                                <button type="button" id="btnDeleteGeminiModel" class="d-none" aria-hidden="true"></button>
                             </div>
                         </div>
 
@@ -165,40 +179,48 @@
                             <hr class="my-3">
 
                             <div class="mb-3">
-                                <label class="form-label small fw-bold text-muted" for="custom_ai_model">Model Name</label>
+                                <label class="form-label small fw-bold text-muted" for="dropdownCustomModelBtn">Model Name</label>
+                                @php
+                                    $selectedCustomModel = old('custom_ai_model', $aiConfig['custom_ai_model']);
+                                    $customModels = $aiModelsRegistry['openai_compatible'] ?? [];
+                                    $hasSelectedCustom = collect($customModels)->contains('model', $selectedCustomModel);
+                                @endphp
+                                <input type="hidden" id="custom_ai_model" name="custom_ai_model" value="{{ $selectedCustomModel }}" class="ai-dirty-tracker">
                                 <div class="input-group">
-                                    <select id="custom_ai_model" name="custom_ai_model" class="form-select ai-dirty-tracker">
-                                        @php
-                                            $selectedCustomModel = old('custom_ai_model', $aiConfig['custom_ai_model']);
-                                            $customModels = $aiModelsRegistry['openai_compatible'] ?? [];
-                                            $hasSelectedCustom = collect($customModels)->contains('model', $selectedCustomModel);
-                                        @endphp
+                                    <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start d-flex align-items-center justify-content-between"
+                                        type="button"
+                                        id="dropdownCustomModelBtn"
+                                        data-bs-toggle="dropdown"
+                                        aria-expanded="false">
+                                        <span id="custom_ai_model_label" class="text-truncate">{{ $selectedCustomModel ?: 'Pilih Model AI' }}</span>
+                                    </button>
+                                    <ul class="dropdown-menu w-100 shadow-sm" id="dropdownCustomModelList" style="max-height: 260px; overflow-y: auto;" aria-labelledby="dropdownCustomModelBtn">
                                         @if(!$hasSelectedCustom && !empty($selectedCustomModel))
-                                            <option value="{{ $selectedCustomModel }}"
-                                                data-completion="{{ $aiConfig['custom_ai_max_completion_tokens'] ?? 4096 }}"
-                                                data-output="{{ $aiConfig['custom_ai_max_output_tokens'] ?? 2048 }}"
-                                                data-max="{{ $aiConfig['custom_ai_max_tokens'] ?? 8192 }}"
-                                                selected>
-                                                {{ $selectedCustomModel }} (Active)
-                                            </option>
+                                            <li class="d-flex align-items-center justify-content-between px-2 py-1 model-item" data-engine="openai_compatible" data-model="{{ $selectedCustomModel }}">
+                                                <a class="dropdown-item py-1 px-2 text-truncate rounded flex-grow-1 me-1 active fw-semibold" style="min-width: 0;" href="#" data-action="select-model" data-engine="openai_compatible" data-model="{{ $selectedCustomModel }}" data-completion="{{ $aiConfig['custom_ai_max_completion_tokens'] ?? 4096 }}" data-output="{{ $aiConfig['custom_ai_max_output_tokens'] ?? 2048 }}" data-max="{{ $aiConfig['custom_ai_max_tokens'] ?? 8192 }}">
+                                                    {{ $selectedCustomModel }} (Active)
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model" data-action="delete-model" data-engine="openai_compatible" data-model="{{ $selectedCustomModel }}" title="Hapus model {{ $selectedCustomModel }}" aria-label="Hapus model {{ $selectedCustomModel }}">
+                                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                                </button>
+                                            </li>
                                         @endif
                                         @foreach($customModels as $m)
-                                            <option value="{{ $m['model'] }}"
-                                                data-completion="{{ $m['completion_tokens'] ?? 4096 }}"
-                                                data-output="{{ $m['output_tokens'] ?? 2048 }}"
-                                                data-max="{{ $m['max_tokens'] ?? 8192 }}"
-                                                {{ $selectedCustomModel === $m['model'] ? 'selected' : '' }}>
-                                                {{ $m['model'] }}
-                                            </option>
+                                            <li class="d-flex align-items-center justify-content-between px-2 py-1 model-item" data-engine="openai_compatible" data-model="{{ $m['model'] }}">
+                                                <a class="dropdown-item py-1 px-2 text-truncate rounded flex-grow-1 me-1 {{ $selectedCustomModel === $m['model'] ? 'active fw-semibold' : '' }}" style="min-width: 0;" href="#" data-action="select-model" data-engine="openai_compatible" data-model="{{ $m['model'] }}" data-completion="{{ $m['completion_tokens'] ?? 4096 }}" data-output="{{ $m['output_tokens'] ?? 2048 }}" data-max="{{ $m['max_tokens'] ?? 8192 }}">
+                                                    {{ $m['model'] }}
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model" data-action="delete-model" data-engine="openai_compatible" data-model="{{ $m['model'] }}" title="Hapus model {{ $m['model'] }}" aria-label="Hapus model {{ $m['model'] }}">
+                                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                                </button>
+                                            </li>
                                         @endforeach
-                                    </select>
+                                    </ul>
                                     <button type="button" class="btn btn-outline-primary" id="btnAddCustomModel">
                                         <i class="fas fa-plus me-1"></i> Tambah
                                     </button>
-                                    <button type="button" class="btn btn-outline-danger" id="btnDeleteCustomModel" title="Hapus model terpilih">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
                                 </div>
+                                <button type="button" id="btnDeleteCustomModel" class="d-none" aria-hidden="true"></button>
                             </div>
 
                             <!-- 3 Kolom Token Samping-Sampingan Sesuai Permintaan User -->
@@ -1287,20 +1309,14 @@
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-light py-3">
                     <h6 class="modal-title fw-bold mb-0" id="modalAddAiModelLabel">
-                        <i class="fas fa-plus-circle me-2 text-primary"></i> Tambah Model AI Baru
+                        <i class="fas fa-plus-circle me-2 text-primary"></i> <span id="modalAddAiTitleText">Tambah Model AI Baru ({{ $isGemini ? 'Google Gemini API' : 'OpenAI Compatible' }})</span>
                     </h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body py-3">
                     <div id="modalAddAiAlert" class="alert alert-danger py-2 px-3 small mb-3 d-none"></div>
                     <form id="formAddAiModel">
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted mb-1" for="new_model_engine">Target Engine</label>
-                            <select id="new_model_engine" class="form-select form-select-sm">
-                                <option value="google_gemini_api">Google Gemini API</option>
-                                <option value="openai_compatible">OpenAI Compatible</option>
-                            </select>
-                        </div>
+                        <input type="hidden" id="add_model_target_engine" name="engine" value="{{ $isGemini ? 'google_gemini_api' : 'openai_compatible' }}">
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-muted mb-1" for="new_model_name">Nama Model (Model Identifier)</label>
                             <input type="text" id="new_model_name" class="form-control form-control-sm" placeholder="e.g. gpt-4o-mini, gemini-2.5-pro" required>
@@ -1625,50 +1641,75 @@
             }
 
             // AI Model Registry & Token Synchronization
-            const customAiModelSelect = document.getElementById('custom_ai_model');
             const inputMaxCompletion = document.getElementById('custom_ai_max_completion_tokens');
             const inputMaxOutput = document.getElementById('custom_ai_max_output_tokens');
             const inputMaxTokens = document.getElementById('custom_ai_max_tokens');
 
-            function syncCustomTokenLimits() {
-                if (!customAiModelSelect) return;
-                const opt = customAiModelSelect.options[customAiModelSelect.selectedIndex];
-                if (opt) {
-                    if (opt.dataset.completion && inputMaxCompletion) {
-                        inputMaxCompletion.value = opt.dataset.completion;
+            function selectAiModel(engine, modelName, completion, output, max) {
+                if (engine === 'google_gemini_api') {
+                    const inputGemini = document.getElementById('gemini_model');
+                    const labelGemini = document.getElementById('gemini_model_label');
+                    if (inputGemini) {
+                        inputGemini.value = modelName;
+                        inputGemini.dispatchEvent(new Event('input', { bubbles: true }));
+                        inputGemini.dispatchEvent(new Event('change', { bubbles: true }));
                     }
-                    if (opt.dataset.output && inputMaxOutput) {
-                        inputMaxOutput.value = opt.dataset.output;
+                    if (labelGemini) {
+                        labelGemini.textContent = modelName;
                     }
-                    if (opt.dataset.max && inputMaxTokens) {
-                        inputMaxTokens.value = opt.dataset.max;
+                    const listEl = document.getElementById('dropdownGeminiModelList');
+                    if (listEl) {
+                        listEl.querySelectorAll('.model-item a').forEach(function(a) {
+                            if (a.dataset.model === modelName) {
+                                a.classList.add('active', 'fw-semibold');
+                            } else {
+                                a.classList.remove('active', 'fw-semibold');
+                            }
+                        });
+                    }
+                } else {
+                    const inputCustom = document.getElementById('custom_ai_model');
+                    const labelCustom = document.getElementById('custom_ai_model_label');
+                    if (inputCustom) {
+                        inputCustom.value = modelName;
+                        inputCustom.dispatchEvent(new Event('input', { bubbles: true }));
+                        inputCustom.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    if (labelCustom) {
+                        labelCustom.textContent = modelName;
+                    }
+                    const listEl = document.getElementById('dropdownCustomModelList');
+                    if (listEl) {
+                        listEl.querySelectorAll('.model-item a').forEach(function(a) {
+                            if (a.dataset.model === modelName) {
+                                a.classList.add('active', 'fw-semibold');
+                            } else {
+                                a.classList.remove('active', 'fw-semibold');
+                            }
+                        });
+                    }
+                    if (completion && inputMaxCompletion) {
+                        inputMaxCompletion.value = completion;
+                    }
+                    if (output && inputMaxOutput) {
+                        inputMaxOutput.value = output;
+                    }
+                    if (max && inputMaxTokens) {
+                        inputMaxTokens.value = max;
                     }
                 }
-            }
 
-            if (customAiModelSelect) {
-                customAiModelSelect.addEventListener('change', function() {
-                    syncCustomTokenLimits();
-                    aiFormIsDirty = true;
-                    aiConnectionVerified = false;
-                    updateSaveButtonState();
-                });
-            }
-
-            const geminiModelSelect = document.getElementById('gemini_model');
-            if (geminiModelSelect) {
-                geminiModelSelect.addEventListener('change', function() {
-                    aiFormIsDirty = true;
-                    aiConnectionVerified = false;
-                    updateSaveButtonState();
-                });
+                aiFormIsDirty = true;
+                aiConnectionVerified = false;
+                updateSaveButtonState();
             }
 
             // Modal Add AI Model Handler
             const btnAddGemini = document.getElementById('btnAddGeminiModel');
             const btnAddCustom = document.getElementById('btnAddCustomModel');
             const modalAddAiEl = document.getElementById('modalAddAiModel');
-            const selectEngine = document.getElementById('new_model_engine');
+            const formAddAi = document.getElementById('formAddAiModel');
+            const inputTargetEngine = document.getElementById('add_model_target_engine');
             const inputNewModelName = document.getElementById('new_model_name');
             const inputNewCompletion = document.getElementById('new_model_completion_tokens');
             const inputNewOutput = document.getElementById('new_model_output_tokens');
@@ -1676,8 +1717,35 @@
             const btnSubmitAddAi = document.getElementById('btnSubmitAddAiModel');
             const modalAddAiAlert = document.getElementById('modalAddAiAlert');
 
+            if (formAddAi) {
+                formAddAi.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    if (btnSubmitAddAi) {
+                        btnSubmitAddAi.click();
+                    }
+                });
+            }
+
+            if (modalAddAiEl) {
+                modalAddAiEl.addEventListener('shown.bs.modal', function() {
+                    if (inputNewModelName) {
+                        inputNewModelName.focus();
+                    }
+                });
+            }
+
             function openAddAiModelModal(engine) {
-                if (selectEngine) selectEngine.value = engine;
+                if (!engine) {
+                    engine = (providerSelect && providerSelect.value === 'gemini') ? 'google_gemini_api' : 'openai_compatible';
+                }
+                const engineLabel = (engine === 'google_gemini_api') ? 'Google Gemini API' : 'OpenAI Compatible';
+                const titleEl = document.getElementById('modalAddAiTitleText');
+                if (titleEl) {
+                    titleEl.textContent = `Tambah Model AI Baru (${engineLabel})`;
+                }
+                if (inputTargetEngine) {
+                    inputTargetEngine.value = engine;
+                }
                 if (inputNewModelName) inputNewModelName.value = '';
                 if (inputNewCompletion) inputNewCompletion.value = '4096';
                 if (inputNewOutput) inputNewOutput.value = '2048';
@@ -1705,7 +1773,7 @@
 
             if (btnSubmitAddAi) {
                 btnSubmitAddAi.addEventListener('click', function() {
-                    const engine = selectEngine ? selectEngine.value : 'openai_compatible';
+                    const engine = inputTargetEngine ? inputTargetEngine.value : 'openai_compatible';
                     const modelName = inputNewModelName ? inputNewModelName.value.trim() : '';
 
                     if (!modelName) {
@@ -1749,23 +1817,45 @@
                         btnSubmitAddAi.innerHTML = originalSubmitText;
 
                         if (resObj.ok && resObj.data.success) {
-                            const targetSelect = engine === 'google_gemini_api'
-                                ? document.getElementById('gemini_model')
-                                : document.getElementById('custom_ai_model');
+                            const targetList = (engine === 'google_gemini_api')
+                                ? document.getElementById('dropdownGeminiModelList')
+                                : document.getElementById('dropdownCustomModelList');
 
-                            if (targetSelect) {
-                                const opt = document.createElement('option');
-                                opt.value = modelName;
-                                opt.textContent = modelName;
-                                opt.dataset.completion = completionVal;
-                                opt.dataset.output = outputVal;
-                                opt.dataset.max = maxVal;
-                                targetSelect.appendChild(opt);
-                                targetSelect.value = modelName;
-                                targetSelect.dispatchEvent(new Event('change'));
+                            if (targetList) {
+                                const li = document.createElement('li');
+                                li.className = 'd-flex align-items-center justify-content-between px-2 py-1 model-item';
+                                li.dataset.engine = engine;
+                                li.dataset.model = modelName;
+
+                                const a = document.createElement('a');
+                                a.className = 'dropdown-item py-1 px-2 text-truncate rounded flex-grow-1 me-1';
+                                a.style.minWidth = '0';
+                                a.href = '#';
+                                a.dataset.action = 'select-model';
+                                a.dataset.engine = engine;
+                                a.dataset.model = modelName;
+                                a.dataset.completion = completionVal;
+                                a.dataset.output = outputVal;
+                                a.dataset.max = maxVal;
+                                a.textContent = modelName;
+
+                                const btnDel = document.createElement('button');
+                                btnDel.type = 'button';
+                                btnDel.className = 'btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model';
+                                btnDel.dataset.action = 'delete-model';
+                                btnDel.dataset.engine = engine;
+                                btnDel.dataset.model = modelName;
+                                btnDel.title = `Hapus model ${modelName}`;
+                                btnDel.setAttribute('aria-label', `Hapus model ${modelName}`);
+                                btnDel.innerHTML = '<i class="fas fa-trash-alt" aria-hidden="true"></i>';
+
+                                li.appendChild(a);
+                                li.appendChild(btnDel);
+                                targetList.appendChild(li);
+
+                                selectAiModel(engine, modelName, completionVal, outputVal, maxVal);
                             }
 
-                            // Update WhatsApp and Mail select dropdowns
                             const optVal = `${engine}::${modelName}`;
                             const label = `[${engine === 'google_gemini_api' ? 'Google Gemini API' : 'OpenAI Compatible'}] ${modelName}`;
                             [document.getElementById('wa_ai_provider'), document.getElementById('mail_ai_provider')].forEach(function(sel) {
@@ -1798,23 +1888,28 @@
                 });
             }
 
-            // Delete Model Handlers
-            const btnDeleteGemini = document.getElementById('btnDeleteGeminiModel');
-            const btnDeleteCustom = document.getElementById('btnDeleteCustomModel');
+            // Delete Model Handler
+            function deleteAiModel(engine, modelName) {
+                if (!engine || !modelName) return;
 
-            function deleteAiModel(engine, selectId) {
-                const select = document.getElementById(selectId);
-                if (!select || !select.value) return;
+                const targetList = (engine === 'google_gemini_api')
+                    ? document.getElementById('dropdownGeminiModelList')
+                    : document.getElementById('dropdownCustomModelList');
 
-                if (select.options.length <= 1) {
+                if (!targetList) return;
+
+                const items = targetList.querySelectorAll('.model-item');
+                if (items.length <= 1) {
                     alert('Tidak dapat menghapus satu-satunya model yang tersisa untuk engine ini.');
                     return;
                 }
 
-                const modelName = select.value;
                 if (!confirm(`Hapus model "${modelName}" dari registry?`)) {
                     return;
                 }
+
+                const deleteBtns = targetList.querySelectorAll('button[data-action="delete-model"]');
+                deleteBtns.forEach(function(btn) { btn.disabled = true; });
 
                 fetch('{{ route('admin.settings.ai.models.delete', [], false) }}', {
                     method: 'DELETE',
@@ -1834,12 +1929,34 @@
                     });
                 })
                 .then(function(resObj) {
+                    deleteBtns.forEach(function(btn) { btn.disabled = false; });
                     if (resObj.ok && resObj.data.success) {
-                        const idx = select.selectedIndex;
-                        select.remove(idx);
-                        if (select.options.length > 0) {
-                            select.selectedIndex = 0;
-                            select.dispatchEvent(new Event('change'));
+                        let removedItemWasActive = false;
+                        const currentHiddenInput = (engine === 'google_gemini_api')
+                            ? document.getElementById('gemini_model')
+                            : document.getElementById('custom_ai_model');
+
+                        if (currentHiddenInput && currentHiddenInput.value === modelName) {
+                            removedItemWasActive = true;
+                        }
+
+                        targetList.querySelectorAll('.model-item').forEach(function(item) {
+                            if (item.dataset.model === modelName) {
+                                item.remove();
+                            }
+                        });
+
+                        if (removedItemWasActive) {
+                            const remainingItems = targetList.querySelectorAll('.model-item');
+                            if (remainingItems.length > 0) {
+                                const firstRemaining = remainingItems[0];
+                                const firstLink = firstRemaining.querySelector('[data-action="select-model"]');
+                                const nextModel = firstRemaining.dataset.model;
+                                const completion = firstLink ? firstLink.dataset.completion : 4096;
+                                const output = firstLink ? firstLink.dataset.output : 2048;
+                                const max = firstLink ? firstLink.dataset.max : 8192;
+                                selectAiModel(engine, nextModel, completion, output, max);
+                            }
                         }
 
                         const optVal = `${engine}::${modelName}`;
@@ -1863,19 +1980,66 @@
                     }
                 })
                 .catch(function(err) {
+                    deleteBtns.forEach(function(btn) { btn.disabled = false; });
                     alert(err.message || 'Terjadi kesalahan komunikasi server.');
                 });
             }
 
+            function handleDropdownMenuClick(e) {
+                const deleteBtn = e.target.closest('[data-action="delete-model"]');
+                if (deleteBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    deleteAiModel(deleteBtn.dataset.engine, deleteBtn.dataset.model);
+                    return;
+                }
+
+                const selectLink = e.target.closest('[data-action="select-model"]');
+                if (selectLink) {
+                    e.preventDefault();
+                    selectAiModel(
+                        selectLink.dataset.engine,
+                        selectLink.dataset.model,
+                        selectLink.dataset.completion,
+                        selectLink.dataset.output,
+                        selectLink.dataset.max
+                    );
+
+                    const toggleBtn = (selectLink.dataset.engine === 'google_gemini_api')
+                        ? document.getElementById('dropdownGeminiModelBtn')
+                        : document.getElementById('dropdownCustomModelBtn');
+                    if (toggleBtn && window.bootstrap && window.bootstrap.Dropdown) {
+                        const inst = bootstrap.Dropdown.getInstance(toggleBtn);
+                        if (inst) {
+                            inst.hide();
+                        }
+                    }
+                }
+            }
+
+            const geminiListEl = document.getElementById('dropdownGeminiModelList');
+            if (geminiListEl) {
+                geminiListEl.addEventListener('click', handleDropdownMenuClick);
+            }
+
+            const customListEl = document.getElementById('dropdownCustomModelList');
+            if (customListEl) {
+                customListEl.addEventListener('click', handleDropdownMenuClick);
+            }
+
+            const btnDeleteGemini = document.getElementById('btnDeleteGeminiModel');
             if (btnDeleteGemini) {
                 btnDeleteGemini.addEventListener('click', function() {
-                    deleteAiModel('google_gemini_api', 'gemini_model');
+                    const input = document.getElementById('gemini_model');
+                    if (input) deleteAiModel('google_gemini_api', input.value);
                 });
             }
 
+            const btnDeleteCustom = document.getElementById('btnDeleteCustomModel');
             if (btnDeleteCustom) {
                 btnDeleteCustom.addEventListener('click', function() {
-                    deleteAiModel('openai_compatible', 'custom_ai_model');
+                    const input = document.getElementById('custom_ai_model');
+                    if (input) deleteAiModel('openai_compatible', input.value);
                 });
             }
 

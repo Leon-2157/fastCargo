@@ -394,11 +394,18 @@ class Phase2AiIntegrationTest extends TestCase
         $page->assertStatus(200);
         $page->assertSee('id="gemini_model"', false);
         $page->assertSee('id="custom_ai_model"', false);
+        $page->assertSee('id="dropdownGeminiModelBtn"', false);
+        $page->assertSee('id="dropdownCustomModelBtn"', false);
+        $page->assertSee('id="dropdownGeminiModelList"', false);
+        $page->assertSee('id="dropdownCustomModelList"', false);
         $page->assertSee('id="btnAddGeminiModel"', false);
         $page->assertSee('id="btnAddCustomModel"', false);
         $page->assertSee('id="btnDeleteGeminiModel"', false);
         $page->assertSee('id="btnDeleteCustomModel"', false);
         $page->assertSee('id="modalAddAiModel"', false);
+        $page->assertSee('id="add_model_target_engine"', false);
+        $page->assertSee('id="modalAddAiTitleText"', false);
+        $page->assertDontSee('id="add_model_engine"', false);
         $page->assertSee('id="wa_ai_provider"', false);
         $page->assertSee('id="mail_ai_provider"', false);
     }
