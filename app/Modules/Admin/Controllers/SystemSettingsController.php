@@ -211,6 +211,10 @@ class SystemSettingsController extends Controller
             $validated['operator_vpn_whitelist'] = json_encode($decoded);
         }
 
+        if (isset($validated['payg_sgpay_static_qr'])) {
+            $validated['payg_sgpay_static_qr'] = trim(str_replace(["\r", "\n", ' '], '', (string) $validated['payg_sgpay_static_qr']));
+        }
+
         $auditChanges = [];
 
         foreach ($validated as $key => $value) {

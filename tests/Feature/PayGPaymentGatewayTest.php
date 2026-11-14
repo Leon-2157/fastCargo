@@ -11,6 +11,7 @@ use App\Modules\Shared\Models\Route;
 use App\Modules\Shared\Models\User;
 use App\Modules\Shared\Services\PayGPaymentGatewayService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -443,6 +444,10 @@ class PayGPaymentGatewayTest extends TestCase
             'status' => 'ACTIVE',
         ]);
 
+        Http::fake([
+            '*/api/*' => Http::response(['success' => true], 200),
+        ]);
+
         $response = $this->actingAs($admin, 'admin')
             ->withSession(['admin_two_factor_verified' => true])
             ->withHeader('Sec-Fetch-Site', 'same-origin')
@@ -529,6 +534,10 @@ class PayGPaymentGatewayTest extends TestCase
             'status' => 'ACTIVE',
         ]);
 
+        Http::fake([
+            '*/api/*' => Http::response(['success' => true], 200),
+        ]);
+
         $response = $this->actingAs($admin, 'admin')
             ->withSession(['admin_two_factor_verified' => true])
             ->withHeader('Sec-Fetch-Site', 'same-origin')
@@ -565,6 +574,10 @@ class PayGPaymentGatewayTest extends TestCase
             'password' => bcrypt('password123'),
             'user_type' => 'ADMIN_USER',
             'status' => 'ACTIVE',
+        ]);
+
+        Http::fake([
+            '*/api/*' => Http::response(['success' => true], 200),
         ]);
 
         $response = $this->actingAs($admin, 'admin')

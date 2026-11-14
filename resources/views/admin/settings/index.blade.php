@@ -945,84 +945,21 @@
                                     <!-- TAB 1: SGPAY -->
                                     <div class="tab-pane fade show active" id="tab-sgpay" role="tabpanel">
                                         <div class="mb-3">
-                                            <label class="form-label mb-1 text-muted small fw-bold"
-                                                for="payg_sgpay_static_qr">Static QRIS String (EMVCo ASPI)</label>
-                                            <textarea id="payg_sgpay_static_qr" name="payg_sgpay_static_qr" class="form-control form-control-sm font-monospace"
-                                                rows="2" placeholder="00020101021126580014ID.DANA.WWW...6304ABCD">{{ old('payg_sgpay_static_qr', $paygConfig['sgpay_static_qr']) }}</textarea>
-                                            <div class="form-text text-muted" style="font-size: 11px;">
-                                                Salin string QRIS statis dari aplikasi ShopeePay / GoBiz merchant Anda.
-                                                Sistem otomatis menginjeksi Tag 54 &amp; kode unik transaksi.
-                                            </div>
-                                        </div>
-
-                                        <!-- OTP Pairing Control -->
-                                        <div class="border rounded p-3 bg-white shadow-sm mb-3">
-                                            <div
-                                                class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                                <span class="small fw-bold text-uppercase text-dark"
-                                                    style="font-size: 11px;">
-                                                    <i class="fas fa-mobile-alt me-1 text-primary"></i> ShopeePay / GoBiz
-                                                    Pairing (OTP)
-                                                </span>
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <label class="form-label mb-0 text-muted small fw-bold"
+                                                    for="payg_sgpay_static_qr">Static QRIS String</label>
                                                 <span
-                                                    class="badge {{ $paygConfig['status']['engines']['sgpay']['connected'] ?? false ? 'bg-success' : 'bg-secondary' }}">
-                                                    {{ $paygConfig['status']['engines']['sgpay']['details'] ?? 'Not Paired' }}
+                                                    class="badge {{ !empty($paygConfig['sgpay_static_qr']) ? 'bg-success' : 'bg-secondary' }}">
+                                                    {{ !empty($paygConfig['sgpay_static_qr']) ? 'Static QRIS Active' : 'Not Configured' }}
                                                 </span>
                                             </div>
-                                            <div class="row g-2 mb-2">
-                                                <div class="col-md-4">
-                                                    <select id="sgpay_provider" class="form-select form-select-sm">
-                                                        <option value="shopee">ShopeePay</option>
-                                                        <option value="gopay">GoBiz (GoPay)</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-5">
-                                                    <input type="text" id="sgpay_phone"
-                                                        class="form-control form-control-sm" placeholder="081234567890">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <button type="button" class="btn btn-outline-primary btn-sm w-100"
-                                                        id="btn-sgpay-request-otp">
-                                                        <i class="fas fa-paper-plane me-1"></i> Send OTP
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="row g-2" id="row-sgpay-otp-verify" style="display: none;">
-                                                <div class="col-md-8">
-                                                    <input type="text" id="sgpay_otp_code"
-                                                        class="form-control form-control-sm font-monospace"
-                                                        placeholder="Masukkan 6-digit kode OTP">
-                                                    <input type="hidden" id="sgpay_challenge">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <button type="button" class="btn btn-success btn-sm w-100"
-                                                        id="btn-sgpay-verify-otp">
-                                                        <i class="fas fa-check me-1"></i> Verify &amp; Pair
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div id="sgpay-otp-feedback" class="mt-2 small" style="display: none;"></div>
+                                            <textarea id="payg_sgpay_static_qr" name="payg_sgpay_static_qr" class="form-control form-control-sm font-monospace"
+                                                rows="3" placeholder="00020101021126580014ID.DANA.WWW...6304ABCD">{{ old('payg_sgpay_static_qr', $paygConfig['sgpay_static_qr']) }}</textarea>
                                         </div>
                                     </div>
 
                                     <!-- TAB 2: SOBPAY -->
                                     <div class="tab-pane fade" id="tab-sobpay" role="tabpanel">
-                                        <div class="alert alert-light border small mb-3">
-                                            <i class="fas fa-info-circle text-info me-1"></i>
-                                            <strong>SoBpay Architecture:</strong> Menggunakan platform SociaBuzz untuk
-                                            menyediakan dynamic QRIS resmi Midtrans/Xendit (nominal pas tanpa kode ganjil),
-                                            Virtual Account (BCA, Mandiri, BNI, BRI), serta metode ASEAN (Malaysia FPX,
-                                            Singapore PayNow). Dana terkumpul di saldo SociaBuzz Anda.
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <span class="small fw-bold text-muted text-uppercase"
-                                                style="font-size: 11px;">
-                                                <i class="fas fa-globe-asia text-info me-1"></i> SociaBuzz Aggregator &amp;
-                                                ASEAN Platform
-                                            </span>
-                                        </div>
-
                                         <div class="mb-3">
                                             <label class="form-label mb-1 text-muted small fw-bold"
                                                 for="payg_sobpay_username">SociaBuzz Creator Username</label>
@@ -1352,11 +1289,6 @@
                                         <button class="btn btn-primary" type="button" id="btn-copy-payg-webhook">
                                             <i class="fas fa-copy me-1"></i> Copy URL
                                         </button>
-                                    </div>
-                                    <div class="form-text text-muted" style="font-size: 11px;">
-                                        <i class="fas fa-shield-alt text-success me-1"></i> Daemon
-                                        <code>services/payG</code> mengirimkan callback bertanda tangan digital ke endpoint
-                                        ini untuk melunasi invoice dan mendanai escrow.
                                     </div>
                                 </div>
 
@@ -2733,127 +2665,6 @@
                             btnCopyPaygWebhook.innerHTML = orig;
                         }, 2000);
                     });
-                });
-            }
-
-            // SGpay OTP Request
-            const btnSgpayRequestOtp = document.getElementById('btn-sgpay-request-otp');
-            const sgpayPhoneInput = document.getElementById('sgpay_phone');
-            const sgpayProviderSelect = document.getElementById('sgpay_provider');
-            const rowSgpayOtpVerify = document.getElementById('row-sgpay-otp-verify');
-            const sgpayChallengeInput = document.getElementById('sgpay_challenge');
-            const sgpayOtpFeedback = document.getElementById('sgpay-otp-feedback');
-
-            if (btnSgpayRequestOtp && sgpayPhoneInput) {
-                btnSgpayRequestOtp.addEventListener('click', function() {
-                    const phone = sgpayPhoneInput.value.trim();
-                    if (!phone) {
-                        alert('Silakan masukkan nomor HP terlebih dahulu.');
-                        return;
-                    }
-                    btnSgpayRequestOtp.disabled = true;
-                    btnSgpayRequestOtp.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending...';
-
-                    fetch('{{ route('admin.settings.payg.otp.request', [], false) }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                provider: sgpayProviderSelect.value,
-                                phone: phone
-                            })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            btnSgpayRequestOtp.disabled = false;
-                            btnSgpayRequestOtp.innerHTML =
-                                '<i class="fas fa-paper-plane me-1"></i> Resend OTP';
-                            if (data.success) {
-                                if (rowSgpayOtpVerify) rowSgpayOtpVerify.style.display = 'flex';
-                                if (sgpayChallengeInput) sgpayChallengeInput.value = data.challenge ||
-                                    '';
-                                if (sgpayOtpFeedback) {
-                                    sgpayOtpFeedback.className = 'mt-2 small text-success';
-                                    sgpayOtpFeedback.style.display = 'block';
-                                    sgpayOtpFeedback.innerHTML =
-                                        '<i class="fas fa-check-circle me-1"></i> ' + (data.message ||
-                                            'OTP challenge terkirim ke HP.');
-                                }
-                            } else {
-                                if (sgpayOtpFeedback) {
-                                    sgpayOtpFeedback.className = 'mt-2 small text-danger';
-                                    sgpayOtpFeedback.style.display = 'block';
-                                    sgpayOtpFeedback.innerHTML =
-                                        '<i class="fas fa-exclamation-circle me-1"></i> ' + (data
-                                            .error || 'Gagal mengirim OTP.');
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            btnSgpayRequestOtp.disabled = false;
-                            btnSgpayRequestOtp.innerHTML =
-                                '<i class="fas fa-paper-plane me-1"></i> Send OTP';
-                        });
-                });
-            }
-
-            // SGpay OTP Verify
-            const btnSgpayVerifyOtp = document.getElementById('btn-sgpay-verify-otp');
-            const sgpayOtpCodeInput = document.getElementById('sgpay_otp_code');
-
-            if (btnSgpayVerifyOtp && sgpayOtpCodeInput) {
-                btnSgpayVerifyOtp.addEventListener('click', function() {
-                    const otp = sgpayOtpCodeInput.value.trim();
-                    if (!otp) {
-                        alert('Silakan masukkan kode OTP.');
-                        return;
-                    }
-                    btnSgpayVerifyOtp.disabled = true;
-                    btnSgpayVerifyOtp.innerHTML =
-                        '<i class="fas fa-spinner fa-spin me-1"></i> Verifying...';
-
-                    fetch('{{ route('admin.settings.payg.otp.verify', [], false) }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                provider: sgpayProviderSelect.value,
-                                phone: sgpayPhoneInput.value.trim(),
-                                otp: otp,
-                                challenge: sgpayChallengeInput ? sgpayChallengeInput.value : ''
-                            })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            btnSgpayVerifyOtp.disabled = false;
-                            btnSgpayVerifyOtp.innerHTML =
-                                '<i class="fas fa-check me-1"></i> Verify & Pair';
-                            if (data.success) {
-                                if (sgpayOtpFeedback) {
-                                    sgpayOtpFeedback.className = 'mt-2 small text-success fw-bold';
-                                    sgpayOtpFeedback.innerHTML =
-                                        '<i class="fas fa-check-circle me-1"></i> Akun berhasil terverifikasi dan terhubung!';
-                                }
-                            } else {
-                                if (sgpayOtpFeedback) {
-                                    sgpayOtpFeedback.className = 'mt-2 small text-danger';
-                                    sgpayOtpFeedback.innerHTML =
-                                        '<i class="fas fa-times-circle me-1"></i> ' + (data.error ||
-                                            'Kode OTP tidak valid.');
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            btnSgpayVerifyOtp.disabled = false;
-                            btnSgpayVerifyOtp.innerHTML =
-                                '<i class="fas fa-check me-1"></i> Verify & Pair';
-                        });
                 });
             }
 

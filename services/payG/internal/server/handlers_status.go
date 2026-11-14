@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"fastcargo/payg/internal/manager"
 )
@@ -66,8 +67,9 @@ func (h *StatusHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		_ = h.mgr.Store().SetActiveMode(body.ActiveMode)
 	}
 	if body.SgpayStaticQR != "" {
-		_ = h.mgr.Store().SetSGPayStaticQR(body.SgpayStaticQR)
-		h.mgr.SGPay().SetStaticQR(body.SgpayStaticQR)
+		cleanQR := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(body.SgpayStaticQR, "\r", ""), "\n", ""))
+		_ = h.mgr.Store().SetSGPayStaticQR(cleanQR)
+		h.mgr.SGPay().SetStaticQR(cleanQR)
 	}
 	if body.SobpayUsername != "" {
 		_ = h.mgr.Store().SetSobpayUsername(body.SobpayUsername)

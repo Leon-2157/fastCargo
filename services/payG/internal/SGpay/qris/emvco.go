@@ -109,6 +109,7 @@ func BuildEmv(m EmvTlvMap) (string, error) {
 
 // IsValidQRISChecksum checks if trailing 4-char CRC matches computed CRC
 func IsValidQRISChecksum(payload string) bool {
+	payload = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(payload, "\r", ""), "\n", ""))
 	if len(payload) < 8 {
 		return false
 	}

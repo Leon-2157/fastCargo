@@ -401,6 +401,7 @@ class PayGPaymentGatewayService
      */
     public function configureStaticQr(string $staticQr): array
     {
+        $staticQr = trim(str_replace(["\r", "\n", ' '], '', $staticQr));
         AdmSystemSetting::set('payg_sgpay_static_qr', $staticQr);
         $url = $this->getServiceUrl();
 

@@ -3,6 +3,7 @@ package SGpay
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -45,7 +46,7 @@ func (e *Engine) GoPay() *gopay.Client {
 func (e *Engine) SetStaticQR(qr string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.staticQRIS = qr
+	e.staticQRIS = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(qr, "\r", ""), "\n", ""))
 }
 
 func (e *Engine) GetStaticQR() string {

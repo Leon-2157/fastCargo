@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"fastcargo/payg/internal/SGpay/qris"
 	"fastcargo/payg/internal/core"
@@ -147,7 +148,9 @@ func (h *SGPayHandler) ConfigureStaticQR(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if body.StaticQR != "" && !qris.IsValidQRISChecksum(body.StaticQR) {
+	cleanQR := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(body.StaticQR, "\r", ""), "\n", ""))
+
+	if cleanQR != "" && !qris.IsValidQRISChecksum(cleanQR) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -157,8 +160,8 @@ func (h *SGPayHandler) ConfigureStaticQR(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	h.mgr.SGPay().SetStaticQR(body.StaticQR)
-	_ = h.mgr.Store().SetSGPayStaticQR(body.StaticQR)
+	h.mgr.SGPay().SetStaticQR(cleanQR)
+	_ = h.mgr.Store().SetSGPayStaticQR(cleanQR)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{

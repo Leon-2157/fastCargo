@@ -3,12 +3,14 @@ package qris
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"fastcargo/payg/internal/core"
 )
 
 // StaticToDynamicQRIS converts a static QRIS payload into a dynamic QRIS with Tag 54 nominal injection
 func StaticToDynamicQRIS(staticPayload string, amount int64) (string, error) {
+	staticPayload = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(staticPayload, "\r", ""), "\n", ""))
 	if amount <= 0 {
 		return "", core.NewAppError(core.CodeQRISParseError, "QRIS amount must be a positive integer")
 	}
