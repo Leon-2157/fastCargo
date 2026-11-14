@@ -30,7 +30,6 @@ class SystemSettingsController extends Controller
 {
     private const SECRET_KEYS = [
         'custom_ai_api_key',
-        'ninerouter_api_key',
         'gemini_api_key',
         'mail_password',
         'dana_client_secret',
@@ -46,23 +45,28 @@ class SystemSettingsController extends Controller
     {
         $settings = AdmSystemSetting::all()->keyBy('key');
 
-        $customAiKey = AiManager::settingValue('custom_ai_api_key', AiManager::settingValue('ninerouter_api_key', (string) config('ai.providers.custom.api_key', '')));
+        $customAiKey = AiManager::settingValue('custom_ai_api_key', (string) config('ai.providers.custom.api_key', ''));
         $geminiKey = AiManager::settingValue('gemini_api_key', (string) config('ai.providers.gemini.api_key', ''));
+        $aiModelsRegistry = AiManager::getAiModelsRegistry();
+
+        $defaultGeminiModel = $aiModelsRegistry['google_gemini_api'][0]['model'] ?? 'gemini-flash-lite-latest';
+        $defaultCustomModel = $aiModelsRegistry['openai_compatible'][0]['model'] ?? 'ag/gemini-3.8-flash-low';
 
         $aiConfig = [
             'active_provider' => AiManager::activeProviderKey(),
             'active_label' => AiManager::activeProviderLabel(),
             'custom_ai_provider_name' => AiManager::settingValue('custom_ai_provider_name', (string) config('ai.providers.custom.name', 'Custom AI')),
-            'custom_ai_base_url' => AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.custom.base_url', 'http://localhost:20128/v1'))),
+            'custom_ai_base_url' => AiManager::settingValue('custom_ai_base_url', (string) config('ai.providers.custom.base_url', 'http://localhost:20128/v1')),
             'custom_ai_api_key' => $customAiKey,
-            'custom_ai_model' => AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-high'))),
+            'custom_ai_model' => AiManager::settingValue('custom_ai_model', (string) config('ai.providers.custom.model', $defaultCustomModel)),
             'custom_ai_max_completion_tokens' => AiManager::settingValue('custom_ai_max_completion_tokens', '4096'),
             'custom_ai_max_output_tokens' => AiManager::settingValue('custom_ai_max_output_tokens', '2048'),
             'custom_ai_max_tokens' => AiManager::settingValue('custom_ai_max_tokens', '8192'),
             'custom_ai_key_configured' => $customAiKey !== '',
             'gemini_api_key' => $geminiKey,
-            'gemini_model' => AiManager::settingValue('gemini_model', (string) config('ai.providers.gemini.model', 'gemini-2.0-flash')),
+            'gemini_model' => AiManager::settingValue('gemini_model', (string) config('ai.providers.gemini.model', $defaultGeminiModel)),
             'gemini_key_configured' => $geminiKey !== '',
+            'models_registry' => $aiModelsRegistry,
         ];
 
         $waSnapshot = $this->resolveGatewaySnapshot();
@@ -137,6 +141,7 @@ class SystemSettingsController extends Controller
             'role' => 'admin',
             'settings' => $settings,
             'aiConfig' => $aiConfig,
+            'aiModelsRegistry' => $aiModelsRegistry,
             'mailConfig' => $mailConfig,
             'waConfig' => $waSnapshot,
             'danaConfig' => $danaConfig,
@@ -155,8 +160,8 @@ class SystemSettingsController extends Controller
     public function update(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'wa_ai_provider' => ['nullable', 'string', 'in:default,gemini,custom,disabled'],
-            'mail_ai_provider' => ['nullable', 'string', 'in:default,gemini,custom,disabled'],
+            'wa_ai_provider' => ['nullable', 'string', 'regex:/^(default|gemini|custom|disabled|(google_gemini_api|openai_compatible)::.+)$/'],
+            'mail_ai_provider' => ['nullable', 'string', 'regex:/^(default|gemini|custom|disabled|(google_gemini_api|openai_compatible)::.+)$/'],
             'custom_ai_provider_name' => ['nullable', 'string', 'max:120'],
             'custom_ai_base_url' => ['nullable', 'url', 'max:255'],
             'custom_ai_api_key' => ['nullable', 'string', 'max:255'],
@@ -166,9 +171,6 @@ class SystemSettingsController extends Controller
             'custom_ai_max_tokens' => ['nullable', 'integer', 'min:1'],
             'gemini_api_key' => ['nullable', 'string', 'max:255'],
             'gemini_model' => ['nullable', 'string', 'max:120'],
-            'ninerouter_base_url' => ['nullable', 'url', 'max:255'],
-            'ninerouter_api_key' => ['nullable', 'string', 'max:255'],
-            'ninerouter_model' => ['nullable', 'string', 'max:120'],
             'operator_vpn_whitelist' => ['nullable', 'string', 'max:2000'],
             'platform_fee_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'escrow_milestone_1_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
@@ -191,17 +193,6 @@ class SystemSettingsController extends Controller
             'payg_sobpay_username' => ['nullable', 'string', 'max:100'],
             'payg_secret' => ['nullable', 'string', 'max:255'],
         ]);
-
-        // Auto-sync custom_ai values with legacy ninerouter keys for backward compatibility
-        if (! empty($validated['custom_ai_base_url'])) {
-            $validated['ninerouter_base_url'] = $validated['custom_ai_base_url'];
-        }
-        if (! empty($validated['custom_ai_api_key'])) {
-            $validated['ninerouter_api_key'] = $validated['custom_ai_api_key'];
-        }
-        if (! empty($validated['custom_ai_model'])) {
-            $validated['ninerouter_model'] = $validated['custom_ai_model'];
-        }
 
         if (isset($validated['operator_vpn_whitelist'])) {
             $decoded = json_decode($validated['operator_vpn_whitelist'], true);
@@ -232,6 +223,57 @@ class SystemSettingsController extends Controller
             );
 
             $auditChanges[$key] = in_array($key, self::SECRET_KEYS, true) ? '[REDACTED]' : $stringValue;
+        }
+
+        if (! empty($validated['custom_ai_model'])) {
+            $currentCustomModel = trim((string) $validated['custom_ai_model']);
+            $registry = AiManager::getAiModelsRegistry();
+            $customModels = $registry['openai_compatible'] ?? [];
+            $found = false;
+
+            foreach ($customModels as $idx => $entry) {
+                if (($entry['model'] ?? '') === $currentCustomModel) {
+                    if (isset($validated['custom_ai_max_completion_tokens'])) {
+                        $customModels[$idx]['completion_tokens'] = (int) $validated['custom_ai_max_completion_tokens'];
+                    }
+                    if (isset($validated['custom_ai_max_output_tokens'])) {
+                        $customModels[$idx]['output_tokens'] = (int) $validated['custom_ai_max_output_tokens'];
+                    }
+                    if (isset($validated['custom_ai_max_tokens'])) {
+                        $customModels[$idx]['max_tokens'] = (int) $validated['custom_ai_max_tokens'];
+                    }
+                    $found = true;
+                    break;
+                }
+            }
+
+            if (! $found) {
+                $customModels[] = [
+                    'model' => $currentCustomModel,
+                    'completion_tokens' => (int) ($validated['custom_ai_max_completion_tokens'] ?? 4096),
+                    'output_tokens' => (int) ($validated['custom_ai_max_output_tokens'] ?? 2048),
+                    'max_tokens' => (int) ($validated['custom_ai_max_tokens'] ?? 8192),
+                ];
+            }
+
+            $registry['openai_compatible'] = $customModels;
+            AiManager::saveAiModelsRegistry($registry);
+        }
+
+        if (! empty($validated['gemini_model'])) {
+            $currentGeminiModel = trim((string) $validated['gemini_model']);
+            $registry = AiManager::getAiModelsRegistry();
+            $geminiModels = $registry['google_gemini_api'] ?? [];
+            if (! collect($geminiModels)->contains('model', $currentGeminiModel)) {
+                $geminiModels[] = [
+                    'model' => $currentGeminiModel,
+                    'completion_tokens' => 4096,
+                    'output_tokens' => 2048,
+                    'max_tokens' => 8192,
+                ];
+                $registry['google_gemini_api'] = $geminiModels;
+                AiManager::saveAiModelsRegistry($registry);
+            }
         }
 
         Cache::forget('operator_vpn_whitelist');
@@ -347,10 +389,10 @@ class SystemSettingsController extends Controller
     public function switchAiProvider(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'ai_provider' => ['required', 'in:custom,9router,gemini'],
+            'ai_provider' => ['required', 'in:custom,gemini'],
         ]);
 
-        $provider = $validated['ai_provider'] === '9router' ? 'custom' : $validated['ai_provider'];
+        $provider = $validated['ai_provider'];
         $previous = AdmSystemSetting::where('key', 'ai_provider')->value('value');
 
         AdmSystemSetting::updateOrCreate(
@@ -378,7 +420,7 @@ class SystemSettingsController extends Controller
     public function testAiConnection(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:gemini,custom,9router'],
+            'provider' => ['required', 'string', 'in:gemini,custom'],
             'gemini_api_key' => ['nullable', 'string'],
             'gemini_model' => ['nullable', 'string'],
             'custom_ai_provider_name' => ['nullable', 'string', 'max:120'],
@@ -436,17 +478,17 @@ class SystemSettingsController extends Controller
             } else {
                 $baseUrl = rtrim(trim((string) ($validated['custom_ai_base_url'] ?? '')), '/');
                 if ($baseUrl === '') {
-                    $baseUrl = rtrim(AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.custom.base_url', 'http://localhost:20128/v1'))), '/');
+                    $baseUrl = rtrim(AiManager::settingValue('custom_ai_base_url', (string) config('ai.providers.custom.base_url', 'http://localhost:20128/v1')), '/');
                 }
 
                 $apiKey = trim((string) ($validated['custom_ai_api_key'] ?? ''));
                 if ($apiKey === '') {
-                    $apiKey = AiManager::settingValue('custom_ai_api_key', AiManager::settingValue('ninerouter_api_key', ''));
+                    $apiKey = AiManager::settingValue('custom_ai_api_key', '');
                 }
 
                 $model = trim((string) ($validated['custom_ai_model'] ?? ''));
                 if ($model === '') {
-                    $model = AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-high')));
+                    $model = AiManager::settingValue('custom_ai_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-high'));
                 }
 
                 $providerName = trim((string) ($validated['custom_ai_provider_name'] ?? ''));
@@ -499,6 +541,118 @@ class SystemSettingsController extends Controller
                 'message' => 'Connection test failed: '.$e->getMessage(),
             ]);
         }
+    }
+
+    public function addAiModel(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'engine' => ['required', 'string', 'in:google_gemini_api,openai_compatible'],
+            'model' => ['required', 'string', 'max:120', 'regex:/^[a-zA-Z0-9_\-\.\/]+$/'],
+            'completion_tokens' => ['nullable', 'integer', 'min:1'],
+            'output_tokens' => ['nullable', 'integer', 'min:1'],
+            'max_tokens' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $engine = $validated['engine'];
+        $modelName = trim($validated['model']);
+
+        $registry = AiManager::getAiModelsRegistry();
+        $existingModels = $registry[$engine] ?? [];
+
+        foreach ($existingModels as $existing) {
+            if (strcasecmp($existing['model'] ?? '', $modelName) === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Model '{$modelName}' sudah terdaftar untuk engine ini.",
+                ], 422);
+            }
+        }
+
+        $newEntry = [
+            'model' => $modelName,
+            'completion_tokens' => (int) ($validated['completion_tokens'] ?? 4096),
+            'output_tokens' => (int) ($validated['output_tokens'] ?? 2048),
+            'max_tokens' => (int) ($validated['max_tokens'] ?? 8192),
+        ];
+
+        $registry[$engine][] = $newEntry;
+        AiManager::saveAiModelsRegistry($registry);
+
+        $this->recordAudit($request, 'AI_MODEL_ADDED', [
+            'engine' => $engine,
+            'model' => $modelName,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Model '{$modelName}' berhasil ditambahkan ke registry.",
+            'registry' => $registry,
+            'model' => $newEntry,
+        ]);
+    }
+
+    public function deleteAiModel(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'engine' => ['required', 'string', 'in:google_gemini_api,openai_compatible'],
+            'model' => ['required', 'string', 'max:120'],
+        ]);
+
+        $engine = $validated['engine'];
+        $modelName = trim($validated['model']);
+
+        $registry = AiManager::getAiModelsRegistry();
+        $models = $registry[$engine] ?? [];
+
+        if (count($models) <= 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak dapat menghapus satu-satunya model yang tersisa untuk engine ini.',
+            ], 422);
+        }
+
+        $filtered = array_values(array_filter($models, fn (array $m): bool => ($m['model'] ?? '') !== $modelName));
+
+        if (count($filtered) === count($models)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Model '{$modelName}' tidak ditemukan pada registry.",
+            ], 404);
+        }
+
+        $registry[$engine] = $filtered;
+        AiManager::saveAiModelsRegistry($registry);
+
+        if ($engine === 'google_gemini_api' && AiManager::settingValue('gemini_model') === $modelName) {
+            AdmSystemSetting::set('gemini_model', $filtered[0]['model']);
+        } elseif ($engine === 'openai_compatible' && AiManager::settingValue('custom_ai_model') === $modelName) {
+            AdmSystemSetting::set('custom_ai_model', $filtered[0]['model']);
+            AdmSystemSetting::set('custom_ai_max_completion_tokens', (string) ($filtered[0]['completion_tokens'] ?? 4096));
+            AdmSystemSetting::set('custom_ai_max_output_tokens', (string) ($filtered[0]['output_tokens'] ?? 2048));
+            AdmSystemSetting::set('custom_ai_max_tokens', (string) ($filtered[0]['max_tokens'] ?? 8192));
+        }
+
+        $targetPrefixed = "{$engine}::{$modelName}";
+        if (AiManager::settingValue('wa_ai_provider') === $targetPrefixed) {
+            AdmSystemSetting::set('wa_ai_provider', 'default');
+        }
+        if (AiManager::settingValue('mail_ai_provider') === $targetPrefixed) {
+            AdmSystemSetting::set('mail_ai_provider', 'default');
+        }
+
+        AiManager::reset();
+
+        $this->recordAudit($request, 'AI_MODEL_DELETED', [
+            'engine' => $engine,
+            'model' => $modelName,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Model '{$modelName}' berhasil dihapus dari registry.",
+            'registry' => $registry,
+            'fallback_model' => $filtered[0]['model'],
+        ]);
     }
 
     /**

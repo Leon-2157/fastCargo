@@ -5,6 +5,7 @@ namespace App\Modules\Shared\AI;
 use App\Modules\Shared\AI\Contracts\AiProviderInterface;
 use App\Modules\Shared\AI\Providers\CustomAiProvider;
 use App\Modules\Shared\AI\Providers\GeminiProvider;
+use App\Modules\Shared\Models\AdmSystemSetting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,7 +29,7 @@ class AiManager
         $providerName = static::activeProviderKey();
 
         static::$instance = match ($providerName) {
-            'custom', '9router' => new CustomAiProvider,
+            'custom' => new CustomAiProvider,
             'gemini' => new GeminiProvider,
             default => throw new InvalidArgumentException("Unknown AI provider: {$providerName}"),
         };
@@ -38,24 +39,63 @@ class AiManager
 
     public static function forWhatsApp(): ?AiProviderInterface
     {
-        $setting = strtolower(trim(static::settingValue('wa_ai_provider', 'default')));
+        $setting = trim(static::settingValue('wa_ai_provider', 'default'));
 
-        return match ($setting) {
-            'disabled' => null,
-            'gemini' => new GeminiProvider,
-            'custom', '9router' => new CustomAiProvider,
-            default => static::provider(),
-        };
+        return static::resolveChannelProvider($setting);
     }
 
     public static function forEmail(): ?AiProviderInterface
     {
-        $setting = strtolower(trim(static::settingValue('mail_ai_provider', 'default')));
+        $setting = trim(static::settingValue('mail_ai_provider', 'default'));
 
-        return match ($setting) {
-            'disabled' => null,
+        return static::resolveChannelProvider($setting);
+    }
+
+    public static function resolveChannelProvider(string $setting): ?AiProviderInterface
+    {
+        $trimmed = trim($setting);
+        $lower = strtolower($trimmed);
+
+        if ($lower === '' || $lower === 'disabled') {
+            return null;
+        }
+
+        if ($lower === 'default') {
+            return static::provider();
+        }
+
+        if (str_contains($trimmed, '::')) {
+            [$engine, $model] = explode('::', $trimmed, 2);
+            $engine = trim($engine);
+            $model = trim($model);
+
+            if ($engine === 'google_gemini_api') {
+                return new GeminiProvider(model: $model);
+            }
+
+            if ($engine === 'openai_compatible' || $engine === '9router' || $engine === 'custom_ai') {
+                $registry = static::getAiModelsRegistry();
+                $models = $registry['openai_compatible'] ?? [];
+                $entry = collect($models)->firstWhere('model', $model);
+
+                $maxTokens = isset($entry['max_tokens']) ? (int) $entry['max_tokens'] : null;
+                $maxCompletionTokens = isset($entry['completion_tokens'])
+                    ? (int) $entry['completion_tokens']
+                    : (isset($entry['output_tokens']) ? (int) $entry['output_tokens'] : null);
+                $maxOutputTokens = isset($entry['output_tokens']) ? (int) $entry['output_tokens'] : null;
+
+                return new CustomAiProvider(
+                    model: $model,
+                    maxTokens: $maxTokens,
+                    maxCompletionTokens: $maxCompletionTokens,
+                    maxOutputTokens: $maxOutputTokens
+                );
+            }
+        }
+
+        return match ($lower) {
             'gemini' => new GeminiProvider,
-            'custom', '9router' => new CustomAiProvider,
+            'custom' => new CustomAiProvider,
             default => static::provider(),
         };
     }
@@ -72,9 +112,13 @@ class AiManager
 
     public static function activeProviderKey(): string
     {
-        $raw = static::settingValue('ai_provider', (string) config('ai.default', 'custom'));
+        $key = static::settingValue('ai_provider', (string) config('ai.default', 'custom'));
 
-        return $raw === '9router' ? 'custom' : $raw;
+        if ($key === '9router' || $key === 'ninerouter') {
+            return 'custom';
+        }
+
+        return $key;
     }
 
     public static function activeProviderLabel(): string
@@ -82,13 +126,13 @@ class AiManager
         $key = static::activeProviderKey();
 
         if ($key === 'gemini') {
-            $model = static::settingValue('gemini_model', (string) config('ai.providers.gemini.model', 'gemini-2.0-flash'));
+            $model = static::settingValue('gemini_model', (string) config('ai.providers.gemini.model', 'gemini-flash-lite-latest'));
 
             return "Gemini / {$model}";
         }
 
         $providerName = static::settingValue('custom_ai_provider_name', (string) config('ai.providers.custom.name', 'Custom AI'));
-        $model = static::settingValue('custom_ai_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-high'));
+        $model = static::settingValue('custom_ai_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-low'));
 
         return "{$providerName} / {$model}";
     }
@@ -198,6 +242,63 @@ class AiManager
     }
 
     /**
+     * Ambil registry model AI dari database atau inisialisasi default jika belum ada.
+     *
+     * @return array{google_gemini_api: list<array{model: string, completion_tokens: int, output_tokens: int, max_tokens: int}>, openai_compatible: list<array{model: string, completion_tokens: int, output_tokens: int, max_tokens: int}>}
+     */
+    public static function getAiModelsRegistry(): array
+    {
+        try {
+            $raw = AdmSystemSetting::get('ai_models_registry');
+            if (is_string($raw) && trim($raw) !== '') {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded) && isset($decoded['google_gemini_api']) && isset($decoded['openai_compatible'])) {
+                    return $decoded;
+                }
+            }
+        } catch (Throwable) {
+        }
+
+        $default = [
+            'google_gemini_api' => [
+                [
+                    'model' => static::settingValue('gemini_model', 'gemini-flash-lite-latest'),
+                    'completion_tokens' => 4096,
+                    'output_tokens' => 2048,
+                    'max_tokens' => 8192,
+                ],
+            ],
+            'openai_compatible' => [
+                [
+                    'model' => static::settingValue('custom_ai_model', 'ag/gemini-3.8-flash-low'),
+                    'completion_tokens' => 4096,
+                    'output_tokens' => 2048,
+                    'max_tokens' => 8192,
+                ],
+            ],
+        ];
+
+        try {
+            static::saveAiModelsRegistry($default);
+        } catch (Throwable) {
+        }
+
+        return $default;
+    }
+
+    /**
+     * Simpan registry model AI ke adm_system_settings.
+     *
+     * @param  array<string, mixed>  $registry
+     */
+    public static function saveAiModelsRegistry(array $registry): void
+    {
+        AdmSystemSetting::set('ai_models_registry', json_encode($registry), 'json', 'AI models registry');
+        Cache::forget('ai_models_registry');
+        static::reset();
+    }
+
+    /**
      * Reset singleton instance dan cache AI setelah admin mengganti konfigurasi.
      */
     public static function reset(): void
@@ -205,6 +306,7 @@ class AiManager
         static::$instance = null;
         Cache::forget('ai_active_provider');
         Cache::forget('ai_runtime_settings');
+        Cache::forget('ai_models_registry');
     }
 
     /**
@@ -282,10 +384,6 @@ class AiManager
                         'custom_ai_max_tokens',
                         'gemini_api_key',
                         'gemini_model',
-                        // Legacy fallback keys
-                        'ninerouter_base_url',
-                        'ninerouter_api_key',
-                        'ninerouter_model',
                     ])
                     ->pluck('value', 'key')
                     ->all();

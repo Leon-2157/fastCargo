@@ -317,13 +317,13 @@ class Phase2WaGatewayTest extends TestCase
         Queue::assertPushed(SendWhatsAppNotification::class, 1);
 
         // Natural language question routes through AI assistant when X-Internal-Secret is used
-        AdmSystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => '9router', 'type' => 'string']);
-        AdmSystemSetting::updateOrCreate(['key' => 'ninerouter_base_url'], ['value' => 'http://9router.test/v1', 'type' => 'string']);
-        AdmSystemSetting::updateOrCreate(['key' => 'ninerouter_api_key'], ['value' => 'test-9r-key', 'type' => 'string']);
+        AdmSystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => 'custom', 'type' => 'string']);
+        AdmSystemSetting::updateOrCreate(['key' => 'custom_ai_base_url'], ['value' => 'http://custom-ai.test/v1', 'type' => 'string']);
+        AdmSystemSetting::updateOrCreate(['key' => 'custom_ai_api_key'], ['value' => 'test-custom-key', 'type' => 'string']);
         AiManager::reset();
 
         Http::fake([
-            '9router.test/v1/chat/completions' => Http::response([
+            'custom-ai.test/v1/chat/completions' => Http::response([
                 'choices' => [['message' => ['content' => 'For LCL cargo, prepare your packing list and HS code.']]],
             ], 200),
         ]);

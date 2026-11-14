@@ -100,11 +100,34 @@
                             </div>
 
                             <div class="mb-4">
-                                <label class="form-label small fw-bold text-muted" for="gemini_model">Gemini Model
-                                    Identifier</label>
-                                <input id="gemini_model" type="text" name="gemini_model"
-                                    value="{{ old('gemini_model', $aiConfig['gemini_model']) }}"
-                                    class="form-control ai-dirty-tracker" placeholder="gemini-2.0-flash">
+                                <label class="form-label small fw-bold text-muted" for="gemini_model">Gemini Model Identifier</label>
+                                <div class="input-group">
+                                    <select id="gemini_model" name="gemini_model" class="form-select ai-dirty-tracker">
+                                        @php
+                                            $selectedGeminiModel = old('gemini_model', $aiConfig['gemini_model']);
+                                            $geminiModels = $aiModelsRegistry['google_gemini_api'] ?? [];
+                                            $hasSelectedGemini = collect($geminiModels)->contains('model', $selectedGeminiModel);
+                                        @endphp
+                                        @if(!$hasSelectedGemini && !empty($selectedGeminiModel))
+                                            <option value="{{ $selectedGeminiModel }}" selected>{{ $selectedGeminiModel }} (Active)</option>
+                                        @endif
+                                        @foreach($geminiModels as $m)
+                                            <option value="{{ $m['model'] }}"
+                                                data-completion="{{ $m['completion_tokens'] ?? 4096 }}"
+                                                data-output="{{ $m['output_tokens'] ?? 2048 }}"
+                                                data-max="{{ $m['max_tokens'] ?? 8192 }}"
+                                                {{ $selectedGeminiModel === $m['model'] ? 'selected' : '' }}>
+                                                {{ $m['model'] }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="btnAddGeminiModel">
+                                        <i class="fas fa-plus me-1"></i> Tambah
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" id="btnDeleteGeminiModel" title="Hapus model terpilih">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -142,12 +165,40 @@
                             <hr class="my-3">
 
                             <div class="mb-3">
-                                <label class="form-label small fw-bold text-muted" for="custom_ai_model">Model
-                                    Name</label>
-                                <input id="custom_ai_model" type="text" name="custom_ai_model"
-                                    value="{{ old('custom_ai_model', $aiConfig['custom_ai_model']) }}"
-                                    class="form-control ai-dirty-tracker"
-                                    placeholder="e.g. ag/gemini-3.8-flash-high, gpt-4o-mini">
+                                <label class="form-label small fw-bold text-muted" for="custom_ai_model">Model Name</label>
+                                <div class="input-group">
+                                    <select id="custom_ai_model" name="custom_ai_model" class="form-select ai-dirty-tracker">
+                                        @php
+                                            $selectedCustomModel = old('custom_ai_model', $aiConfig['custom_ai_model']);
+                                            $customModels = $aiModelsRegistry['openai_compatible'] ?? [];
+                                            $hasSelectedCustom = collect($customModels)->contains('model', $selectedCustomModel);
+                                        @endphp
+                                        @if(!$hasSelectedCustom && !empty($selectedCustomModel))
+                                            <option value="{{ $selectedCustomModel }}"
+                                                data-completion="{{ $aiConfig['custom_ai_max_completion_tokens'] ?? 4096 }}"
+                                                data-output="{{ $aiConfig['custom_ai_max_output_tokens'] ?? 2048 }}"
+                                                data-max="{{ $aiConfig['custom_ai_max_tokens'] ?? 8192 }}"
+                                                selected>
+                                                {{ $selectedCustomModel }} (Active)
+                                            </option>
+                                        @endif
+                                        @foreach($customModels as $m)
+                                            <option value="{{ $m['model'] }}"
+                                                data-completion="{{ $m['completion_tokens'] ?? 4096 }}"
+                                                data-output="{{ $m['output_tokens'] ?? 2048 }}"
+                                                data-max="{{ $m['max_tokens'] ?? 8192 }}"
+                                                {{ $selectedCustomModel === $m['model'] ? 'selected' : '' }}>
+                                                {{ $m['model'] }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="btnAddCustomModel">
+                                        <i class="fas fa-plus me-1"></i> Tambah
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" id="btnDeleteCustomModel" title="Hapus model terpilih">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- 3 Kolom Token Samping-Sampingan Sesuai Permintaan User -->
@@ -320,18 +371,42 @@
                                         </button>
                                     </div>
                                     <select id="wa_ai_provider" name="wa_ai_provider" class="form-select form-select-sm" style="font-size: 11px;">
-                                        <option value="default" {{ old('wa_ai_provider', $waAiProvider ?? 'default') === 'default' ? 'selected' : '' }}>
-                                            Ikuti AI Global (Active: {{ $aiConfig['active_label'] }})
-                                        </option>
-                                        <option value="gemini" {{ old('wa_ai_provider', $waAiProvider ?? 'default') === 'gemini' ? 'selected' : '' }}>
-                                            Gemini 2.0 Flash
-                                        </option>
-                                        <option value="custom" {{ old('wa_ai_provider', $waAiProvider ?? 'default') === 'custom' ? 'selected' : '' }}>
-                                            {{ $aiConfig['custom_ai_provider_name'] ?? 'Custom AI' }}
-                                        </option>
-                                        <option value="disabled" {{ old('wa_ai_provider', $waAiProvider ?? 'default') === 'disabled' ? 'selected' : '' }}>
+                                        @php
+                                            $currentWaAi = old('wa_ai_provider', $waAiProvider ?? 'default');
+                                            $knownWaValues = ['disabled', 'default', 'gemini', 'custom'];
+                                            foreach(($aiModelsRegistry['google_gemini_api'] ?? []) as $gm) {
+                                                $knownWaValues[] = 'google_gemini_api::'.$gm['model'];
+                                            }
+                                            foreach(($aiModelsRegistry['openai_compatible'] ?? []) as $cm) {
+                                                $knownWaValues[] = 'openai_compatible::'.$cm['model'];
+                                            }
+                                        @endphp
+                                        <option value="disabled" {{ $currentWaAi === 'disabled' ? 'selected' : '' }}>
                                             Nonaktifkan AI
                                         </option>
+                                        <option value="default" {{ $currentWaAi === 'default' ? 'selected' : '' }}>
+                                            Ikuti AI Global (Active: {{ $aiConfig['active_label'] }})
+                                        </option>
+                                        @foreach(($aiModelsRegistry['google_gemini_api'] ?? []) as $m)
+                                            <option value="google_gemini_api::{{ $m['model'] }}" {{ $currentWaAi === 'google_gemini_api::'.$m['model'] ? 'selected' : '' }}>
+                                                [Google Gemini API] {{ $m['model'] }}
+                                            </option>
+                                        @endforeach
+                                        @foreach(($aiModelsRegistry['openai_compatible'] ?? []) as $m)
+                                            <option value="openai_compatible::{{ $m['model'] }}" {{ $currentWaAi === 'openai_compatible::'.$m['model'] ? 'selected' : '' }}>
+                                                [OpenAI Compatible] {{ $m['model'] }}
+                                            </option>
+                                        @endforeach
+                                        @if(in_array($currentWaAi, ['gemini', 'custom'], true))
+                                            <option value="{{ $currentWaAi }}" selected>
+                                                [Legacy] {{ $currentWaAi === 'gemini' ? 'Gemini 2.0 Flash' : ($aiConfig['custom_ai_provider_name'] ?? 'Custom AI') }}
+                                            </option>
+                                        @endif
+                                        @if(!in_array($currentWaAi, $knownWaValues, true) && !empty($currentWaAi))
+                                            <option value="{{ $currentWaAi }}" selected>
+                                                [Unlisted] {{ $currentWaAi }}
+                                            </option>
+                                        @endif
                                     </select>
                                 </form>
                             </div>
@@ -442,18 +517,42 @@
                                             <i class="fas fa-robot me-1 text-primary"></i> AI Integration
                                         </label>
                                         <select id="mail_ai_provider" name="mail_ai_provider" class="form-select">
-                                            <option value="default" {{ old('mail_ai_provider', $mailAiProvider ?? 'default') === 'default' ? 'selected' : '' }}>
-                                                Ikuti AI Global (Active: {{ $aiConfig['active_label'] }})
-                                            </option>
-                                            <option value="gemini" {{ old('mail_ai_provider', $mailAiProvider ?? 'default') === 'gemini' ? 'selected' : '' }}>
-                                                Gemini 2.0 Flash
-                                            </option>
-                                            <option value="custom" {{ old('mail_ai_provider', $mailAiProvider ?? 'default') === 'custom' ? 'selected' : '' }}>
-                                                {{ $aiConfig['custom_ai_provider_name'] ?? 'Custom AI' }}
-                                            </option>
-                                            <option value="disabled" {{ old('mail_ai_provider', $mailAiProvider ?? 'default') === 'disabled' ? 'selected' : '' }}>
+                                            @php
+                                                $currentMailAi = old('mail_ai_provider', $mailAiProvider ?? 'default');
+                                                $knownMailValues = ['disabled', 'default', 'gemini', 'custom'];
+                                                foreach(($aiModelsRegistry['google_gemini_api'] ?? []) as $gm) {
+                                                    $knownMailValues[] = 'google_gemini_api::'.$gm['model'];
+                                                }
+                                                foreach(($aiModelsRegistry['openai_compatible'] ?? []) as $cm) {
+                                                    $knownMailValues[] = 'openai_compatible::'.$cm['model'];
+                                                }
+                                            @endphp
+                                            <option value="disabled" {{ $currentMailAi === 'disabled' ? 'selected' : '' }}>
                                                 Nonaktifkan AI
                                             </option>
+                                            <option value="default" {{ $currentMailAi === 'default' ? 'selected' : '' }}>
+                                                Ikuti AI Global (Active: {{ $aiConfig['active_label'] }})
+                                            </option>
+                                            @foreach(($aiModelsRegistry['google_gemini_api'] ?? []) as $m)
+                                                <option value="google_gemini_api::{{ $m['model'] }}" {{ $currentMailAi === 'google_gemini_api::'.$m['model'] ? 'selected' : '' }}>
+                                                    [Google Gemini API] {{ $m['model'] }}
+                                                </option>
+                                            @endforeach
+                                            @foreach(($aiModelsRegistry['openai_compatible'] ?? []) as $m)
+                                                <option value="openai_compatible::{{ $m['model'] }}" {{ $currentMailAi === 'openai_compatible::'.$m['model'] ? 'selected' : '' }}>
+                                                    [OpenAI Compatible] {{ $m['model'] }}
+                                                </option>
+                                            @endforeach
+                                            @if(in_array($currentMailAi, ['gemini', 'custom'], true))
+                                                <option value="{{ $currentMailAi }}" selected>
+                                                    [Legacy] {{ $currentMailAi === 'gemini' ? 'Gemini 2.0 Flash' : ($aiConfig['custom_ai_provider_name'] ?? 'Custom AI') }}
+                                                </option>
+                                            @endif
+                                            @if(!in_array($currentMailAi, $knownMailValues, true) && !empty($currentMailAi))
+                                                <option value="{{ $currentMailAi }}" selected>
+                                                    [Unlisted] {{ $currentMailAi }}
+                                                </option>
+                                            @endif
                                         </select>
                                     </div>
                                 </div>
@@ -1182,6 +1281,56 @@
         </div>
     </div>
 
+    <!-- Modal Tambah Model AI Baru -->
+    <div class="modal fade" id="modalAddAiModel" tabindex="-1" aria-labelledby="modalAddAiModelLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light py-3">
+                    <h6 class="modal-title fw-bold mb-0" id="modalAddAiModelLabel">
+                        <i class="fas fa-plus-circle me-2 text-primary"></i> Tambah Model AI Baru
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div id="modalAddAiAlert" class="alert alert-danger py-2 px-3 small mb-3 d-none"></div>
+                    <form id="formAddAiModel">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted mb-1" for="new_model_engine">Target Engine</label>
+                            <select id="new_model_engine" class="form-select form-select-sm">
+                                <option value="google_gemini_api">Google Gemini API</option>
+                                <option value="openai_compatible">OpenAI Compatible</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted mb-1" for="new_model_name">Nama Model (Model Identifier)</label>
+                            <input type="text" id="new_model_name" class="form-control form-control-sm" placeholder="e.g. gpt-4o-mini, gemini-2.5-pro" required>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-4">
+                                <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.72rem;" for="new_model_completion_tokens">Max Completion</label>
+                                <input type="number" id="new_model_completion_tokens" class="form-control form-control-sm" value="4096" min="1">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.72rem;" for="new_model_output_tokens">Max Output</label>
+                                <input type="number" id="new_model_output_tokens" class="form-control form-control-sm" value="2048" min="1">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.72rem;" for="new_model_max_tokens">Max Token</label>
+                                <input type="number" id="new_model_max_tokens" class="form-control form-control-sm" value="8192" min="1">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light border-top py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnSubmitAddAiModel">
+                        <i class="fas fa-save me-1"></i> Simpan Model
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Email Driver Dynamic Toggler & Resend Preset
@@ -1472,6 +1621,261 @@
                             aiConnectionVerified = false;
                             updateSaveButtonState();
                         });
+                });
+            }
+
+            // AI Model Registry & Token Synchronization
+            const customAiModelSelect = document.getElementById('custom_ai_model');
+            const inputMaxCompletion = document.getElementById('custom_ai_max_completion_tokens');
+            const inputMaxOutput = document.getElementById('custom_ai_max_output_tokens');
+            const inputMaxTokens = document.getElementById('custom_ai_max_tokens');
+
+            function syncCustomTokenLimits() {
+                if (!customAiModelSelect) return;
+                const opt = customAiModelSelect.options[customAiModelSelect.selectedIndex];
+                if (opt) {
+                    if (opt.dataset.completion && inputMaxCompletion) {
+                        inputMaxCompletion.value = opt.dataset.completion;
+                    }
+                    if (opt.dataset.output && inputMaxOutput) {
+                        inputMaxOutput.value = opt.dataset.output;
+                    }
+                    if (opt.dataset.max && inputMaxTokens) {
+                        inputMaxTokens.value = opt.dataset.max;
+                    }
+                }
+            }
+
+            if (customAiModelSelect) {
+                customAiModelSelect.addEventListener('change', function() {
+                    syncCustomTokenLimits();
+                    aiFormIsDirty = true;
+                    aiConnectionVerified = false;
+                    updateSaveButtonState();
+                });
+            }
+
+            const geminiModelSelect = document.getElementById('gemini_model');
+            if (geminiModelSelect) {
+                geminiModelSelect.addEventListener('change', function() {
+                    aiFormIsDirty = true;
+                    aiConnectionVerified = false;
+                    updateSaveButtonState();
+                });
+            }
+
+            // Modal Add AI Model Handler
+            const btnAddGemini = document.getElementById('btnAddGeminiModel');
+            const btnAddCustom = document.getElementById('btnAddCustomModel');
+            const modalAddAiEl = document.getElementById('modalAddAiModel');
+            const selectEngine = document.getElementById('new_model_engine');
+            const inputNewModelName = document.getElementById('new_model_name');
+            const inputNewCompletion = document.getElementById('new_model_completion_tokens');
+            const inputNewOutput = document.getElementById('new_model_output_tokens');
+            const inputNewMax = document.getElementById('new_model_max_tokens');
+            const btnSubmitAddAi = document.getElementById('btnSubmitAddAiModel');
+            const modalAddAiAlert = document.getElementById('modalAddAiAlert');
+
+            function openAddAiModelModal(engine) {
+                if (selectEngine) selectEngine.value = engine;
+                if (inputNewModelName) inputNewModelName.value = '';
+                if (inputNewCompletion) inputNewCompletion.value = '4096';
+                if (inputNewOutput) inputNewOutput.value = '2048';
+                if (inputNewMax) inputNewMax.value = '8192';
+                if (modalAddAiAlert) {
+                    modalAddAiAlert.classList.add('d-none');
+                    modalAddAiAlert.textContent = '';
+                }
+                if (modalAddAiEl && window.bootstrap && window.bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalAddAiEl).show();
+                }
+            }
+
+            if (btnAddGemini) {
+                btnAddGemini.addEventListener('click', function() {
+                    openAddAiModelModal('google_gemini_api');
+                });
+            }
+
+            if (btnAddCustom) {
+                btnAddCustom.addEventListener('click', function() {
+                    openAddAiModelModal('openai_compatible');
+                });
+            }
+
+            if (btnSubmitAddAi) {
+                btnSubmitAddAi.addEventListener('click', function() {
+                    const engine = selectEngine ? selectEngine.value : 'openai_compatible';
+                    const modelName = inputNewModelName ? inputNewModelName.value.trim() : '';
+
+                    if (!modelName) {
+                        if (modalAddAiAlert) {
+                            modalAddAiAlert.textContent = 'Nama model wajib diisi.';
+                            modalAddAiAlert.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    const originalSubmitText = btnSubmitAddAi.innerHTML;
+                    btnSubmitAddAi.disabled = true;
+                    btnSubmitAddAi.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
+
+                    const completionVal = inputNewCompletion ? parseInt(inputNewCompletion.value, 10) || 4096 : 4096;
+                    const outputVal = inputNewOutput ? parseInt(inputNewOutput.value, 10) || 2048 : 2048;
+                    const maxVal = inputNewMax ? parseInt(inputNewMax.value, 10) || 8192 : 8192;
+
+                    fetch('{{ route('admin.settings.ai.models.add', [], false) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            engine: engine,
+                            model: modelName,
+                            completion_tokens: completionVal,
+                            output_tokens: outputVal,
+                            max_tokens: maxVal
+                        })
+                    })
+                    .then(function(res) {
+                        return res.json().then(function(data) {
+                            return { status: res.status, ok: res.ok, data: data };
+                        });
+                    })
+                    .then(function(resObj) {
+                        btnSubmitAddAi.disabled = false;
+                        btnSubmitAddAi.innerHTML = originalSubmitText;
+
+                        if (resObj.ok && resObj.data.success) {
+                            const targetSelect = engine === 'google_gemini_api'
+                                ? document.getElementById('gemini_model')
+                                : document.getElementById('custom_ai_model');
+
+                            if (targetSelect) {
+                                const opt = document.createElement('option');
+                                opt.value = modelName;
+                                opt.textContent = modelName;
+                                opt.dataset.completion = completionVal;
+                                opt.dataset.output = outputVal;
+                                opt.dataset.max = maxVal;
+                                targetSelect.appendChild(opt);
+                                targetSelect.value = modelName;
+                                targetSelect.dispatchEvent(new Event('change'));
+                            }
+
+                            // Update WhatsApp and Mail select dropdowns
+                            const optVal = `${engine}::${modelName}`;
+                            const label = `[${engine === 'google_gemini_api' ? 'Google Gemini API' : 'OpenAI Compatible'}] ${modelName}`;
+                            [document.getElementById('wa_ai_provider'), document.getElementById('mail_ai_provider')].forEach(function(sel) {
+                                if (sel) {
+                                    const opt = document.createElement('option');
+                                    opt.value = optVal;
+                                    opt.textContent = label;
+                                    sel.appendChild(opt);
+                                }
+                            });
+
+                            if (modalAddAiEl && window.bootstrap && window.bootstrap.Modal) {
+                                bootstrap.Modal.getOrCreateInstance(modalAddAiEl).hide();
+                            }
+                        } else {
+                            if (modalAddAiAlert) {
+                                modalAddAiAlert.textContent = (resObj.data && resObj.data.message) ? resObj.data.message : 'Gagal menambahkan model.';
+                                modalAddAiAlert.classList.remove('d-none');
+                            }
+                        }
+                    })
+                    .catch(function(err) {
+                        btnSubmitAddAi.disabled = false;
+                        btnSubmitAddAi.innerHTML = originalSubmitText;
+                        if (modalAddAiAlert) {
+                            modalAddAiAlert.textContent = err.message || 'Terjadi kesalahan sistem.';
+                            modalAddAiAlert.classList.remove('d-none');
+                        }
+                    });
+                });
+            }
+
+            // Delete Model Handlers
+            const btnDeleteGemini = document.getElementById('btnDeleteGeminiModel');
+            const btnDeleteCustom = document.getElementById('btnDeleteCustomModel');
+
+            function deleteAiModel(engine, selectId) {
+                const select = document.getElementById(selectId);
+                if (!select || !select.value) return;
+
+                if (select.options.length <= 1) {
+                    alert('Tidak dapat menghapus satu-satunya model yang tersisa untuk engine ini.');
+                    return;
+                }
+
+                const modelName = select.value;
+                if (!confirm(`Hapus model "${modelName}" dari registry?`)) {
+                    return;
+                }
+
+                fetch('{{ route('admin.settings.ai.models.delete', [], false) }}', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        engine: engine,
+                        model: modelName
+                    })
+                })
+                .then(function(res) {
+                    return res.json().then(function(data) {
+                        return { status: res.status, ok: res.ok, data: data };
+                    });
+                })
+                .then(function(resObj) {
+                    if (resObj.ok && resObj.data.success) {
+                        const idx = select.selectedIndex;
+                        select.remove(idx);
+                        if (select.options.length > 0) {
+                            select.selectedIndex = 0;
+                            select.dispatchEvent(new Event('change'));
+                        }
+
+                        const optVal = `${engine}::${modelName}`;
+                        [document.getElementById('wa_ai_provider'), document.getElementById('mail_ai_provider')].forEach(function(sel) {
+                            if (sel) {
+                                const wasSelected = (sel.value === optVal);
+                                for (let i = 0; i < sel.options.length; i++) {
+                                    if (sel.options[i].value === optVal) {
+                                        sel.remove(i);
+                                        break;
+                                    }
+                                }
+                                if (wasSelected) {
+                                    sel.value = 'default';
+                                    sel.dispatchEvent(new Event('change'));
+                                }
+                            }
+                        });
+                    } else {
+                        alert((resObj.data && resObj.data.message) ? resObj.data.message : 'Gagal menghapus model.');
+                    }
+                })
+                .catch(function(err) {
+                    alert(err.message || 'Terjadi kesalahan komunikasi server.');
+                });
+            }
+
+            if (btnDeleteGemini) {
+                btnDeleteGemini.addEventListener('click', function() {
+                    deleteAiModel('google_gemini_api', 'gemini_model');
+                });
+            }
+
+            if (btnDeleteCustom) {
+                btnDeleteCustom.addEventListener('click', function() {
+                    deleteAiModel('openai_compatible', 'custom_ai_model');
                 });
             }
 

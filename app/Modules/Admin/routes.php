@@ -100,6 +100,8 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
         Route::put('/', [SystemSettingsController::class, 'update'])->name('update');
         Route::post('/ai/switch', [SystemSettingsController::class, 'switchAiProvider'])->name('ai.switch');
         Route::post('/ai/test', [SystemSettingsController::class, 'testAiConnection'])->name('ai.test');
+        Route::post('/ai/models', [SystemSettingsController::class, 'addAiModel'])->name('ai.models.add');
+        Route::delete('/ai/models', [SystemSettingsController::class, 'deleteAiModel'])->name('ai.models.delete');
         Route::post('/mail/test', [SystemSettingsController::class, 'sendTestEmail'])->name('mail.test');
         Route::post('/payg/otp/request', [SystemSettingsController::class, 'requestPaygOtp'])->name('payg.otp.request');
         Route::post('/payg/otp/verify', [SystemSettingsController::class, 'verifyPaygOtp'])->name('payg.otp.verify');

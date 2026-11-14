@@ -20,11 +20,17 @@ class CustomAiProvider implements AiProviderInterface
 
     private int $timeout;
 
-    public function __construct(?string $baseUrl = null, ?string $apiKey = null, ?string $model = null)
-    {
-        $this->baseUrl = rtrim($baseUrl ?? AiManager::settingValue('custom_ai_base_url', AiManager::settingValue('ninerouter_base_url', (string) config('ai.providers.custom.base_url', (string) config('ai.providers.9router.base_url', '')))), '/');
-        $this->apiKey = $apiKey ?? AiManager::settingValue('custom_ai_api_key', AiManager::settingValue('ninerouter_api_key', (string) config('ai.providers.custom.api_key', (string) config('ai.providers.9router.api_key', ''))));
-        $this->model = $model ?? AiManager::settingValue('custom_ai_model', AiManager::settingValue('ninerouter_model', (string) config('ai.providers.custom.model', (string) config('ai.providers.9router.model', 'ag/gemini-3.8-flash-high'))));
+    public function __construct(
+        ?string $baseUrl = null,
+        ?string $apiKey = null,
+        ?string $model = null,
+        private ?int $maxTokens = null,
+        private ?int $maxCompletionTokens = null,
+        private ?int $maxOutputTokens = null,
+    ) {
+        $this->baseUrl = rtrim($baseUrl ?? AiManager::settingValue('custom_ai_base_url', (string) config('ai.providers.custom.base_url', '')), '/');
+        $this->apiKey = $apiKey ?? AiManager::settingValue('custom_ai_api_key', (string) config('ai.providers.custom.api_key', ''));
+        $this->model = $model ?? AiManager::settingValue('custom_ai_model', (string) config('ai.providers.custom.model', 'ag/gemini-3.8-flash-low'));
         $this->timeout = (int) config('ai.timeout', 30);
     }
 
@@ -59,14 +65,16 @@ class CustomAiProvider implements AiProviderInterface
             'stream' => false,
         ];
 
-        $maxTokens = (int) AiManager::settingValue('custom_ai_max_tokens', '0');
+        $maxTokens = $this->maxTokens ?? (int) AiManager::settingValue('custom_ai_max_tokens', '0');
         if ($maxTokens > 0) {
             $payload['max_tokens'] = $maxTokens;
         }
 
-        $maxCompletionTokens = (int) AiManager::settingValue('custom_ai_max_completion_tokens', '0');
-        if ($maxCompletionTokens > 0) {
-            $payload['max_completion_tokens'] = $maxCompletionTokens;
+        $maxCompletion = $this->maxCompletionTokens ?? (int) AiManager::settingValue('custom_ai_max_completion_tokens', '0');
+        $maxOutput = $this->maxOutputTokens ?? (int) AiManager::settingValue('custom_ai_max_output_tokens', '0');
+        $effectiveCompletion = $maxCompletion > 0 ? $maxCompletion : ($maxOutput > 0 ? $maxOutput : 0);
+        if ($effectiveCompletion > 0) {
+            $payload['max_completion_tokens'] = $effectiveCompletion;
         }
 
         $resolvedUrl = AiManager::resolveNetworkUrl($this->baseUrl);
