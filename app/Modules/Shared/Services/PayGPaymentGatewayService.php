@@ -15,7 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Throwable;
 
 class PayGPaymentGatewayService
@@ -55,13 +55,12 @@ class PayGPaymentGatewayService
         }
 
         // Graceful offline fallback snapshot
-        $activeMode = (string) AdmSystemSetting::get('payg_active_mode', 'auto');
-        $sobUsername = (string) AdmSystemSetting::get('payg_sobpay_username', '');
+        $activeMode = (string) AdmSystemSetting::get('payg_active_mode', 'sgpay');
         $staticQr = (string) AdmSystemSetting::get('payg_sgpay_static_qr', '');
 
         return [
             'reachable' => false,
-            'app' => 'FastCargo PayG Station (Standalone Sandbox)',
+            'app' => 'FastCargo PayG Station',
             'version' => '2.0.0',
             'active_mode' => $activeMode,
             'engines' => [
@@ -70,20 +69,6 @@ class PayGPaymentGatewayService
                     'active' => true,
                     'connected' => ! empty($staticQr),
                     'details' => ! empty($staticQr) ? 'Static QRIS Configured' : 'Offline / Standalone',
-                ],
-                'sobpay' => [
-                    'engine' => 'sobpay',
-                    'active' => true,
-                    'connected' => ! empty($sobUsername),
-                    'details' => ! empty($sobUsername) ? "Connected (@{$sobUsername})" : 'Username not set',
-                    'active_account' => $sobUsername,
-                ],
-                'simulator' => [
-                    'engine' => 'simulator',
-                    'active' => true,
-                    'connected' => true,
-                    'details' => 'Built-in Smart Sandbox Active',
-                    'active_account' => 'SANDBOX-SIMULATOR',
                 ],
             ],
             'active_pending' => PaymentTransaction::where('payment_status', 'PENDING')->count(),
@@ -102,11 +87,14 @@ class PayGPaymentGatewayService
      *     unique_code: int,
      *     currency: string,
      *     qr_string: string,
+     *     qris_payload: string,
      *     qr_svg: string,
      *     payment_url?: string,
      *     expires_at: Carbon,
      *     is_mock: bool,
      *     merchant_name: string,
+     *     merchant_city: string,
+     *     acquirer_label: string,
      *     engine: string,
      *     channel: string,
      *     instructions?: array<string>
@@ -117,9 +105,17 @@ class PayGPaymentGatewayService
         $amount = (float) $invoice->total_invoice_amount;
         $currency = $invoice->currency ?? 'IDR';
         $country = $options['country'] ?? 'Indonesia';
-        $enginePref = $options['engine'] ?? AdmSystemSetting::get('payg_active_mode', 'auto');
+        $enginePref = $options['engine'] ?? AdmSystemSetting::get('payg_active_mode', 'sgpay');
         $channelPref = $options['channel'] ?? 'qris';
-        $merchantName = 'FASTCARGO ASEAN LOGISTICS';
+
+        $staticQr = self::cleanQrisString((string) AdmSystemSetting::get('payg_sgpay_static_qr', ''));
+        $hasValidStaticQr = $staticQr !== '' && $this->isValidEmvcoQris($staticQr);
+        $staticMeta = $hasValidStaticQr ? $this->parseEmvcoMetadata($staticQr) : null;
+        $staticQrHash = md5($staticQr);
+
+        $merchantName = $staticMeta['merchant_name'] ?? 'FASTCARGO ASEAN LOGISTICS';
+        $merchantCity = $staticMeta['merchant_city'] ?? 'JAKARTA';
+        $acquirerLabel = $staticMeta['acquirer_label'] ?? 'SGpay QRIS';
 
         $url = $this->getServiceUrl();
         $timeout = (int) config('payg.timeout', 5);
@@ -145,7 +141,7 @@ class PayGPaymentGatewayService
                 $ref = (string) $data['transaction_ref'];
                 $payableAmount = (float) ($data['payable_amount'] ?? $amount);
                 $uniqueCode = (int) ($data['unique_code'] ?? 0);
-                $engine = (string) ($data['engine'] ?? 'simulator');
+                $engine = (string) ($data['engine'] ?? 'sgpay');
                 $channel = (string) ($data['channel'] ?? 'QRIS');
                 $qrString = (string) ($data['qr_string'] ?? '');
                 $qrSvg = (string) ($data['qr_svg'] ?? '');
@@ -153,7 +149,24 @@ class PayGPaymentGatewayService
                 $isMock = (bool) ($data['is_mock'] ?? false);
                 $expiresAt = isset($data['expires_at']) ? Carbon::parse($data['expires_at']) : now()->addMinutes(15);
 
-                if (empty($qrSvg) && ! empty($qrString)) {
+                // If a valid static QRIS is configured in DB but the daemon returned synthetic/stale QRIS,
+                // preserve the real merchant EMVCo tags by injecting Tag 54 directly from DB setting.
+                if ($hasValidStaticQr && $staticMeta !== null) {
+                    $qrMeta = $qrString !== '' ? $this->parseEmvcoMetadata($qrString) : null;
+                    if (
+                        $qrMeta === null
+                        || ! $qrMeta['valid']
+                        || ($qrMeta['merchant_name'] ?? '') !== $merchantName
+                        || ($qrMeta['nmid'] ?? '') !== ($staticMeta['nmid'] ?? '')
+                        || (int) ($qrMeta['amount'] ?? 0) !== (int) round($payableAmount)
+                    ) {
+                        $qrString = $this->injectDynamicAmountIntoStaticQris($staticQr, $payableAmount);
+                        $qrSvg = $this->renderQrSvg($qrString);
+                        $isMock = false;
+                    }
+                }
+
+                if ($qrSvg === '' && $qrString !== '') {
                     $qrSvg = $this->renderQrSvg($qrString);
                 }
 
@@ -166,6 +179,9 @@ class PayGPaymentGatewayService
                     $channel,
                     [
                         'merchant_name' => $merchantName,
+                        'merchant_city' => $merchantCity,
+                        'acquirer_label' => $acquirerLabel,
+                        'static_qr_hash' => $staticQrHash,
                         'unique_code' => $uniqueCode,
                         'qr_string' => $qrString,
                         'payment_url' => $paymentUrl,
@@ -181,11 +197,14 @@ class PayGPaymentGatewayService
                     'unique_code' => $uniqueCode,
                     'currency' => $currency,
                     'qr_string' => $qrString,
+                    'qris_payload' => $qrString,
                     'qr_svg' => $qrSvg,
                     'payment_url' => $paymentUrl,
                     'expires_at' => $expiresAt,
                     'is_mock' => $isMock,
                     'merchant_name' => $merchantName,
+                    'merchant_city' => $merchantCity,
+                    'acquirer_label' => $acquirerLabel,
                     'engine' => $engine,
                     'channel' => $channel,
                     'instructions' => $data['instructions'] ?? [],
@@ -195,39 +214,44 @@ class PayGPaymentGatewayService
             Log::info('PayG service checkout call failed, using built-in smart fallback', ['error' => $e->getMessage()]);
         }
 
-        // Fallback Standalone Generator
+        // Fallback Standalone Generator (Direct QRIS via SGpay)
         $expiresAt = now()->addMinutes(15);
-        $uniqueCode = 0;
-        $payableAmount = $amount;
+        $baseAmount = (int) round($amount);
+        $activeAmounts = PaymentTransaction::query()
+            ->where('payment_status', PaymentTransaction::STATUS_PENDING)
+            ->where('created_at', '>=', now()->subHours(24))
+            ->pluck('amount')
+            ->map(static fn (mixed $val): int => (int) round((float) $val))
+            ->all();
+        $takenLookup = array_flip($activeAmounts);
+
+        $uniqueCode = random_int(1, 999);
+        $allocated = false;
+        for ($attempt = 0; $attempt < 50; $attempt++) {
+            $candidateCode = random_int(1, 999);
+            if (! isset($takenLookup[$baseAmount + $candidateCode])) {
+                $uniqueCode = $candidateCode;
+                $allocated = true;
+                break;
+            }
+        }
+        if (! $allocated) {
+            for ($candidateCode = 1; $candidateCode <= 999; $candidateCode++) {
+                if (! isset($takenLookup[$baseAmount + $candidateCode])) {
+                    $uniqueCode = $candidateCode;
+                    break;
+                }
+            }
+        }
+
+        $payableAmount = (float) ($baseAmount + $uniqueCode);
         $paymentUrl = '';
         $channel = 'QRIS';
-
-        if ($enginePref === 'sgpay') {
-            $uniqueCode = random_int(1, 999);
-            $payableAmount = $amount + $uniqueCode;
-            $ref = 'SGPAY-'.date('YmdHis').'-'.sprintf('%03d', $uniqueCode);
-            $engine = 'sgpay';
-            $channel = 'QRIS';
-            $qrString = $this->buildEmvcoPayload($ref, $payableAmount, $merchantName);
-            $qrSvg = $this->renderQrSvg($qrString);
-        } elseif ($enginePref === 'sobpay') {
-            $username = (string) AdmSystemSetting::get('payg_sobpay_username', 'fastcargotest');
-            if (empty($username)) {
-                $username = 'fastcargotest';
-            }
-            $ref = 'SOBPAY-sbz_'.time().Str::random(6);
-            $engine = 'sobpay';
-            $channel = 'MULTI_CHANNEL';
-            $paymentUrl = "https://sociabuzz.com/@{$username}/tribe";
-            $qrString = '';
-            $qrSvg = '';
-        } else {
-            $ref = 'PAYG-SIM-'.date('Ymd').'-'.strtoupper(Str::random(8));
-            $engine = 'simulator';
-            $channel = 'QRIS';
-            $qrString = $this->buildEmvcoPayload($ref, $amount, $merchantName);
-            $qrSvg = $this->renderQrSvg($qrString);
-        }
+        $ref = 'SGPAY-'.date('YmdHis').'-'.sprintf('%03d', $uniqueCode);
+        $engine = 'sgpay';
+        $qrString = $this->buildEmvcoPayload($ref, $payableAmount, $merchantName);
+        $qrSvg = $this->renderQrSvg($qrString);
+        $isMock = ! $hasValidStaticQr;
 
         $this->recordPendingTransaction(
             $invoice,
@@ -238,10 +262,14 @@ class PayGPaymentGatewayService
             $channel,
             [
                 'merchant_name' => $merchantName,
-                'gateway_mode' => 'STANDALONE_FALLBACK',
+                'merchant_city' => $merchantCity,
+                'acquirer_label' => $acquirerLabel,
+                'static_qr_hash' => $staticQrHash,
+                'gateway_mode' => $hasValidStaticQr ? 'STANDALONE_DIRECT_QRIS' : 'STANDALONE_FALLBACK',
                 'unique_code' => $uniqueCode,
                 'qr_string' => $qrString,
                 'payment_url' => $paymentUrl,
+                'is_mock' => $isMock,
                 'expires_at' => $expiresAt->toIso8601String(),
             ]
         );
@@ -253,16 +281,19 @@ class PayGPaymentGatewayService
             'unique_code' => $uniqueCode,
             'currency' => $currency,
             'qr_string' => $qrString,
+            'qris_payload' => $qrString,
             'qr_svg' => $qrSvg,
             'payment_url' => $paymentUrl,
             'expires_at' => $expiresAt,
-            'is_mock' => true,
+            'is_mock' => $isMock,
             'merchant_name' => $merchantName,
+            'merchant_city' => $merchantCity,
+            'acquirer_label' => $acquirerLabel,
             'engine' => $engine,
             'channel' => $channel,
             'instructions' => [
-                'Smart Standalone Mode: Simulated transaction ready for instant testing.',
-                'Click "Simulate Instant Pay" to trigger escrow funding and booking confirmation.',
+                'Scan the dynamic QRIS using any Indonesian e-wallet or banking app.',
+                'Transfer the exact Total Bayar Tepat amount including the unique verification code.',
             ],
         ];
     }
@@ -282,7 +313,12 @@ class PayGPaymentGatewayService
             }
 
             if ($transaction->payment_status === 'SETTLEMENT') {
-                return ['success' => true, 'message' => 'Transaction already settled.', 'transaction' => $transaction];
+                return [
+                    'success' => true,
+                    'message' => 'Transaction already settled.',
+                    'invoice' => AdmInvoice::with('booking')->find($transaction->invoice_id),
+                    'transaction' => $transaction,
+                ];
             }
 
             $now = now();
@@ -330,78 +366,13 @@ class PayGPaymentGatewayService
     }
 
     /**
-     * Request OTP for ShopeePay or GoPay in SGpay.
-     */
-    public function requestSgpayOtp(string $provider, string $phone): array
-    {
-        $url = $this->getServiceUrl();
-
-        try {
-            $resp = Http::timeout(10)->post("{$url}/api/sgpay/otp/request", [
-                'provider' => $provider,
-                'phone' => $phone,
-            ]);
-
-            return (array) $resp->json();
-        } catch (Throwable $e) {
-            return [
-                'success' => false,
-                'error' => 'PayG daemon connection failed: '.$e->getMessage(),
-            ];
-        }
-    }
-
-    /**
-     * Verify OTP for ShopeePay or GoPay in SGpay.
-     */
-    public function verifySgpayOtp(string $provider, string $phone, string $otp, string $challenge): array
-    {
-        $url = $this->getServiceUrl();
-
-        try {
-            $resp = Http::timeout(10)->post("{$url}/api/sgpay/otp/verify", [
-                'provider' => $provider,
-                'phone' => $phone,
-                'otp' => $otp,
-                'challenge' => $challenge,
-            ]);
-
-            return (array) $resp->json();
-        } catch (Throwable $e) {
-            return [
-                'success' => false,
-                'error' => 'PayG daemon connection failed: '.$e->getMessage(),
-            ];
-        }
-    }
-
-    /**
-     * Disconnect SGpay sessions.
-     */
-    public function disconnectSgpay(?string $provider = null): array
-    {
-        $url = $this->getServiceUrl();
-
-        try {
-            $resp = Http::timeout(10)->post("{$url}/api/sgpay/disconnect", [
-                'provider' => $provider,
-            ]);
-
-            return (array) $resp->json();
-        } catch (Throwable $e) {
-            return [
-                'success' => false,
-                'error' => 'PayG daemon connection failed: '.$e->getMessage(),
-            ];
-        }
-    }
-
-    /**
      * Configure Static QRIS for SGpay Tag 54 injection.
+     *
+     * @return array<string, mixed>
      */
     public function configureStaticQr(string $staticQr): array
     {
-        $staticQr = trim(str_replace(["\r", "\n", ' '], '', $staticQr));
+        $staticQr = self::cleanQrisString($staticQr);
         AdmSystemSetting::set('payg_sgpay_static_qr', $staticQr);
         $url = $this->getServiceUrl();
 
@@ -417,76 +388,6 @@ class PayGPaymentGatewayService
                 'message' => 'Static QRIS saved locally in system settings.',
             ];
         }
-    }
-
-    /**
-     * Configure SociaBuzz creator username in SoBpay.
-     */
-    public function configureSobpay(string $username): array
-    {
-        AdmSystemSetting::set('payg_sobpay_username', $username);
-        $url = $this->getServiceUrl();
-
-        try {
-            $resp = Http::timeout(10)->post("{$url}/api/sobpay/config", [
-                'username' => $username,
-            ]);
-
-            return (array) $resp->json();
-        } catch (Throwable $e) {
-            return [
-                'success' => true,
-                'message' => 'Username saved locally in system settings.',
-            ];
-        }
-    }
-
-    /**
-     * Get fee estimates for a country and nominal in SoBpay.
-     */
-    public function getSobpayFees(string $country = 'Indonesia', float $amount = 100000): array
-    {
-        $url = $this->getServiceUrl();
-
-        try {
-            $resp = Http::timeout(10)->get("{$url}/api/sobpay/fees", [
-                'country' => $country,
-                'amount' => $amount,
-            ]);
-
-            if ($resp->successful()) {
-                return (array) $resp->json();
-            }
-        } catch (Throwable $e) {
-            Log::debug('Failed to get fees from PayG, calculating locally', ['error' => $e->getMessage()]);
-        }
-
-        // Fallback local fee calculation
-        $qrisFee = round($amount * 0.007);
-
-        return [
-            'success' => true,
-            'country' => $country,
-            'amount' => $amount,
-            'estimates' => [
-                [
-                    'method_name' => 'QRIS (Xendit / Midtrans)',
-                    'channel' => 'qris',
-                    'fee_percent' => 0.7,
-                    'estimated_fee' => $qrisFee,
-                    'total_amount' => $amount + $qrisFee,
-                    'currency' => 'IDR',
-                ],
-                [
-                    'method_name' => 'Virtual Account (BCA, Mandiri, BRI, BNI)',
-                    'channel' => 'bank_transfer',
-                    'fee_fixed' => 4000,
-                    'estimated_fee' => 4000,
-                    'total_amount' => $amount + 4000,
-                    'currency' => 'IDR',
-                ],
-            ],
-        ];
     }
 
     /**
@@ -640,6 +541,10 @@ class PayGPaymentGatewayService
      */
     public function renderQrSvg(string $qrString): string
     {
+        if (trim($qrString) === '') {
+            return '';
+        }
+
         $renderer = new ImageRenderer(
             new RendererStyle(280, 2),
             new SvgImageBackEnd
@@ -650,11 +555,310 @@ class PayGPaymentGatewayService
     }
 
     /**
+     * Normalize a raw EMVCo QRIS string by stripping line breaks while preserving internal spaces.
+     */
+    public static function cleanQrisString(string $qris): string
+    {
+        return trim(str_replace(["\r", "\n"], '', $qris));
+    }
+
+    /**
+     * Parse an EMVCo TLV string into an associative tag => value map.
+     *
+     * @return array<string, string>
+     */
+    public function parseEmvcoTlv(string $payload): array
+    {
+        $len = strlen($payload);
+        $cursor = 0;
+        $tags = [];
+
+        while ($cursor < $len) {
+            if ($cursor + 4 > $len) {
+                throw new InvalidArgumentException("Malformed QRIS TLV header at offset {$cursor}.");
+            }
+
+            $tag = substr($payload, $cursor, 2);
+            $lengthText = substr($payload, $cursor + 2, 2);
+            $cursor += 4;
+
+            if (! ctype_digit($tag) || ! ctype_digit($lengthText)) {
+                throw new InvalidArgumentException("Invalid QRIS TLV tag or length at offset {$cursor}.");
+            }
+
+            $valueLen = (int) $lengthText;
+            if ($cursor + $valueLen > $len) {
+                throw new InvalidArgumentException("QRIS TLV value for tag {$tag} exceeds payload length.");
+            }
+
+            $tags[$tag] = substr($payload, $cursor, $valueLen);
+            $cursor += $valueLen;
+        }
+
+        return $tags;
+    }
+
+    /**
+     * Parse EMVCo ASPI QRIS metadata including CRC-16 validation and merchant account details.
+     *
+     * @return array{
+     *     valid: bool,
+     *     crc_valid: bool,
+     *     payload_format: ?string,
+     *     poi_method: ?string,
+     *     poi_label: string,
+     *     merchant_name: ?string,
+     *     merchant_city: ?string,
+     *     postal_code: ?string,
+     *     country_code: ?string,
+     *     currency_code: ?string,
+     *     mcc: ?string,
+     *     amount: ?string,
+     *     acquirer_domain: ?string,
+     *     acquirer_label: ?string,
+     *     merchant_pan: ?string,
+     *     merchant_id: ?string,
+     *     nmid: ?string,
+     *     criteria: ?string,
+     *     crc_provided: ?string,
+     *     crc_computed: ?string,
+     *     accounts: array<int, array{tag: string, domain: ?string, pan: ?string, merchant_id: ?string, criteria: ?string}>,
+     *     error: ?string
+     * }
+     */
+    public function parseEmvcoMetadata(string $qris): array
+    {
+        $cleaned = self::cleanQrisString($qris);
+
+        $result = [
+            'valid' => false,
+            'crc_valid' => false,
+            'payload_format' => null,
+            'poi_method' => null,
+            'poi_label' => 'Unknown',
+            'merchant_name' => null,
+            'merchant_city' => null,
+            'postal_code' => null,
+            'country_code' => null,
+            'currency_code' => null,
+            'mcc' => null,
+            'amount' => null,
+            'acquirer_domain' => null,
+            'acquirer_label' => null,
+            'merchant_pan' => null,
+            'merchant_id' => null,
+            'nmid' => null,
+            'criteria' => null,
+            'crc_provided' => null,
+            'crc_computed' => null,
+            'accounts' => [],
+            'error' => null,
+        ];
+
+        if ($cleaned === '') {
+            $result['error'] = 'QRIS string is empty.';
+
+            return $result;
+        }
+
+        if (! str_starts_with($cleaned, '000201')) {
+            $result['error'] = 'QRIS string must start with EMVCo Payload Format Indicator 000201.';
+
+            return $result;
+        }
+
+        if (preg_match('/6304([0-9A-Fa-f]{4})$/', $cleaned, $crcMatch) !== 1) {
+            $result['error'] = 'Missing or malformed trailing EMVCo Tag 63 CRC-16 checksum.';
+
+            return $result;
+        }
+
+        $crcProvided = strtoupper($crcMatch[1]);
+        $crcComputed = self::calculateCrc16Ccitt(substr($cleaned, 0, -4));
+        $crcValid = hash_equals($crcComputed, $crcProvided);
+
+        $result['crc_provided'] = $crcProvided;
+        $result['crc_computed'] = $crcComputed;
+        $result['crc_valid'] = $crcValid;
+
+        try {
+            $tags = $this->parseEmvcoTlv($cleaned);
+        } catch (Throwable $e) {
+            $result['error'] = $e->getMessage();
+
+            return $result;
+        }
+
+        $payloadFormat = $tags['00'] ?? null;
+        $poiMethod = $tags['01'] ?? null;
+        $poiLabel = match ($poiMethod) {
+            '11' => 'Static (11)',
+            '12' => 'Dynamic (12)',
+            default => $poiMethod !== null ? "POI ({$poiMethod})" : 'Unknown',
+        };
+
+        $accounts = [];
+        $acquirerDomain = null;
+        $merchantPan = null;
+        $merchantId = null;
+        $nmid = null;
+        $criteria = null;
+
+        for ($tagNum = 26; $tagNum <= 51; $tagNum++) {
+            $tagKey = str_pad((string) $tagNum, 2, '0', STR_PAD_LEFT);
+            if (! isset($tags[$tagKey])) {
+                continue;
+            }
+
+            try {
+                $sub = $this->parseEmvcoTlv($tags[$tagKey]);
+            } catch (Throwable) {
+                $sub = [];
+            }
+
+            $domain = $sub['00'] ?? null;
+            $pan = $sub['01'] ?? null;
+            $mid = $sub['02'] ?? null;
+            $crit = $sub['03'] ?? null;
+
+            $accounts[] = [
+                'tag' => $tagKey,
+                'domain' => $domain,
+                'pan' => $pan,
+                'merchant_id' => $mid,
+                'criteria' => $crit,
+            ];
+
+            if ($tagNum < 51 && $acquirerDomain === null && $domain !== null) {
+                $acquirerDomain = $domain;
+            }
+            if ($merchantPan === null && $pan !== null) {
+                $merchantPan = $pan;
+            }
+            if ($tagNum < 51 && $merchantId === null && $mid !== null) {
+                $merchantId = $mid;
+            }
+            if ($tagNum === 51 && $mid !== null) {
+                $nmid = $mid;
+            }
+            if ($criteria === null && $crit !== null) {
+                $criteria = $crit;
+            }
+        }
+
+        if ($acquirerDomain === null && isset($accounts[0]['domain'])) {
+            $acquirerDomain = $accounts[0]['domain'];
+        }
+        if ($nmid === null) {
+            $nmid = $merchantId;
+        }
+
+        $merchantName = isset($tags['59']) ? trim($tags['59']) : null;
+        $merchantCity = isset($tags['60']) ? trim($tags['60']) : null;
+
+        $result['payload_format'] = $payloadFormat;
+        $result['poi_method'] = $poiMethod;
+        $result['poi_label'] = $poiLabel;
+        $result['merchant_name'] = $merchantName !== '' ? $merchantName : null;
+        $result['merchant_city'] = $merchantCity !== '' ? $merchantCity : null;
+        $result['postal_code'] = isset($tags['61']) && trim($tags['61']) !== '' ? trim($tags['61']) : null;
+        $result['country_code'] = $tags['58'] ?? null;
+        $result['currency_code'] = $tags['53'] ?? null;
+        $result['mcc'] = $tags['52'] ?? null;
+        $result['amount'] = $tags['54'] ?? null;
+        $result['acquirer_domain'] = $acquirerDomain;
+        $result['acquirer_label'] = self::resolveAcquirerLabel($acquirerDomain);
+        $result['merchant_pan'] = $merchantPan;
+        $result['merchant_id'] = $merchantId;
+        $result['nmid'] = $nmid;
+        $result['criteria'] = $criteria;
+        $result['accounts'] = $accounts;
+
+        if (! $crcValid) {
+            $result['error'] = "CRC-16 checksum mismatch (expected {$crcComputed}, found {$crcProvided}).";
+
+            return $result;
+        }
+
+        if ($payloadFormat !== '01') {
+            $result['error'] = 'Invalid EMVCo Tag 00 payload format indicator.';
+
+            return $result;
+        }
+
+        if (count($accounts) === 0) {
+            $result['error'] = 'Missing Merchant Account Information tags (Tag 26-51).';
+
+            return $result;
+        }
+
+        if ($result['merchant_name'] === null) {
+            $result['error'] = 'Missing Merchant Name (EMVCo Tag 59).';
+
+            return $result;
+        }
+
+        $result['valid'] = true;
+
+        return $result;
+    }
+
+    /**
+     * Validate whether a string is a structurally authentic EMVCo ASPI QRIS payload.
+     */
+    public function isValidEmvcoQris(string $qris): bool
+    {
+        $meta = $this->parseEmvcoMetadata($qris);
+
+        return $meta['valid'] === true;
+    }
+
+    /**
+     * Inject dynamic Tag 54 integer IDR nominal and POI 12 into a configured Static QRIS
+     * while preserving all real merchant tags (26-51, 52, 53, 58, 59, 60, 61, 62).
+     */
+    public function injectDynamicAmountIntoStaticQris(string $staticQr, float $amount): string
+    {
+        $cleaned = self::cleanQrisString($staticQr);
+        $tags = $this->parseEmvcoTlv($cleaned);
+
+        $tags['01'] = '12';
+        $tags['54'] = (string) max(1, (int) round($amount));
+        if (! isset($tags['53'])) {
+            $tags['53'] = '360';
+        }
+        if (! isset($tags['58'])) {
+            $tags['58'] = 'ID';
+        }
+        unset($tags['63']);
+
+        uksort($tags, static fn (string $a, string $b): int => ((int) $a) <=> ((int) $b));
+
+        $body = '';
+        foreach ($tags as $tag => $value) {
+            $len = strlen($value);
+            if ($len > 99) {
+                throw new InvalidArgumentException("EMVCo tag {$tag} exceeds 99-byte limit ({$len} bytes).");
+            }
+            $body .= $tag.sprintf('%02d', $len).$value;
+        }
+        $body .= '6304';
+
+        return $body.self::calculateCrc16Ccitt($body);
+    }
+
+    /**
      * Standard EMVCo QRIS payload builder with authentic CRC-16/CCITT-FALSE.
+     * Preserves real merchant static QRIS tags when configured; uses synthetic payload otherwise.
      */
     protected function buildEmvcoPayload(string $ref, float $amount, string $merchantName): string
     {
-        $amountStr = number_format($amount, 2, '.', '');
+        $staticQr = self::cleanQrisString((string) AdmSystemSetting::get('payg_sgpay_static_qr', ''));
+        if ($staticQr !== '' && $this->isValidEmvcoQris($staticQr)) {
+            return $this->injectDynamicAmountIntoStaticQris($staticQr, $amount);
+        }
+
+        $amountStr = (string) max(1, (int) round($amount));
 
         $body = '000201010212'
             .'26580014ID.DANA.WWW0118936009110022334455'
@@ -669,6 +873,116 @@ class PayGPaymentGatewayService
             .'6304';
 
         return $body.self::calculateCrc16Ccitt($body);
+    }
+
+    /**
+     * Extract a positive integer IDR amount from an Android payment notification message.
+     */
+    public static function extractIdrAmount(string $text): ?int
+    {
+        $normalized = (string) preg_replace("/[\u{00A0}\u{202F}\u{2007}\u{2009}\r\n\t]+/u", ' ', $text);
+        $normalized = trim($normalized);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $matches = [];
+        $matched = preg_match('/(?:Rp\.?|IDR)\s*(-?\d[\d.,]*(?:,-)?)/iu', $normalized, $matches, PREG_OFFSET_CAPTURE);
+        if ($matched !== 1) {
+            $matched = preg_match('/(-?\d[\d.,]*)\s*IDR\b/iu', $normalized, $matches, PREG_OFFSET_CAPTURE);
+        }
+
+        if ($matched !== 1) {
+            return null;
+        }
+
+        $matchOffset = (int) $matches[0][1];
+        $leadingContext = substr($normalized, 0, $matchOffset);
+        if ($leadingContext !== '' && preg_match('/(?:^|[\s:(])-\s*$/u', $leadingContext) === 1) {
+            return null;
+        }
+
+        $rawNumber = trim((string) $matches[1][0]);
+        $rawNumber = (string) preg_replace('/,-$|[-]+$/', '', $rawNumber);
+        $rawNumber = rtrim($rawNumber, '.,');
+
+        if ($rawNumber === '' || str_starts_with($rawNumber, '-')) {
+            return null;
+        }
+
+        $hasDot = str_contains($rawNumber, '.');
+        $hasComma = str_contains($rawNumber, ',');
+
+        $integerDigits = '';
+
+        if ($hasDot && $hasComma) {
+            $lastDot = (int) strrpos($rawNumber, '.');
+            $lastComma = (int) strrpos($rawNumber, ',');
+
+            if ($lastComma > $lastDot) {
+                $integerPart = substr($rawNumber, 0, $lastComma);
+                $integerDigits = str_replace('.', '', $integerPart);
+            } else {
+                $integerPart = substr($rawNumber, 0, $lastDot);
+                $integerDigits = str_replace(',', '', $integerPart);
+            }
+        } elseif ($hasComma) {
+            if (preg_match('/^\d+(?:,\d{3})+$/', $rawNumber) === 1) {
+                $integerDigits = str_replace(',', '', $rawNumber);
+            } elseif (preg_match('/^(\d+),\d{1,2}$/', $rawNumber, $m) === 1) {
+                $integerDigits = $m[1];
+            } else {
+                $integerDigits = str_replace(',', '', $rawNumber);
+            }
+        } elseif ($hasDot) {
+            if (preg_match('/^(\d+(?:\.\d{3})+)\.\d{1,2}$/', $rawNumber, $m) === 1) {
+                $integerDigits = str_replace('.', '', $m[1]);
+            } elseif (preg_match('/^\d+(?:\.\d{3})+$/', $rawNumber) === 1) {
+                $integerDigits = str_replace('.', '', $rawNumber);
+            } elseif (preg_match('/^(\d+)\.\d{1,2}$/', $rawNumber, $m) === 1) {
+                $integerDigits = $m[1];
+            } else {
+                $integerDigits = str_replace('.', '', $rawNumber);
+            }
+        } else {
+            $integerDigits = $rawNumber;
+        }
+
+        $integerDigits = (string) preg_replace('/\D/', '', $integerDigits);
+        if ($integerDigits === '') {
+            return null;
+        }
+
+        $parsed = (int) $integerDigits;
+
+        return $parsed > 0 ? $parsed : null;
+    }
+
+    /**
+     * Resolve human-readable Indonesian QRIS acquirer name from EMVCo subtag 00 reverse domain.
+     */
+    public static function resolveAcquirerLabel(?string $domain): ?string
+    {
+        if ($domain === null || trim($domain) === '') {
+            return null;
+        }
+
+        $upper = strtoupper(trim($domain));
+
+        return match (true) {
+            str_contains($upper, 'GO-JEK') || str_contains($upper, 'GOPAY') => 'GoPay / GoBiz',
+            str_contains($upper, 'SHOPEE') || str_contains($upper, 'AIRPAY') => 'ShopeePay',
+            str_contains($upper, 'DANA') => 'DANA',
+            str_contains($upper, 'LINKAJA') => 'LinkAja',
+            str_contains($upper, 'OVO') => 'OVO',
+            str_contains($upper, 'BCA') => 'BCA QRIS',
+            str_contains($upper, 'BRI') => 'BRI QRIS',
+            str_contains($upper, 'MANDIRI') => 'Bank Mandiri',
+            str_contains($upper, 'BNI') => 'BNI QRIS',
+            str_contains($upper, 'NOBU') => 'Nobu Bank QRIS',
+            str_contains($upper, 'QRIS.WWW') => 'QRIS National',
+            default => $domain,
+        };
     }
 
     /**

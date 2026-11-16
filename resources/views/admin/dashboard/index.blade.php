@@ -59,7 +59,7 @@
             <div class="text-uppercase text-info fw-bold text-xs mb-1"><span>Locked Escrow Funds</span></div>
             <div class="text-dark fw-bold h6 mb-0 cockpit-tabular"><span>IDR {{ number_format($totalEscrowLocked, 0, ',', '.') }}</span></div>
           </div>
-          <div class="col-auto"><i class="fas fa-vault fa-2x text-gray-300" aria-hidden="true"></i></div>
+          <div class="col-auto"><i class="fas fa-coins fa-2x text-gray-300" aria-hidden="true"></i></div>
         </div>
       </div>
     </div>

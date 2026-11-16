@@ -4,23 +4,46 @@
 
 @push('styles')
     <style>
-        .json-viewer-box {
-            background: #0f172a;
-            color: #38bdf8;
-            font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
-            font-size: 11.5px;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #1e293b;
-            max-height: 240px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
+        .qris-preview-frame {
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            min-height: 204px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
         }
 
-        .scenario-btn-group input:checked+label {
-            font-weight: 700;
-            box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+        .qris-preview-frame svg {
+            width: 100%;
+            max-width: 176px;
+            height: auto;
+            display: block;
+        }
+
+        .qris-dropzone {
+            border: 1.5px dashed #adb5bd;
+            border-radius: 0.5rem;
+            background: #f8f9fa;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+            cursor: pointer;
+        }
+
+        .qris-dropzone:hover,
+        .qris-dropzone:focus-visible,
+        .qris-dropzone.is-dragover {
+            border-color: #0d6efd;
+            background: #eef4ff;
+            outline: 2px solid rgba(13, 110, 253, 0.35);
+            outline-offset: 2px;
+        }
+
+        .merchant-meta-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 0.375rem;
+            padding: 0.45rem 0.65rem;
         }
     </style>
 @endpush
@@ -29,8 +52,8 @@
     <div class="d-sm-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="text-dark mb-0 fw-bold">Platform Settings &amp; System Integrations</h3>
-            <p class="text-muted small mb-0">Manage AI Intelligence Engines, WhatsApp Go Gateway pairing, and Resend SMTP
-                email delivery.</p>
+            <p class="text-muted small mb-0">Manage AI Intelligence Engines, WhatsApp Gateway pairing, SGpay Direct QRIS, and
+                SMTP Email Delivery.</p>
         </div>
         <div>
             <span class="badge bg-light text-secondary border px-3 py-2 small">
@@ -46,13 +69,13 @@
         </div>
     @endif
 
+    <!-- Row 1: AI Intelligence (Left) & WhatsApp Gateway (Right) -->
     <div class="row">
         <!-- AI Intelligence Engine Configuration -->
         <div class="col-lg-6 mb-4 align-self-start">
             <div class="card shadow border-start-primary">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence
-                    </h6>
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-robot me-1"></i> AI Intelligence</h6>
                     @php
                         $currentAi = $aiConfig['active_provider'] ?? 'custom';
                         $isGemini = in_array($currentAi, ['gemini'], true);
@@ -69,12 +92,8 @@
                             Engine</label>
                         <div class="input-group">
                             <select id="ai_provider_select" name="ai_provider" class="form-select">
-                                <option value="gemini" {{ $isGemini ? 'selected' : '' }}>
-                                    Google Gemini API
-                                </option>
-                                <option value="custom" {{ !$isGemini ? 'selected' : '' }}>
-                                    OpenAI Compatible
-                                </option>
+                                <option value="gemini" {{ $isGemini ? 'selected' : '' }}>Google Gemini API</option>
+                                <option value="custom" {{ !$isGemini ? 'selected' : '' }}>OpenAI Compatible</option>
                             </select>
                             <button id="btnSwitchEngine" type="submit" class="btn btn-primary">
                                 <i class="fas fa-sync-alt me-1"></i> Switch Engine
@@ -86,7 +105,7 @@
                         @csrf
                         @method('PUT')
 
-                        <!-- SECTION GOOGLE GEMINI (Gambar 3) -->
+                        <!-- Google Gemini API Section -->
                         <div id="aiSectionGemini" class="{{ $isGemini ? '' : 'd-none' }}">
                             <h6 class="small fw-bold text-uppercase text-info mb-2"><i class="fab fa-google me-1"></i>
                                 Google Gemini API</h6>
@@ -119,7 +138,7 @@
                                         type="button" id="dropdownGeminiModelBtn" data-bs-toggle="dropdown"
                                         aria-expanded="false">
                                         <span id="gemini_model_label"
-                                            class="text-truncate">{{ $selectedGeminiModel ?: 'Pilih Model Gemini' }}</span>
+                                            class="text-truncate">{{ $selectedGeminiModel ?: 'Select Gemini Model' }}</span>
                                     </button>
                                     <ul class="dropdown-menu w-100 shadow-sm" id="dropdownGeminiModelList"
                                         style="max-height: 260px; overflow-y: auto;"
@@ -137,8 +156,8 @@
                                                     class="btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model"
                                                     data-action="delete-model" data-engine="google_gemini_api"
                                                     data-model="{{ $selectedGeminiModel }}"
-                                                    title="Hapus model {{ $selectedGeminiModel }}"
-                                                    aria-label="Hapus model {{ $selectedGeminiModel }}">
+                                                    title="Remove model {{ $selectedGeminiModel }}"
+                                                    aria-label="Remove model {{ $selectedGeminiModel }}">
                                                     <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                                 </button>
                                             </li>
@@ -158,15 +177,15 @@
                                                     class="btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model"
                                                     data-action="delete-model" data-engine="google_gemini_api"
                                                     data-model="{{ $m['model'] }}"
-                                                    title="Hapus model {{ $m['model'] }}"
-                                                    aria-label="Hapus model {{ $m['model'] }}">
+                                                    title="Remove model {{ $m['model'] }}"
+                                                    aria-label="Remove model {{ $m['model'] }}">
                                                     <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                                 </button>
                                             </li>
                                         @endforeach
                                     </ul>
                                     <button type="button" class="btn btn-outline-primary" id="btnAddGeminiModel">
-                                        <i class="fas fa-plus me-1"></i> Tambah
+                                        <i class="fas fa-plus me-1"></i> Add Model
                                     </button>
                                 </div>
                                 <button type="button" id="btnDeleteGeminiModel" class="d-none"
@@ -174,10 +193,10 @@
                             </div>
                         </div>
 
-                        <!-- SECTION CUSTOM / OPENAI GATEWAY (Gambar 2 & Upload Image) -->
+                        <!-- OpenAI Compatible Gateway Section -->
                         <div id="aiSectionCustom" class="{{ $isGemini ? 'd-none' : '' }}">
-                            <h6 class="small fw-bold text-uppercase text-primary mb-2"><i
-                                    class="fas fa-server me-1"></i>OpenAI Compatible</h6>
+                            <h6 class="small fw-bold text-uppercase text-primary mb-2"><i class="fas fa-server me-1"></i>
+                                OpenAI Compatible</h6>
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-muted" for="custom_ai_provider_name">Provider
@@ -227,7 +246,7 @@
                                         type="button" id="dropdownCustomModelBtn" data-bs-toggle="dropdown"
                                         aria-expanded="false">
                                         <span id="custom_ai_model_label"
-                                            class="text-truncate">{{ $selectedCustomModel ?: 'Pilih Model AI' }}</span>
+                                            class="text-truncate">{{ $selectedCustomModel ?: 'Select AI Model' }}</span>
                                     </button>
                                     <ul class="dropdown-menu w-100 shadow-sm" id="dropdownCustomModelList"
                                         style="max-height: 260px; overflow-y: auto;"
@@ -248,8 +267,8 @@
                                                     class="btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model"
                                                     data-action="delete-model" data-engine="openai_compatible"
                                                     data-model="{{ $selectedCustomModel }}"
-                                                    title="Hapus model {{ $selectedCustomModel }}"
-                                                    aria-label="Hapus model {{ $selectedCustomModel }}">
+                                                    title="Remove model {{ $selectedCustomModel }}"
+                                                    aria-label="Remove model {{ $selectedCustomModel }}">
                                                     <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                                 </button>
                                             </li>
@@ -269,22 +288,21 @@
                                                     class="btn btn-sm btn-link text-danger text-decoration-none p-1 ms-1 btn-delete-ai-model"
                                                     data-action="delete-model" data-engine="openai_compatible"
                                                     data-model="{{ $m['model'] }}"
-                                                    title="Hapus model {{ $m['model'] }}"
-                                                    aria-label="Hapus model {{ $m['model'] }}">
+                                                    title="Remove model {{ $m['model'] }}"
+                                                    aria-label="Remove model {{ $m['model'] }}">
                                                     <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                                 </button>
                                             </li>
                                         @endforeach
                                     </ul>
                                     <button type="button" class="btn btn-outline-primary" id="btnAddCustomModel">
-                                        <i class="fas fa-plus me-1"></i> Tambah
+                                        <i class="fas fa-plus me-1"></i> Add Model
                                     </button>
                                 </div>
                                 <button type="button" id="btnDeleteCustomModel" class="d-none"
                                     aria-hidden="true"></button>
                             </div>
 
-                            <!-- 3 Kolom Token Samping-Sampingan Sesuai Permintaan User -->
                             <div class="row g-2 mb-4">
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-muted" style="font-size: 0.72rem;"
@@ -349,9 +367,8 @@
                 </div>
 
                 <div class="card-body p-3">
-                    <!-- BARIS ATAS: 2 KOTAK BERSEBELAHAN -->
                     <div class="row g-2 mb-3">
-                        <!-- Kotak Kiri: QR Code / Status Perangkat -->
+                        <!-- Left Box: QR Code / Device Status -->
                         <div class="col-sm-6">
                             <div id="wag-left-box"
                                 class="border rounded p-2 bg-light d-flex flex-column align-items-center justify-content-center text-center h-100 shadow-sm"
@@ -362,15 +379,16 @@
                                         {!! $waConfig['qrSvg'] !!}
                                     </div>
                                     <div class="fw-bold text-dark" style="font-size: 11px;">
-                                        <i class="fas fa-qrcode me-1 text-primary"></i> Scan QR WhatsApp
+                                        <i class="fas fa-qrcode me-1 text-primary"></i> Scan WhatsApp QR
                                     </div>
-                                    <div class="text-muted" style="font-size: 9.5px;">Buka WA &gt; Perangkat Tertaut</div>
+                                    <div class="text-muted" style="font-size: 9.5px;">Open WhatsApp &gt; Linked Devices
+                                    </div>
                                 @elseif($waConfig['isConnected'])
                                     <div class="text-success mb-2">
                                         <i class="fab fa-whatsapp fa-3x"></i>
                                     </div>
                                     <span class="badge bg-success px-2 py-1 mb-1 small">
-                                        <i class="fas fa-check-circle me-1"></i> Sesi Terhubung
+                                        <i class="fas fa-check-circle me-1"></i> Session Connected
                                     </span>
                                     <div class="small fw-bold text-dark mb-0" style="font-size: 11px;">
                                         {{ !empty($waConfig['gatewayStatus']['user']['name']) ? $waConfig['gatewayStatus']['user']['name'] : (!empty($waConfig['gatewayStatus']['user']['phone']) ? 'WhatsApp (+' . $waConfig['gatewayStatus']['user']['phone'] . ')' : 'Device Connected') }}
@@ -382,16 +400,16 @@
                                         <i class="fas fa-plug fa-3x"></i>
                                     </div>
                                     <span class="badge bg-danger px-2 py-1 mb-1 small">waG Offline</span>
-                                    <div class="text-muted" style="font-size: 10px;">Layanan tidak dapat dijangkau</div>
+                                    <div class="text-muted" style="font-size: 10px;">Service unreachable</div>
                                 @else
                                     <div class="spinner-border text-warning mb-2" role="status"
                                         style="width: 2rem; height: 2rem;"></div>
-                                    <div class="fw-bold text-dark" style="font-size: 11px;">Menunggu Kode QR...</div>
+                                    <div class="fw-bold text-dark" style="font-size: 11px;">Waiting for QR Code...</div>
                                 @endif
                             </div>
                         </div>
 
-                        <!-- Kotak Kanan: Info Detail Layanan & Sesi + AI Integration -->
+                        <!-- Right Box: Service Details & AI Integration -->
                         <div class="col-sm-6 d-flex flex-column justify-content-between">
                             <div id="wag-right-box"
                                 class="border rounded p-3 bg-white d-flex flex-column justify-content-between shadow-sm mb-2 flex-grow-1"
@@ -399,37 +417,42 @@
                                 <div>
                                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                         <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">
-                                            <i class="fas fa-info-circle me-1 text-info"></i> Informasi Detail
+                                            <i class="fas fa-info-circle me-1 text-info"></i> Session Details
                                         </span>
-
+                                        <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 fw-semibold"
+                                            style="font-size: 9.5px; height: 21px; line-height: 20px;"
+                                            onclick="document.getElementById('formWaResetDirect').submit();"
+                                            title="Disconnect and reset WhatsApp session">
+                                            <i class="fas fa-redo me-1"></i> Reset Session
+                                        </button>
                                     </div>
 
                                     <div class="mb-2">
-                                        <div class="text-muted" style="font-size: 10px;">Status Layanan:</div>
+                                        <div class="text-muted" style="font-size: 10px;">Service Status:</div>
                                         <div id="wag-detail-status"
                                             class="fw-bold small {{ $waConfig['isConnected'] ? 'text-success' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'text-warning' : 'text-danger') }}">
                                             <i
                                                 class="fas {{ $waConfig['isConnected'] ? 'fa-check-circle' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'fa-hourglass-half' : 'fa-times-circle') }} me-1"></i>
-                                            {{ $waConfig['isConnected'] ? 'Online' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'Menunggu Pairing' : 'Offline / Terputus') }}
+                                            {{ $waConfig['isConnected'] ? 'Online' : ($waConfig['gatewayStatus']['reachable'] ?? false ? 'Awaiting Pairing' : 'Offline / Disconnected') }}
                                         </div>
                                     </div>
 
                                     <div class="mb-2">
-                                        <div class="text-muted" style="font-size: 10px;">Nomor Aktif:</div>
+                                        <div class="text-muted" style="font-size: 10px;">Active Number:</div>
                                         <div id="wag-detail-phone" class="fw-bold small text-dark">
                                             @if (!empty($waConfig['gatewayStatus']['user']['phone']))
                                                 <code>+{{ $waConfig['gatewayStatus']['user']['phone'] }}</code>
                                             @else
-                                                <span class="text-muted fst-italic">Belum Terhubung</span>
+                                                <span class="text-muted fst-italic">Not Connected</span>
                                             @endif
                                         </div>
                                     </div>
 
                                     <div>
-                                        <div class="text-muted" style="font-size: 10px;">Waktu Pairing:</div>
+                                        <div class="text-muted" style="font-size: 10px;">Paired Timestamp:</div>
                                         <div id="wag-detail-paired-at" class="small text-secondary fw-semibold">
                                             <i class="far fa-clock me-1"></i>
-                                            {{ $waConfig['pairedAt'] ?? 'Menunggu scan' }}
+                                            {{ $waConfig['pairedAt'] ?? 'Awaiting scan' }}
                                         </div>
                                     </div>
                                 </div>
@@ -453,7 +476,7 @@
                                         </label>
                                         <button type="submit" class="btn btn-primary btn-sm py-0 px-2 fw-semibold"
                                             style="font-size: 9.5px; height: 21px; line-height: 20px;">
-                                            <i class="fas fa-save me-1"></i> Simpan
+                                            <i class="fas fa-save me-1"></i> Save
                                         </button>
                                     </div>
                                     <select id="wa_ai_provider" name="wa_ai_provider" class="form-select form-select-sm"
@@ -469,11 +492,9 @@
                                             }
                                         @endphp
                                         <option value="disabled" {{ $currentWaAi === 'disabled' ? 'selected' : '' }}>
-                                            Nonaktif
-                                        </option>
-                                        <option value="default" {{ $currentWaAi === 'default' ? 'selected' : '' }}>
-                                            Auto (Active: {{ $aiConfig['active_label'] }})
-                                        </option>
+                                            Disabled</option>
+                                        <option value="default" {{ $currentWaAi === 'default' ? 'selected' : '' }}>Auto
+                                            (Active: {{ $aiConfig['active_label'] }})</option>
                                         @foreach ($aiModelsRegistry['google_gemini_api'] ?? [] as $m)
                                             <option value="google_gemini_api::{{ $m['model'] }}"
                                                 {{ $currentWaAi === 'google_gemini_api::' . $m['model'] ? 'selected' : '' }}>
@@ -493,8 +514,7 @@
                                             </option>
                                         @endif
                                         @if (!in_array($currentWaAi, $knownWaValues, true) && !empty($currentWaAi))
-                                            <option value="{{ $currentWaAi }}" selected>
-                                                [Unlisted] {{ $currentWaAi }}
+                                            <option value="{{ $currentWaAi }}" selected>[Unlisted] {{ $currentWaAi }}
                                             </option>
                                         @endif
                                     </select>
@@ -503,57 +523,251 @@
                         </div>
                     </div>
 
-                    <!-- BARIS BAWAH: KOTAK PERSEGI PANJANG (TEST DISPATCH & RESET) -->
-                    <div class="border rounded p-3 bg-light shadow-sm">
-                        <form id="formWaTestDirect" method="POST" action="{{ route('admin.wa.test', [], false) }}">
-                            @csrf
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="small fw-bold text-uppercase text-muted" style="font-size: 11px;">
-                                    <i class="fas fa-paper-plane me-1 text-success"></i> Test Send Message
-                                </span>
-                            </div>
-
-                            <div id="waTestAlertBox" class="alert py-1 px-2 small mb-2 d-none" role="alert"></div>
-
-                            <div class="row g-2 mb-2">
-                                <div class="col-sm-5">
-                                    <label class="form-label mb-1 text-muted" style="font-size: 10px;"
-                                        for="wa_direct_phone">Nomor Tujuan</label>
-                                    <input id="wa_direct_phone" type="text" name="phone"
-                                        value="{{ old('phone', '') }}" class="form-control form-control-sm"
-                                        placeholder="08123456789 atau +628123456789" required>
-                                </div>
-                                <div class="col-sm-7">
-                                    <label class="form-label mb-1 text-muted" style="font-size: 10px;"
-                                        for="wa_direct_message">Pesan Notifikasi</label>
-                                    <textarea id="wa_direct_message" name="message" rows="2" class="form-control form-control-sm"
-                                        placeholder="Tulis pesan uji coba notifikasi WhatsApp di sini..." required>{{ old('message', '') }}</textarea>
-                                </div>
-                            </div>
-
-                            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                                <button id="btnWaTestSubmit" type="submit" class="btn btn-success btn-sm px-3">
-                                    <i class="fas fa-paper-plane me-1"></i> Send Test Message
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm"
-                                    onclick="document.getElementById('formWaResetDirect').submit();">
-                                    <i class="fas fa-redo me-1"></i> Reset Session
-                                </button>
-                            </div>
-                        </form>
-                        <form id="formWaResetDirect" method="POST" action="{{ route('admin.wa.reset', [], false) }}"
-                            class="d-none">
-                            @csrf
-                        </form>
-                    </div>
+                    <form id="formWaResetDirect" method="POST" action="{{ route('admin.wa.reset', [], false) }}"
+                        class="d-none">
+                        @csrf
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Email Delivery Engine (Resend / SMTP) & Live Test -->
+    <!-- Row 2: Multi Channel Payment (Left) & Email Delivery (Right) -->
     <div class="row">
-        <div class="col-lg-12 mb-4">
+        <!-- PayG Multi-Channel Payment Station -->
+        <div class="col-lg-6 mb-4 align-self-start">
+            @php
+                $oldStaticQr = old('payg_sgpay_static_qr');
+                $currentStaticQrValue =
+                    $oldStaticQr !== null ? (string) $oldStaticQr : (string) ($paygConfig['sgpay_static_qr'] ?? '');
+                if ($oldStaticQr !== null) {
+                    $paygQrService = app(\App\Modules\Shared\Services\PayGPaymentGatewayService::class);
+                    $merchantMeta =
+                        $currentStaticQrValue !== '' ? $paygQrService->parseEmvcoMetadata($currentStaticQrValue) : null;
+                    $staticQrSvg =
+                        $merchantMeta['valid'] ?? false ? $paygQrService->renderQrSvg($currentStaticQrValue) : null;
+                } else {
+                    $merchantMeta = $paygConfig['merchant_preview'] ?? null;
+                    $staticQrSvg = $paygConfig['static_qr_svg'] ?? null;
+                }
+                $hasValidStaticQr = (bool) ($merchantMeta['valid'] ?? false);
+                $crcValid = (bool) ($merchantMeta['crc_valid'] ?? false);
+            @endphp
+            <div class="card shadow border-start-primary">
+                <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-satellite-dish me-1"></i> Multi Channel Payment
+                        </h6>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        @if ($paygConfig['status']['reachable'] ?? false)
+                            <span class="badge bg-success">
+                                <i class="fas fa-server me-1"></i> PayG (8085)
+                            </span>
+                        @else
+                            <span class="badge bg-info text-dark">
+                                <i class="fas fa-flask me-1"></i> Standalone Mode
+                            </span>
+                        @endif
+                        <span id="badge-payg-mode" class="badge bg-warning text-dark text-uppercase fw-bold">
+                            <i class="fas fa-bolt me-1"></i> SGpay Direct
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-3 p-lg-4">
+                    <form method="POST" action="{{ route('admin.settings.update', [], false) }}" id="formDanaSettings">
+                        @csrf
+                        @method('PUT')
+
+                        <input type="hidden" name="payg_active_mode" id="payg_active_mode" value="sgpay">
+
+                        <!-- Split 2-Column QR Preview + Image Upload & Merchant Identity -->
+                        <div class="border rounded p-3 mb-3 bg-white shadow-sm">
+                            <div class="row g-3 align-items-start">
+                                <!-- Left Column: Persistent QRIS SVG Preview + Zero-Cost Local Image Decoder -->
+                                <div class="col-md-5">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small fw-bold text-dark">Merchant Static QR</span>
+                                        <span id="badge-static-qr-state"
+                                            class="badge {{ $hasValidStaticQr ? 'bg-success' : 'bg-secondary' }}"
+                                            style="font-size: 10px;">
+                                            {{ $hasValidStaticQr ? 'Active' : 'Not Set' }}
+                                        </span>
+                                    </div>
+
+                                    <div id="qris-preview-frame" class="qris-preview-frame mb-2">
+                                        @if (!empty($staticQrSvg))
+                                            {!! $staticQrSvg !!}
+                                        @else
+                                            <div class="text-center text-muted py-3 px-2" id="qris-preview-empty">
+                                                <i class="fas fa-qrcode fa-2x mb-2 opacity-50"></i>
+                                                <div class="small fw-semibold">No Static QRIS Configured</div>
+                                                <div class="text-muted" style="font-size: 11px;">Upload your GoBiz / DANA
+                                                    / Bank QR poster or paste an EMVCo QRIS string.</div>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    <div id="qris-dropzone" class="qris-dropzone p-2 text-center" tabindex="0"
+                                        role="button" aria-label="Upload QRIS image (PNG, JPG, WEBP)">
+                                        <input type="file" id="qris-image-input"
+                                            accept="image/png,image/jpeg,image/webp" class="d-none">
+                                        <div class="small fw-semibold text-primary mb-1">
+                                            <i class="fas fa-upload me-1"></i> Upload QR
+                                        </div>
+
+                                    </div>
+
+                                    @if ($currentStaticQrValue !== '' && !$hasValidStaticQr)
+                                        <div id="qris-decode-status"
+                                            class="alert alert-warning border py-2 px-2 mt-2 mb-0" role="status"
+                                            style="font-size: 11px;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            {{ $merchantMeta['error'] ?? 'EMVCo QRIS payload is invalid.' }}
+                                        </div>
+                                    @else
+                                        <div id="qris-decode-status"
+                                            class="alert alert-light border py-2 px-2 mt-2 mb-0 d-none" role="status"
+                                            style="font-size: 11px;"></div>
+                                    @endif
+                                </div>
+
+                                <!-- Right Column: Merchant Identity Preview Badges + EMVCo String Input -->
+                                <div class="col-md-7">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small fw-bold text-dark">Merchant Identity Preview</span>
+                                        <span id="preview-crc-badge"
+                                            class="badge {{ $currentStaticQrValue === '' ? 'bg-secondary' : ($crcValid ? 'bg-success' : 'bg-danger') }}"
+                                            style="font-size: 10px;">
+                                            @if ($currentStaticQrValue === '')
+                                                CRC-16 Unconfigured
+                                            @elseif ($crcValid)
+                                                <i class="fas fa-check-circle me-1"></i> CRC-16 Valid
+                                            @else
+                                                <i class="fas fa-exclamation-triangle me-1"></i> CRC-16 Invalid
+                                            @endif
+                                        </span>
+                                    </div>
+
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-12">
+                                            <div
+                                                class="merchant-meta-item d-flex justify-content-between align-items-center gap-2">
+                                                <span class="text-muted small">Merchant Name</span>
+                                                <span id="preview-merchant-name" class="fw-bold text-dark small text-end">
+                                                    {{ $merchantMeta['merchant_name'] ?? '—' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="merchant-meta-item">
+                                                <div class="text-muted" style="font-size: 10.5px;">City</div>
+                                                <div id="preview-merchant-city"
+                                                    class="fw-semibold text-dark small text-truncate">
+                                                    {{ $merchantMeta['merchant_city'] ?? '—' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="merchant-meta-item">
+                                                <div class="text-muted" style="font-size: 10.5px;">Acquirer / NMID</div>
+                                                <div id="preview-acquirer-nmid"
+                                                    class="fw-semibold text-dark small text-truncate"
+                                                    title="{{ ($merchantMeta['acquirer_label'] ?? '') . ' ' . ($merchantMeta['nmid'] ?? '') }}">
+                                                    @if (!empty($merchantMeta['acquirer_label']) || !empty($merchantMeta['nmid']))
+                                                        {{ $merchantMeta['acquirer_label'] ?? 'QRIS' }}@if (!empty($merchantMeta['nmid']))
+                                                            · <span
+                                                                class="font-monospace">{{ $merchantMeta['nmid'] }}</span>
+                                                        @endif
+                                                    @else
+                                                        —
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="form-label mb-1 text-dark small fw-bold" for="payg_sgpay_static_qr">
+                                            <i class="fas fa-qrcode text-warning me-1"></i> Static QRIS String
+                                        </label>
+                                        <textarea id="payg_sgpay_static_qr" name="payg_sgpay_static_qr"
+                                            class="form-control form-control-sm font-monospace @error('payg_sgpay_static_qr') is-invalid @enderror"
+                                            rows="5" placeholder="0002010102112659...6304XXXX">{{ $currentStaticQrValue }}</textarea>
+                                        @error('payg_sgpay_static_qr')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PayG HMAC Secret -->
+                        <div class="border rounded p-3 mb-3 bg-light shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label mb-0 text-dark small fw-bold" for="payg_secret">PayG HMAC
+                                    Secret</label>
+                                <span
+                                    class="badge {{ $paygConfig['is_secret_configured'] ? 'bg-success' : 'bg-secondary' }}"
+                                    style="font-size: 10px;">
+                                    {{ $paygConfig['is_secret_configured'] ? 'Configured' : 'Using Default' }}
+                                </span>
+                            </div>
+                            <div class="input-group input-group-sm">
+                                <input type="password" id="payg_secret" name="payg_secret"
+                                    class="form-control form-control-sm font-monospace"
+                                    value="{{ old('payg_secret', $paygConfig['secret']) }}" autocomplete="new-password"
+                                    placeholder="Enter custom webhook secret">
+                                <button class="btn btn-outline-secondary" type="button" id="btn-toggle-payg-secret"
+                                    title="Toggle visibility" aria-label="Toggle PayG HMAC Secret visibility">
+                                    <i class="fas fa-eye" id="icon-toggle-payg-secret"></i>
+                                </button>
+                                <button class="btn btn-outline-primary" type="button" id="btn-copy-payg-secret"
+                                    title="Copy PayG Secret" aria-label="Copy PayG HMAC Secret">
+                                    <i class="fas fa-copy me-1"></i> Copy Secret
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Internal Notification Webhook Callback URL + MacroDroid Guide -->
+                        <div class="border rounded p-3 mb-3 bg-light shadow-sm">
+                            <div
+                                class="mb-2 pb-1 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <label class="small fw-bold text-dark mb-0" for="payg_webhook_url">
+                                    <i class="fas fa-satellite-dish me-1 text-primary"></i> Internal Notification Webhook
+                                    Endpoint
+                                </label>
+                                <button type="button" class="btn btn-outline-success btn-sm py-0 px-2 fw-semibold"
+                                    id="btn-open-macrodroid-guide" data-bs-toggle="modal"
+                                    data-bs-target="#modalMacroDroidGuide">
+                                    <i class="fab fa-android me-1"></i> Panduan MacroDroid
+                                </button>
+                            </div>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white text-muted"><i class="fas fa-link"></i></span>
+                                <input type="text" id="payg_webhook_url"
+                                    class="form-control font-monospace text-dark bg-white"
+                                    value="{{ $paygConfig['webhook_url'] }}" readonly style="font-size: 11px;"
+                                    aria-label="Internal Notification Webhook Endpoint URL">
+                                <button class="btn btn-primary" type="button" id="btn-copy-payg-webhook">
+                                    <i class="fas fa-copy me-1"></i> Copy URL
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-start align-items-center pt-1">
+                            <button type="submit" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm">
+                                <i class="fas fa-save me-1"></i> Save PayG Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Delivery Engine -->
+        <div class="col-lg-6 mb-4 align-self-start">
             <div class="card shadow border-start-success">
                 <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
                     <div>
@@ -577,890 +791,217 @@
                         @endif
                     </div>
                 </div>
-                <div class="card-body p-4">
-                    <div class="row g-4">
-                        <!-- Configuration Form (Left Column) -->
-                        <div class="col-lg-7 border-end pe-lg-4">
-                            <form method="POST" action="{{ route('admin.settings.update', [], false) }}">
-                                @csrf
-                                @method('PUT')
+                <div class="card-body p-3 p-lg-4">
+                    <form method="POST" action="{{ route('admin.settings.update', [], false) }}">
+                        @csrf
+                        @method('PUT')
 
-                                <!-- Mail Driver & AI Integration Selection Row -->
-                                <div class="row g-2 mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted mb-1" for="mail_mailer">
-                                            <i class="fas fa-paper-plane me-1 text-primary"></i> Mail Delivery
-                                        </label>
-                                        <select id="mail_mailer" name="mail_mailer" class="form-select">
-                                            <option value="smtp"
-                                                {{ old('mail_mailer', $mailConfig['mail_mailer']) === 'smtp' ? 'selected' : '' }}>
-                                                SMTP
-                                            </option>
-                                            <option value="log"
-                                                {{ old('mail_mailer', $mailConfig['mail_mailer']) === 'log' ? 'selected' : '' }}>
-                                                Local Log
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted mb-1" for="mail_ai_provider">
-                                            <i class="fas fa-robot me-1 text-primary"></i> AI Integration
-                                        </label>
-                                        <select id="mail_ai_provider" name="mail_ai_provider" class="form-select">
-                                            @php
-                                                $currentMailAi = old('mail_ai_provider', $mailAiProvider ?? 'default');
-                                                $knownMailValues = ['disabled', 'default', 'gemini', 'custom'];
-                                                foreach ($aiModelsRegistry['google_gemini_api'] ?? [] as $gm) {
-                                                    $knownMailValues[] = 'google_gemini_api::' . $gm['model'];
-                                                }
-                                                foreach ($aiModelsRegistry['openai_compatible'] ?? [] as $cm) {
-                                                    $knownMailValues[] = 'openai_compatible::' . $cm['model'];
-                                                }
-                                            @endphp
-                                            <option value="disabled"
-                                                {{ $currentMailAi === 'disabled' ? 'selected' : '' }}>
-                                                Nonaktif
-                                            </option>
-                                            <option value="default" {{ $currentMailAi === 'default' ? 'selected' : '' }}>
-                                                Auto (Active: {{ $aiConfig['active_label'] }})
-                                            </option>
-                                            @foreach ($aiModelsRegistry['google_gemini_api'] ?? [] as $m)
-                                                <option value="google_gemini_api::{{ $m['model'] }}"
-                                                    {{ $currentMailAi === 'google_gemini_api::' . $m['model'] ? 'selected' : '' }}>
-                                                    [Google Gemini API] {{ $m['model'] }}
-                                                </option>
-                                            @endforeach
-                                            @foreach ($aiModelsRegistry['openai_compatible'] ?? [] as $m)
-                                                <option value="openai_compatible::{{ $m['model'] }}"
-                                                    {{ $currentMailAi === 'openai_compatible::' . $m['model'] ? 'selected' : '' }}>
-                                                    [OpenAI Compatible] {{ $m['model'] }}
-                                                </option>
-                                            @endforeach
-                                            @if (in_array($currentMailAi, ['gemini', 'custom'], true))
-                                                <option value="{{ $currentMailAi }}" selected>
-                                                    [Legacy]
-                                                    {{ $currentMailAi === 'gemini' ? 'Gemini 2.0 Flash' : $aiConfig['custom_ai_provider_name'] ?? 'Custom AI' }}
-                                                </option>
-                                            @endif
-                                            @if (!in_array($currentMailAi, $knownMailValues, true) && !empty($currentMailAi))
-                                                <option value="{{ $currentMailAi }}" selected>
-                                                    [Unlisted] {{ $currentMailAi }}
-                                                </option>
-                                            @endif
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <!-- Group 1: Server Connection (Hidden when Local Log) -->
-                                <div id="smtpServerGroup"
-                                    class="border rounded p-3 mb-3 bg-light shadow-sm {{ $mailConfig['mail_mailer'] === 'log' ? 'd-none' : '' }}">
-                                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
-                                            <i class="fas fa-server me-1 text-primary"></i> 1. Server Connection
-                                        </span>
-                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2"
-                                            id="btn-preset-resend" style="font-size: 12px;">
-                                            <i class="fas fa-magic me-1"></i> Auto fill
-                                        </button>
-                                    </div>
-
-                                    <div class="row g-2">
-                                        <div class="col-md-5">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
-                                                for="mail_host">SMTP Host</label>
-                                            <input id="mail_host" type="text" name="mail_host"
-                                                value="{{ old('mail_host', $mailConfig['mail_host']) }}"
-                                                class="form-control form-control-sm" placeholder="smtp.resend.com">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
-                                                for="mail_port">Port</label>
-                                            <input id="mail_port" type="number" name="mail_port"
-                                                value="{{ old('mail_port', $mailConfig['mail_port']) }}"
-                                                class="form-control form-control-sm" placeholder="465">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
-                                                for="mail_encryption">Encryption</label>
-                                            <select id="mail_encryption" name="mail_encryption"
-                                                class="form-select form-select-sm">
-                                                <option value="tls"
-                                                    {{ $mailConfig['mail_encryption'] === 'tls' ? 'selected' : '' }}>TLS /
-                                                    STARTTLS (587)</option>
-                                                <option value="ssl"
-                                                    {{ $mailConfig['mail_encryption'] === 'ssl' ? 'selected' : '' }}>SSL /
-                                                    SMTPS (465)</option>
-                                                <option value="none"
-                                                    {{ $mailConfig['mail_encryption'] === 'none' ? 'selected' : '' }}>None
-                                                </option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Group 2: Authentication & Sender Identity -->
-                                <div class="border rounded p-3 mb-3 bg-white shadow-sm">
-                                    <div class="mb-2 pb-1 border-bottom">
-                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
-                                            <i class="fas fa-shield-alt me-1 text-primary"></i>
-                                            Sender Identity
-                                        </span>
-                                    </div>
-
-                                    <!-- Credentials Row (Hidden when Local Log) -->
-                                    <div id="smtpCredentialsRow"
-                                        class="row g-2 mb-2 {{ $mailConfig['mail_mailer'] === 'log' ? 'd-none' : '' }}">
-                                        <div class="col-md-6">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
-                                                for="mail_username">SMTP Username</label>
-                                            <input id="mail_username" type="text" name="mail_username"
-                                                value="{{ old('mail_username', $mailConfig['mail_username']) }}"
-                                                class="form-control form-control-sm" placeholder="resend">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
-                                                for="mail_password">Resend API Key (Password)</label>
-                                            <input id="mail_password" type="password" name="mail_password"
-                                                value="{{ old('mail_password', $mailConfig['mail_password'] ?? '') }}"
-                                                class="form-control form-control-sm" autocomplete="new-password"
-                                                placeholder="re_xxxxxxxxxxxx">
-                                        </div>
-                                    </div>
-
-                                    <!-- Sender Identity Row (Always Visible) -->
-                                    <div class="row g-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
-                                                for="mail_from_address">From Address</label>
-                                            <input id="mail_from_address" type="email" name="mail_from_address"
-                                                value="{{ old('mail_from_address', $mailConfig['mail_from_address']) }}"
-                                                class="form-control form-control-sm"
-                                                placeholder="noreply@leonproject.my.id">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label mb-1 text-muted" style="font-size: 11px;"
-                                                for="mail_from_name">From Sender Name</label>
-                                            <input id="mail_from_name" type="text" name="mail_from_name"
-                                                value="{{ old('mail_from_name', $mailConfig['mail_from_name']) }}"
-                                                class="form-control form-control-sm" placeholder="FastCargo">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button type="submit" class="btn btn-success btn-sm px-4 fw-bold shadow-sm">
-                                    <i class="fas fa-save me-1"></i> Save Settings
-                                </button>
-                            </form>
+                        <!-- Mail Driver & AI Integration Selection Row -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold text-muted mb-1" for="mail_mailer">
+                                    <i class="fas fa-paper-plane me-1 text-primary"></i> Mail Delivery
+                                </label>
+                                <select id="mail_mailer" name="mail_mailer" class="form-select form-select-sm">
+                                    <option value="smtp"
+                                        {{ old('mail_mailer', $mailConfig['mail_mailer']) === 'smtp' ? 'selected' : '' }}>
+                                        SMTP</option>
+                                    <option value="log"
+                                        {{ old('mail_mailer', $mailConfig['mail_mailer']) === 'log' ? 'selected' : '' }}>
+                                        Local Log</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold text-muted mb-1" for="mail_ai_provider">
+                                    <i class="fas fa-robot me-1 text-primary"></i> AI Integration
+                                </label>
+                                <select id="mail_ai_provider" name="mail_ai_provider" class="form-select form-select-sm">
+                                    @php
+                                        $currentMailAi = old('mail_ai_provider', $mailAiProvider ?? 'default');
+                                        $knownMailValues = ['disabled', 'default', 'gemini', 'custom'];
+                                        foreach ($aiModelsRegistry['google_gemini_api'] ?? [] as $gm) {
+                                            $knownMailValues[] = 'google_gemini_api::' . $gm['model'];
+                                        }
+                                        foreach ($aiModelsRegistry['openai_compatible'] ?? [] as $cm) {
+                                            $knownMailValues[] = 'openai_compatible::' . $cm['model'];
+                                        }
+                                    @endphp
+                                    <option value="disabled" {{ $currentMailAi === 'disabled' ? 'selected' : '' }}>
+                                        Disabled</option>
+                                    <option value="default" {{ $currentMailAi === 'default' ? 'selected' : '' }}>Auto
+                                        (Active: {{ $aiConfig['active_label'] }})</option>
+                                    @foreach ($aiModelsRegistry['google_gemini_api'] ?? [] as $m)
+                                        <option value="google_gemini_api::{{ $m['model'] }}"
+                                            {{ $currentMailAi === 'google_gemini_api::' . $m['model'] ? 'selected' : '' }}>
+                                            [Google Gemini API] {{ $m['model'] }}
+                                        </option>
+                                    @endforeach
+                                    @foreach ($aiModelsRegistry['openai_compatible'] ?? [] as $m)
+                                        <option value="openai_compatible::{{ $m['model'] }}"
+                                            {{ $currentMailAi === 'openai_compatible::' . $m['model'] ? 'selected' : '' }}>
+                                            [OpenAI Compatible] {{ $m['model'] }}
+                                        </option>
+                                    @endforeach
+                                    @if (in_array($currentMailAi, ['gemini', 'custom'], true))
+                                        <option value="{{ $currentMailAi }}" selected>
+                                            [Legacy]
+                                            {{ $currentMailAi === 'gemini' ? 'Gemini 2.0 Flash' : $aiConfig['custom_ai_provider_name'] ?? 'Custom AI' }}
+                                        </option>
+                                    @endif
+                                    @if (!in_array($currentMailAi, $knownMailValues, true) && !empty($currentMailAi))
+                                        <option value="{{ $currentMailAi }}" selected>[Unlisted] {{ $currentMailAi }}
+                                        </option>
+                                    @endif
+                                </select>
+                            </div>
                         </div>
 
-                        <!-- Diagnostic & Live Delivery Verification (Right Column) -->
-                        <div class="col-lg-5 ps-lg-4">
+                        <!-- Group 1: Server Connection (Hidden when Local Log) -->
+                        <div id="smtpServerGroup"
+                            class="border rounded p-3 mb-3 bg-light shadow-sm {{ $mailConfig['mail_mailer'] === 'log' ? 'd-none' : '' }}">
                             <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                <span class="small fw-bold text-uppercase text-primary" style="font-size: 11.5px;">
-                                    <i class="fas fa-satellite-dish me-1"></i> Live Delivery Verification
+                                <span class="small fw-bold text-uppercase text-dark" style="font-size: 10.5px;">
+                                    <i class="fas fa-server me-1 text-primary"></i> 1. Server Connection
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2"
+                                    id="btn-preset-resend" style="font-size: 11px;">
+                                    <i class="fas fa-magic me-1"></i> Auto fill
+                                </button>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                        for="mail_host">SMTP Host</label>
+                                    <input id="mail_host" type="text" name="mail_host"
+                                        value="{{ old('mail_host', $mailConfig['mail_host']) }}"
+                                        class="form-control form-control-sm" placeholder="smtp.resend.com">
+                                </div>
+                                <div class="col-sm-3 col-6">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                        for="mail_port">Port</label>
+                                    <input id="mail_port" type="number" name="mail_port"
+                                        value="{{ old('mail_port', $mailConfig['mail_port']) }}"
+                                        class="form-control form-control-sm" placeholder="465">
+                                </div>
+                                <div class="col-sm-3 col-6">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                        for="mail_encryption">Encryption</label>
+                                    <select id="mail_encryption" name="mail_encryption"
+                                        class="form-select form-select-sm">
+                                        <option value="tls"
+                                            {{ $mailConfig['mail_encryption'] === 'tls' ? 'selected' : '' }}>TLS (587)
+                                        </option>
+                                        <option value="ssl"
+                                            {{ $mailConfig['mail_encryption'] === 'ssl' ? 'selected' : '' }}>SSL (465)
+                                        </option>
+                                        <option value="none"
+                                            {{ $mailConfig['mail_encryption'] === 'none' ? 'selected' : '' }}>None
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Group 2: Authentication & Sender Identity -->
+                        <div class="border rounded p-3 mb-3 bg-white shadow-sm">
+                            <div class="mb-2 pb-1 border-bottom">
+                                <span class="small fw-bold text-uppercase text-dark" style="font-size: 10.5px;">
+                                    <i class="fas fa-shield-alt me-1 text-primary"></i> Sender Identity
                                 </span>
                             </div>
 
-                            <!-- Direct Dispatch Form -->
-                            <div class="border rounded p-3 mb-3 bg-light shadow-sm">
-                                <form method="POST" action="{{ route('admin.settings.mail.test', [], false) }}">
-                                    @csrf
-                                    <div class="mb-2">
-                                        <label class="form-label mb-1 text-muted fw-bold" style="font-size: 10.5px;"
-                                            for="test_email">
-                                            Recipient Email Address
-                                        </label>
-                                        <input id="test_email" type="email" name="test_email"
-                                            value="{{ Auth::guard('admin')->user()?->email ?? 'mtaufiq2157@gmail.com' }}"
-                                            class="form-control form-control-sm" placeholder="nama@gmail.com" required>
-                                    </div>
-                                    <button type="submit" class="btn btn-success btn-sm w-100 fw-bold py-2 shadow-sm">
-                                        <i class="fas fa-paper-plane me-1"></i> Dispatch Test Email
-                                    </button>
-                                </form>
+                            <!-- Credentials Row (Hidden when Local Log) -->
+                            <div id="smtpCredentialsRow"
+                                class="row g-2 mb-2 {{ $mailConfig['mail_mailer'] === 'log' ? 'd-none' : '' }}">
+                                <div class="col-sm-6">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                        for="mail_username">SMTP Username</label>
+                                    <input id="mail_username" type="text" name="mail_username"
+                                        value="{{ old('mail_username', $mailConfig['mail_username']) }}"
+                                        class="form-control form-control-sm" placeholder="resend">
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                        for="mail_password">Resend API Key (Password)</label>
+                                    <input id="mail_password" type="password" name="mail_password"
+                                        value="{{ old('mail_password', $mailConfig['mail_password'] ?? '') }}"
+                                        class="form-control form-control-sm" autocomplete="new-password"
+                                        placeholder="re_xxxxxxxxxxxx">
+                                </div>
                             </div>
 
-                            <!-- Hasil Pengujian Terakhir (Last Test Diagnostic) -->
-                            <div class="border rounded p-3 mb-3 bg-white shadow-sm">
-                                <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                    <span class="small fw-bold text-muted text-uppercase" style="font-size: 10px;">
-                                        <i class="fas fa-history me-1 text-info"></i> Riwayat Uji Terakhir
-                                    </span>
-                                    @if (!empty($mailConfig['last_test']['status']) && $mailConfig['last_test']['status'] === 'SUCCESS')
-                                        <span class="badge bg-success px-2 py-1 small" style="font-size: 9px;">
-                                            <i class="fas fa-check-circle me-1"></i> Berhasil
-                                        </span>
-                                    @elseif (!empty($mailConfig['last_test']['status']) && $mailConfig['last_test']['status'] === 'FAILED')
-                                        <span class="badge bg-danger px-2 py-1 small" style="font-size: 9px;">
-                                            <i class="fas fa-times-circle me-1"></i> Gagal
-                                        </span>
-                                    @else
-                                        <span class="badge bg-secondary px-2 py-1 small" style="font-size: 9px;">Belum
-                                            Diuji</span>
-                                    @endif
+                            <!-- Sender Identity Row -->
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                        for="mail_from_address">From Address</label>
+                                    <input id="mail_from_address" type="email" name="mail_from_address"
+                                        value="{{ old('mail_from_address', $mailConfig['mail_from_address']) }}"
+                                        class="form-control form-control-sm" placeholder="noreply@leonproject.my.id">
                                 </div>
-
-                                @if (!empty($mailConfig['last_test']))
-                                    <div class="row g-1 small" style="font-size: 10.5px;">
-                                        <div class="col-4 text-muted">Waktu:</div>
-                                        <div class="col-8 text-dark fw-bold">
-                                            {{ $mailConfig['last_test']['formatted_time'] ?? '-' }}</div>
-
-                                        <div class="col-4 text-muted">Penerima:</div>
-                                        <div class="col-8 text-truncate text-dark fw-bold">
-                                            {{ $mailConfig['last_test']['recipient'] ?? '-' }}</div>
-
-                                        <div class="col-4 text-muted">Driver:</div>
-                                        <div class="col-8">
-                                            <span
-                                                class="badge bg-light text-dark border">{{ strtoupper($mailConfig['last_test']['mailer'] ?? '-') }}</span>
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="text-muted small fst-italic" style="font-size: 10.5px;">
-                                        Belum ada pengujian yang dijalankan pada sesi ini. Masukkan email di atas lalu klik
-                                        Dispatch Test Email.
-                                    </div>
-                                @endif
+                                <div class="col-sm-6">
+                                    <label class="form-label mb-1 text-muted" style="font-size: 11px;"
+                                        for="mail_from_name">From Sender Name</label>
+                                    <input id="mail_from_name" type="text" name="mail_from_name"
+                                        value="{{ old('mail_from_name', $mailConfig['mail_from_name']) }}"
+                                        class="form-control form-control-sm" placeholder="FastCargo">
+                                </div>
                             </div>
                         </div>
-                    </div>
+
+                        <div class="pt-2">
+                            <button type="submit" class="btn btn-success btn-sm px-4 fw-bold shadow-sm">
+                                <i class="fas fa-save me-1"></i> Save Settings
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PayG Multi-Channel Payment Station -->
-    <div class="row">
-        <div class="col-lg-12 mb-4">
-            <div class="card shadow border-start-primary">
-                <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-satellite-dish me-1"></i>Multi Channel Payment
-                        </h6>
-                    </div>
-                    <div class="d-flex gap-2 align-items-center">
-                        @if ($paygConfig['status']['reachable'] ?? false)
-                            <span class="badge bg-success">
-                                <i class="fas fa-server me-1"></i> PayG Daemon (Port 8085)
-                            </span>
-                        @else
-                            <span class="badge bg-info text-dark">
-                                <i class="fas fa-flask me-1"></i> Standalone Sandbox Mode
-                            </span>
-                        @endif
-                        <span id="badge-payg-mode" class="badge bg-primary text-uppercase">
-                            {{ $paygConfig['active_mode'] ?? 'auto' }} Engine
-                        </span>
-                        <span id="badge-dana-mode" class="d-none"></span>
-                        <span id="badge-dana-status" class="d-none"></span>
-                    </div>
-                </div>
-                <div class="card-body p-4">
-                    <div class="row g-4">
-                        <!-- Configuration Form (Left Column) -->
-                        <div class="col-lg-7 border-end pe-lg-4">
-                            <form method="POST" action="{{ route('admin.settings.update', [], false) }}"
-                                id="formDanaSettings">
-                                @csrf
-                                @method('PUT')
-
-                                <!-- Legacy hidden fields to preserve backwards compatibility -->
-                                <input type="hidden" name="dana_env" id="dana_env"
-                                    value="{{ $danaConfig['dana_env'] ?? 'sandbox' }}">
-                                <input type="hidden" name="dana_merchant_id" id="dana_merchant_id"
-                                    value="{{ $danaConfig['dana_merchant_id'] ?? '' }}">
-                                <input type="hidden" name="dana_client_id" id="dana_client_id"
-                                    value="{{ $danaConfig['dana_client_id'] ?? '' }}">
-                                <input type="hidden" name="dana_client_secret" id="dana_client_secret"
-                                    value="{{ $danaConfig['dana_client_secret'] ?? '' }}">
-
-                                <!-- Global Gateway Mode & Secret -->
-                                <div class="border rounded p-3 mb-3 bg-light shadow-sm">
-                                    <div class="row g-2">
-                                        <div class="col-md-7">
-                                            <label class="form-label mb-1 text-muted small fw-bold"
-                                                for="payg_active_mode">Default Gateway Routing Mode</label>
-                                            <select id="payg_active_mode" name="payg_active_mode"
-                                                class="form-select form-select-sm">
-                                                <option value="auto"
-                                                    {{ ($paygConfig['active_mode'] ?? 'auto') === 'auto' ? 'selected' : '' }}>
-                                                    Auto Dispatcher (SGpay &gt; SoBpay &gt; Simulator)</option>
-                                                <option value="sgpay"
-                                                    {{ ($paygConfig['active_mode'] ?? '') === 'sgpay' ? 'selected' : '' }}>
-                                                    SGpay (Direct Merchant Shopee/GoPay QRIS)</option>
-                                                <option value="sobpay"
-                                                    {{ ($paygConfig['active_mode'] ?? '') === 'sobpay' ? 'selected' : '' }}>
-                                                    SoBpay (SociaBuzz Multi-Channel &amp; ASEAN)</option>
-                                                <option value="simulator"
-                                                    {{ ($paygConfig['active_mode'] ?? '') === 'simulator' ? 'selected' : '' }}>
-                                                    Simulator (Sandbox Instant Testbed)</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-5">
-                                            <label class="form-label mb-1 text-muted small fw-bold" for="payg_secret">PayG
-                                                HMAC Secret</label>
-                                            <div class="input-group input-group-sm">
-                                                <input type="password" id="payg_secret" name="payg_secret"
-                                                    class="form-control form-control-sm font-monospace"
-                                                    value="{{ old('payg_secret', $paygConfig['secret'] ? '••••••••••••••••' : '') }}"
-                                                    placeholder="fastcargo-payg-secret-2026">
-                                                <button class="btn btn-outline-secondary" type="button"
-                                                    id="btn-toggle-payg-secret" title="Toggle visibility">
-                                                    <i class="fas fa-eye" id="icon-toggle-payg-secret"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Interactive 3 Tabs Navigation -->
-                                <ul class="nav nav-tabs mb-3" id="paygTabs" role="tablist">
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link active py-2 px-3 small fw-bold" id="tab-sgpay-btn"
-                                            data-bs-toggle="tab" data-bs-target="#tab-sgpay" type="button"
-                                            role="tab">
-                                            <i class="fas fa-bolt text-warning me-1"></i> 1. SGpay (Direct Merchant)
-                                        </button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link py-2 px-3 small fw-bold" id="tab-sobpay-btn"
-                                            data-bs-toggle="tab" data-bs-target="#tab-sobpay" type="button"
-                                            role="tab">
-                                            <i class="fas fa-globe-asia text-info me-1"></i> 2. SoBpay (Aggregator &amp;
-                                            ASEAN)
-                                        </button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link py-2 px-3 small fw-bold" id="tab-simulator-btn"
-                                            data-bs-toggle="tab" data-bs-target="#tab-simulator" type="button"
-                                            role="tab">
-                                            <i class="fas fa-flask text-success me-1"></i> 3. Smart Simulator
-                                        </button>
-                                    </li>
-                                </ul>
-
-                                <div class="tab-content" id="paygTabsContent">
-                                    <!-- TAB 1: SGPAY -->
-                                    <div class="tab-pane fade show active" id="tab-sgpay" role="tabpanel">
-                                        <div class="mb-3">
-                                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                                <label class="form-label mb-0 text-muted small fw-bold"
-                                                    for="payg_sgpay_static_qr">Static QRIS String</label>
-                                                <span
-                                                    class="badge {{ !empty($paygConfig['sgpay_static_qr']) ? 'bg-success' : 'bg-secondary' }}">
-                                                    {{ !empty($paygConfig['sgpay_static_qr']) ? 'Static QRIS Active' : 'Not Configured' }}
-                                                </span>
-                                            </div>
-                                            <textarea id="payg_sgpay_static_qr" name="payg_sgpay_static_qr" class="form-control form-control-sm font-monospace"
-                                                rows="3" placeholder="00020101021126580014ID.DANA.WWW...6304ABCD">{{ old('payg_sgpay_static_qr', $paygConfig['sgpay_static_qr']) }}</textarea>
-                                        </div>
-                                    </div>
-
-                                    <!-- TAB 2: SOBPAY -->
-                                    <div class="tab-pane fade" id="tab-sobpay" role="tabpanel">
-                                        <div class="mb-3">
-                                            <label class="form-label mb-1 text-muted small fw-bold"
-                                                for="payg_sobpay_username">SociaBuzz Creator Username</label>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-light text-muted">@</span>
-                                                <input type="text" id="payg_sobpay_username"
-                                                    name="payg_sobpay_username"
-                                                    class="form-control form-control-sm font-monospace"
-                                                    value="{{ old('payg_sobpay_username', $paygConfig['sobpay_username']) }}"
-                                                    placeholder="username_kreator">
-                                            </div>
-                                            <div class="form-text text-muted" style="font-size: 11px;">
-                                                Cukup masukkan username profil SociaBuzz Anda. Tidak memerlukan login OTP
-                                                atau kredensial perbankan rahasia.
-                                            </div>
-                                        </div>
-
-                                        <!-- Live Fee Tester -->
-                                        <div class="border rounded p-3 bg-white shadow-sm mb-3">
-                                            <div
-                                                class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                                <span class="small fw-bold text-uppercase text-dark"
-                                                    style="font-size: 11px;">
-                                                    <i class="fas fa-calculator me-1 text-info"></i> Kalkulator Fee
-                                                    Multi-Channel &amp; ASEAN
-                                                </span>
-                                                <span class="badge bg-light text-dark border">Real-Time Estimator</span>
-                                            </div>
-                                            <div class="row g-2 mb-2">
-                                                <div class="col-md-5">
-                                                    <select id="fee_country" class="form-select form-select-sm">
-                                                        <option value="Indonesia">Indonesia (IDR)</option>
-                                                        <option value="Malaysia">Malaysia (MYR)</option>
-                                                        <option value="Singapore">Singapore (SGD)</option>
-                                                        <option value="Philippines">Philippines (PHP)</option>
-                                                        <option value="Thailand">Thailand (THB)</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <input type="number" id="fee_amount"
-                                                        class="form-control form-control-sm" value="5000000"
-                                                        placeholder="Nominal">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <button type="button" class="btn btn-outline-info btn-sm w-100"
-                                                        id="btn-calc-fees">
-                                                        <i class="fas fa-search-dollar me-1"></i> Cek Fee
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div id="fee-calc-results" class="mt-2 small bg-light p-2 rounded border"
-                                                style="display: none;"></div>
-                                        </div>
-                                    </div>
-
-                                    <!-- TAB 3: SIMULATOR -->
-                                    <div class="tab-pane fade" id="tab-simulator" role="tabpanel">
-                                        <div class="alert alert-light border small mb-3">
-                                            <i class="fas fa-flask text-success me-1"></i>
-                                            <strong>Smart Simulator Engine:</strong> Sandbox bawaan tanpa uang riil untuk
-                                            evaluasi kelulusan skripsi, presentasi dosen, dan continuous integration (CI)
-                                            tests.
-                                        </div>
-
-                                        <!-- Quick 1-Click Sandbox Generator -->
-                                        <div class="p-3 bg-light rounded-3 mb-3 border">
-                                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                                <span class="small fw-bold text-dark">Quick 1-Click Sandbox
-                                                    Generator</span>
-                                                <span class="badge bg-primary">Instant Isolated</span>
-                                            </div>
-                                            <p class="text-muted small mb-2" style="font-size: 11px;">
-                                                Generate an isolated sandbox invoice and pending transaction without manual
-                                                booking:
-                                            </p>
-                                            <button type="button" id="btnGenSandboxDirect"
-                                                class="btn btn-outline-primary btn-sm w-100 fw-bold">
-                                                <i class="fas fa-magic me-1"></i> Generate Sandbox Test Invoice
-                                            </button>
-                                        </div>
-
-                                        <!-- Callback Scenario Controls -->
-                                        <div class="border rounded p-3 bg-white shadow-sm mb-3">
-                                            <div class="mb-3">
-                                                <label class="form-label small text-muted fw-bold mb-1"
-                                                    for="selectTransactionDirect">Select Pending Transaction</label>
-                                                <select class="form-select form-select-sm" id="selectTransactionDirect">
-                                                    <option value="">-- Choose Existing Transaction or Enter Manually
-                                                        --</option>
-                                                    @foreach ($simulatorTransactions ?? ($transactions ?? []) as $simTx)
-                                                        <option value="{{ $simTx->transaction_ref }}"
-                                                            data-amount="{{ (float) $simTx->amount }}"
-                                                            data-invoice="{{ $simTx->invoice?->invoice_number }}"
-                                                            data-tx-status="{{ $simTx->payment_status }}"
-                                                            data-invoice-status="{{ $simTx->invoice?->payment_status ?? 'PENDING' }}"
-                                                            data-escrow-status="{{ $simTx->invoice?->booking?->escrowLedger?->escrow_status ?? 'NOT_FUNDED' }}"
-                                                            data-escrow-amount="{{ (float) ($simTx->invoice?->booking?->escrowLedger?->total_paid_amount ?? 0) }}">
-                                                            {{ $simTx->transaction_ref }}
-                                                            ({{ $simTx->invoice?->invoice_number ?? 'No INV' }})
-                                                            — IDR
-                                                            {{ number_format((float) $simTx->amount) }}
-                                                            [{{ $simTx->payment_status }}]
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label class="form-label small text-muted fw-bold mb-1"
-                                                    for="partnerRefDirect">Partner Reference No
-                                                    (partnerReferenceNo)</label>
-                                                <input type="text" class="form-control form-control-sm font-monospace"
-                                                    id="partnerRefDirect" placeholder="SANDBOX-DANA-XXXX">
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label class="form-label small text-muted fw-bold mb-1">Callback Status
-                                                    Scenario</label>
-                                                <div class="scenario-btn-group d-flex flex-wrap gap-2">
-                                                    <input type="radio" class="btn-check" name="direct_scenario"
-                                                        id="scenSettlementDirect" value="SETTLEMENT" checked>
-                                                    <label class="btn btn-sm btn-outline-success"
-                                                        for="scenSettlementDirect">
-                                                        <i class="fas fa-check-circle me-1"></i> SETTLEMENT (00)
-                                                    </label>
-
-                                                    <input type="radio" class="btn-check" name="direct_scenario"
-                                                        id="scenExpiredDirect" value="EXPIRED">
-                                                    <label class="btn btn-sm btn-outline-secondary"
-                                                        for="scenExpiredDirect">
-                                                        <i class="fas fa-clock me-1"></i> EXPIRED (01)
-                                                    </label>
-
-                                                    <input type="radio" class="btn-check" name="direct_scenario"
-                                                        id="scenFailedDirect" value="FAILED">
-                                                    <label class="btn btn-sm btn-outline-danger" for="scenFailedDirect">
-                                                        <i class="fas fa-times-circle me-1"></i> FAILED (02)
-                                                    </label>
-
-                                                    <input type="radio" class="btn-check" name="direct_scenario"
-                                                        id="scenCancelledDirect" value="CANCELLED">
-                                                    <label class="btn btn-sm btn-outline-dark" for="scenCancelledDirect">
-                                                        <i class="fas fa-ban me-1"></i> CANCELLED (03)
-                                                    </label>
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label class="form-label small text-muted fw-bold mb-1"
-                                                    for="amountDirect">Transaction Amount (IDR)</label>
-                                                <input type="number" class="form-control form-control-sm"
-                                                    id="amountDirect" value="6500000" step="1000">
-                                            </div>
-
-                                            <button type="button" id="btnDispatchDirect"
-                                                class="btn btn-primary btn-sm d-block w-100 py-2 fw-bold shadow-sm">
-                                                <i class="fas fa-paper-plane me-1"></i> Dispatch Simulated Webhook
-                                            </button>
-                                        </div>
-
-                                        <!-- Live Ledger State Indicators -->
-                                        <div class="border rounded p-3 bg-light shadow-sm mb-3">
-                                            <div
-                                                class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                                <span class="small fw-bold text-uppercase text-dark"
-                                                    style="font-size: 11px;">
-                                                    <i class="fas fa-search-dollar me-1 text-primary"></i> Live Ledger
-                                                    State Indicators
-                                                </span>
-                                                <span id="responseStatusBadgeDirect" class="badge bg-secondary"
-                                                    style="font-size: 10px;">Ready</span>
-                                            </div>
-                                            <div class="row g-2">
-                                                <div class="col-4">
-                                                    <div class="p-2 border rounded text-center bg-white">
-                                                        <div class="text-muted small" style="font-size: 10px;">TX Status
-                                                        </div>
-                                                        <div class="fw-bold mt-1" id="stateTxDirect"
-                                                            style="font-size: 11px;">—</div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <div class="p-2 border rounded text-center bg-white">
-                                                        <div class="text-muted small" style="font-size: 10px;">Invoice
-                                                            Status</div>
-                                                        <div class="fw-bold mt-1" id="stateInvoiceDirect"
-                                                            style="font-size: 11px;">—</div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <div class="p-2 border rounded text-center bg-white">
-                                                        <div class="text-muted small" style="font-size: 10px;">Escrow
-                                                            Ledger</div>
-                                                        <div class="fw-bold mt-1" id="stateEscrowDirect"
-                                                            style="font-size: 11px;">—</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Foldable/collapsible JSON viewer box -->
-                                        <div class="accordion mb-3" id="directJsonAccordion">
-                                            <div class="accordion-item border rounded">
-                                                <h2 class="accordion-header" id="headingDirectPayload">
-                                                    <button class="accordion-button collapsed py-2 px-3 small fw-bold"
-                                                        type="button" data-bs-toggle="collapse"
-                                                        data-bs-target="#collapseDirectPayload" aria-expanded="false"
-                                                        aria-controls="collapseDirectPayload">
-                                                        <i class="fas fa-code me-2 text-primary"></i> Raw Dispatch Payload
-                                                        (Dana Snap Standard)
-                                                    </button>
-                                                </h2>
-                                                <div id="collapseDirectPayload" class="accordion-collapse collapse"
-                                                    aria-labelledby="headingDirectPayload"
-                                                    data-bs-parent="#directJsonAccordion">
-                                                    <div class="accordion-body p-2 bg-dark">
-                                                        <div class="d-flex justify-content-end mb-1">
-                                                            <button type="button"
-                                                                class="btn btn-link btn-sm text-info text-decoration-none p-0"
-                                                                id="btnCopyDirectReq" style="font-size: 11px;">
-                                                                <i class="fas fa-copy me-1"></i> Copy JSON
-                                                            </button>
-                                                        </div>
-                                                        <pre class="json-viewer-box mb-0" id="jsonDirectRequest">// Webhook payload will appear here upon dispatch...</pre>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="accordion-item border rounded mt-2">
-                                                <h2 class="accordion-header" id="headingDirectResponse">
-                                                    <button class="accordion-button collapsed py-2 px-3 small fw-bold"
-                                                        type="button" data-bs-toggle="collapse"
-                                                        data-bs-target="#collapseDirectResponse" aria-expanded="false"
-                                                        aria-controls="collapseDirectResponse">
-                                                        <i class="fas fa-terminal me-2 text-success"></i> Server Response
-                                                        Body
-                                                    </button>
-                                                </h2>
-                                                <div id="collapseDirectResponse" class="accordion-collapse collapse"
-                                                    aria-labelledby="headingDirectResponse"
-                                                    data-bs-parent="#directJsonAccordion">
-                                                    <div class="accordion-body p-2 bg-dark">
-                                                        <div class="d-flex justify-content-end mb-1">
-                                                            <button type="button"
-                                                                class="btn btn-link btn-sm text-info text-decoration-none p-0"
-                                                                id="btnCopyDirectRes" style="font-size: 11px;">
-                                                                <i class="fas fa-copy me-1"></i> Copy JSON
-                                                            </button>
-                                                        </div>
-                                                        <pre class="json-viewer-box mb-0" id="jsonDirectResponse" style="color: #4ade80;">// Server response will appear here...</pre>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Simulator Audit History Collapsible -->
-                                        <div class="border rounded p-3 bg-light shadow-sm mb-3">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span class="small fw-bold text-uppercase text-dark"
-                                                    style="font-size: 11px;">
-                                                    <i class="fas fa-history me-1 text-secondary"></i> Simulator Audit
-                                                    History
-                                                </span>
-                                                <button class="btn btn-sm btn-link text-decoration-none p-0 small"
-                                                    type="button" data-bs-toggle="collapse"
-                                                    data-bs-target="#collapseAuditHistory" aria-expanded="false"
-                                                    style="font-size: 11px;">
-                                                    <i class="fas fa-chevron-down me-1"></i> View History
-                                                </button>
-                                            </div>
-                                            <div class="collapse mt-2" id="collapseAuditHistory">
-                                                <div class="table-responsive bg-white border rounded">
-                                                    <table class="table table-sm table-hover align-middle mb-0"
-                                                        style="font-size: 10.5px;">
-                                                        <thead class="table-light">
-                                                            <tr>
-                                                                <th>Waktu</th>
-                                                                <th>Action</th>
-                                                                <th>Target Ref</th>
-                                                                <th>IP</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody id="simulatorAuditTableBody">
-                                                            @forelse(($simulatorRecentLogs ?? $recentLogs ?? []) as $log)
-                                                                <tr>
-                                                                    <td class="text-nowrap">
-                                                                        {{ \Carbon\Carbon::parse($log->created_at)->format('H:i:s') }}
-                                                                    </td>
-                                                                    <td><span
-                                                                            class="badge bg-light text-dark border">{{ $log->action }}</span>
-                                                                    </td>
-                                                                    <td class="font-monospace text-primary text-truncate"
-                                                                        style="max-width: 100px;">
-                                                                        {{ $log->target_id ?? 'N/A' }}</td>
-                                                                    <td>{{ $log->ip_address }}</td>
-                                                                </tr>
-                                                            @empty
-                                                                <tr class="audit-empty-row">
-                                                                    <td colspan="4"
-                                                                        class="text-center text-muted py-2">Belum ada
-                                                                        riwayat simulasi.</td>
-                                                                </tr>
-                                                            @endforelse
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Group 4: Webhook Callback URL -->
-                                <div class="border rounded p-3 mb-3 bg-light shadow-sm">
-                                    <div class="mb-2 pb-1 border-bottom d-flex justify-content-between align-items-center">
-                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
-                                            <i class="fas fa-satellite-dish me-1 text-primary"></i> Internal Notification
-                                            Webhook Endpoint
-                                        </span>
-                                        <span class="badge bg-secondary" style="font-size: 10px;">HMAC-SHA256
-                                            Protected</span>
-                                    </div>
-                                    <div class="input-group input-group-sm mb-1">
-                                        <span class="input-group-text bg-white text-muted"><i
-                                                class="fas fa-link"></i></span>
-                                        <input type="text" id="payg_webhook_url"
-                                            class="form-control font-monospace text-dark bg-white"
-                                            value="{{ $paygConfig['webhook_url'] }}" readonly>
-                                        <button class="btn btn-primary" type="button" id="btn-copy-payg-webhook">
-                                            <i class="fas fa-copy me-1"></i> Copy URL
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="d-flex justify-content-between align-items-center pt-2">
-                                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm">
-                                        <i class="fas fa-save me-1"></i> Save PayG Settings
-                                    </button>
-                                    <button type="button" id="btnDynamicLiveTesting"
-                                        class="btn btn-sm btn-outline-warning fw-bold text-dark shadow-sm">
-                                        🧪 Live Testing
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-
-                        <!-- Diagnostic & Recent Transactions (Right Column) -->
-                        <div class="col-lg-5 ps-lg-4">
-                            <!-- Top Box: Live Dynamic QRIS Preview -->
-                            <div class="border rounded p-3 mb-3 bg-white shadow-sm">
-                                <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                    <span class="small fw-bold text-uppercase text-primary" style="font-size: 11.5px;">
-                                        <i class="fas fa-qrcode me-1"></i> Live Dynamic QRIS Preview
-                                    </span>
-                                    <span class="badge bg-light text-dark border" style="font-size: 10px;">EMVCo Tag
-                                        54</span>
-                                </div>
-                                <div class="d-flex flex-column flex-sm-row align-items-center gap-3">
-                                    <div class="p-2 border rounded bg-white shadow-sm text-center flex-shrink-0"
-                                        style="width: 140px; height: 140px; display: flex; align-items: center; justify-content: center;">
-                                        <div style="max-width: 100%; max-height: 100%;">
-                                            {!! $paygConfig['sample_qr_svg'] !!}
-                                        </div>
-                                    </div>
-                                    <div class="flex-grow-1 small">
-                                        <div class="fw-bold text-dark mb-1">FASTCARGO ASEAN LOGISTICS</div>
-                                        <div class="text-muted mb-1" style="font-size: 11px;">
-                                            <span class="badge bg-primary me-1">ENGINE</span>
-                                            {{ strtoupper($paygConfig['active_mode'] ?? 'AUTO') }}
-                                        </div>
-                                        <div class="text-muted mb-2" style="font-size: 11px;">
-                                            Mendukung ShopeePay, GoPay, DANA, OVO, Virtual Account BCA/Mandiri, dan ASEAN
-                                            PayNow/FPX.
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2"
-                                            id="btnSwitchToSimulatorTab" style="font-size: 11px;">
-                                            <i class="fas fa-flask me-1"></i> Buka Webhook Testbed
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Bottom Box: Riwayat Transaksi Terakhir (Feed) -->
-                            <div class="border rounded p-3 bg-light shadow-sm">
-                                <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                    <span class="small fw-bold text-uppercase text-dark" style="font-size: 11px;">
-                                        <i class="fas fa-receipt me-1 text-primary"></i> Riwayat Transaksi Masuk
-                                    </span>
-                                    <span class="badge bg-secondary" style="font-size: 10px;">5 Terakhir</span>
-                                </div>
-
-                                <div id="recentTxEmpty"
-                                    class="text-center py-4 {{ $paygConfig['recent_transactions']->isEmpty() ? '' : 'd-none' }}">
-                                    <i class="fas fa-inbox text-muted fa-2x mb-2 opacity-50"></i>
-                                    <div class="small fw-bold text-muted">Belum ada transaksi pembayaran</div>
-                                    <div class="text-muted" style="font-size: 11px;">
-                                        Transaksi QRIS dari invoice customer akan otomatis tercatat di sini dan memicu
-                                        escrow ledger.
-                                    </div>
-                                </div>
-
-                                <div class="table-responsive {{ $paygConfig['recent_transactions']->isEmpty() ? 'd-none' : '' }}"
-                                    id="recentTxTableWrapper">
-                                    <table class="table table-sm table-hover align-middle mb-0"
-                                        style="font-size: 11.5px;">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Ref / Gateway</th>
-                                                <th>Nominal</th>
-                                                <th class="text-center">Status</th>
-                                                <th class="text-end">Waktu</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="recentTransactionsTableBody">
-                                            @foreach ($paygConfig['recent_transactions'] as $tx)
-                                                <tr data-tx-ref="{{ $tx->transaction_ref }}">
-                                                    <td>
-                                                        <div class="fw-bold font-monospace text-truncate tx-ref"
-                                                            style="max-width: 120px;"
-                                                            title="{{ $tx->transaction_ref }}">
-                                                            {{ $tx->transaction_ref }}
-                                                        </div>
-                                                        <div class="text-muted" style="font-size: 10px;">
-                                                            <span
-                                                                class="badge bg-light text-dark border">{{ $tx->payment_gateway ?? 'PAYG' }}</span>
-                                                            <span
-                                                                class="tx-invoice">{{ $tx->invoice?->invoice_number ?? '-' }}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td class="fw-bold text-dark tx-amount">
-                                                        Rp {{ number_format((float) $tx->amount, 0, ',', '.') }}
-                                                    </td>
-                                                    <td class="text-center tx-status-cell">
-                                                        @if ($tx->payment_status === 'SETTLEMENT')
-                                                            <span class="badge bg-success">SETTLED</span>
-                                                        @elseif ($tx->payment_status === 'PENDING')
-                                                            <span class="badge bg-warning text-dark">PENDING</span>
-                                                        @elseif ($tx->payment_status === 'EXPIRED')
-                                                            <span class="badge bg-secondary">EXPIRED</span>
-                                                        @elseif ($tx->payment_status === 'CANCELLED')
-                                                            <span class="badge bg-dark">CANCELLED</span>
-                                                        @else
-                                                            <span
-                                                                class="badge bg-danger">{{ $tx->payment_status }}</span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="text-end text-muted tx-time" style="font-size: 10.5px;">
-                                                        {{ $tx->created_at->diffForHumans() }}
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Peringatan Perubahan Belum Disimpan Saat Switch Engine -->
+    <!-- Unsaved AI Changes Warning Modal -->
     <div class="modal fade" id="unsavedAiChangesModal" tabindex="-1" aria-labelledby="unsavedAiChangesModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25 py-3">
                     <h6 class="modal-title text-warning-emphasis fw-bold mb-0" id="unsavedAiChangesModalLabel">
-                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i> Perubahan Konfigurasi Belum Disimpan
+                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i> Unsaved Configuration Changes
                     </h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body py-4">
-                    <p class="mb-2 text-dark fw-bold">Terdapat perubahan konfigurasi AI yang belum diuji coba dan
-                        disimpan.
-                    </p>
-                    <p class="mb-0 text-muted small">Jika Anda beralih engine sekarang, nilai yang baru Anda ketik akan
-                        dibatalkan. Silakan jalankan <strong>"Test Connection"</strong> lalu klik <strong>"Save AI Engine
-                            Settings"</strong> terlebih dahulu agar konfigurasi Anda tersimpan.</p>
+                    <p class="mb-2 text-dark fw-bold">You have unsaved AI configuration changes that have not been verified
+                        yet.</p>
+                    <p class="mb-0 text-muted small">If you switch engines now, your edited values will be discarded.
+                        Please run <strong>"Test Connection"</strong> and click <strong>"Save Settings"</strong> first to
+                        persist your configuration.</p>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
                     <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-dismiss="modal"
                         onclick="focusTestButton()">
-                        <i class="fas fa-satellite-dish me-1"></i> Kembali untuk Test &amp; Save
+                        <i class="fas fa-satellite-dish me-1"></i> Back to Test &amp; Save
                     </button>
                     <button type="button" class="btn btn-outline-danger btn-sm" id="btnConfirmSwitchAnyway">
-                        Tetap Beralih Engine
+                        Switch Engine Anyway
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Tambah Model AI Baru -->
+    <!-- Add New AI Model Modal -->
     <div class="modal fade" id="modalAddAiModel" tabindex="-1" aria-labelledby="modalAddAiModelLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-light py-3">
                     <h6 class="modal-title fw-bold mb-0" id="modalAddAiModelLabel">
-                        <i class="fas fa-plus-circle me-2 text-primary"></i> <span id="modalAddAiTitleText">Tambah Model
-                            AI Baru ({{ $isGemini ? 'Google Gemini API' : 'OpenAI Compatible' }})</span>
+                        <i class="fas fa-plus-circle me-2 text-primary"></i>
+                        <span id="modalAddAiTitleText">Add New AI Model
+                            ({{ $isGemini ? 'Google Gemini API' : 'OpenAI Compatible' }})</span>
                     </h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -1470,8 +1011,8 @@
                         <input type="hidden" id="add_model_target_engine" name="engine"
                             value="{{ $isGemini ? 'google_gemini_api' : 'openai_compatible' }}">
                         <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted mb-1" for="new_model_name">Nama Model
-                                (Model Identifier)</label>
+                            <label class="form-label small fw-bold text-muted mb-1" for="new_model_name">Model
+                                Identifier</label>
                             <input type="text" id="new_model_name" class="form-control form-control-sm"
                                 placeholder="e.g. gpt-4o-mini, gemini-2.5-pro" required>
                         </div>
@@ -1485,8 +1026,8 @@
                             <div class="col-4">
                                 <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.72rem;"
                                     for="new_model_output_tokens">Max Output</label>
-                                <input type="number" id="new_model_output_tokens"
-                                    class="form-control form-control-sm" value="2048" min="1">
+                                <input type="number" id="new_model_output_tokens" class="form-control form-control-sm"
+                                    value="2048" min="1">
                             </div>
                             <div class="col-4">
                                 <label class="form-label small fw-bold text-muted mb-1" style="font-size: 0.72rem;"
@@ -1498,245 +1039,133 @@
                     </form>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnSubmitAddAiModel">
-                        <i class="fas fa-save me-1"></i> Simpan Model
+                        <i class="fas fa-save me-1"></i> Save Model
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Live Testing SGpay (Direct Dynamic QRIS) -->
-    <div class="modal fade" id="modalLiveTestSgpay" tabindex="-1" aria-labelledby="modalLiveTestSgpayLabel"
+    <!-- MacroDroid Free Android Notification Listener Guide Modal -->
+    <div class="modal fade" id="modalMacroDroidGuide" tabindex="-1" aria-labelledby="modalMacroDroidGuideLabel"
         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25 py-3">
-                    <h6 class="modal-title text-warning-emphasis fw-bold mb-0" id="modalLiveTestSgpayLabel">
-                        <i class="fas fa-bolt text-warning me-2"></i> 🧪 Live Testing SGpay (Direct Dynamic QRIS)
-                    </h6>
+                <div class="modal-header bg-light border-bottom">
+                    <h5 class="modal-title fw-bold text-dark" id="modalMacroDroidGuideLabel">
+                        <i class="fab fa-android text-success me-2"></i> Panduan MacroDroid (Rp 0) &mdash; Auto-Settlement
+                        Notifikasi QRIS
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <div class="alert alert-light border small mb-3">
-                        <i class="fas fa-info-circle text-warning me-1"></i>
-                        Simulasi alur transaksi SGpay: nominal tagihan otomatis diinjeksi dengan kode unik (Tag 54) ke
-                        string QRIS statis merchant, menghasilkan Dynamic QRIS siap bayar.
+                    <div class="alert alert-info border small mb-3">
+                        <strong>Zero-Cost Listener (Rp 0):</strong> MacroDroid Free di Android dapat meneruskan notifikasi
+                        pembayaran QRIS masuk (GoPay Merchant / GoBiz, DANA Bisnis, ShopeePay, BCA, BRI) langsung ke
+                        endpoint FastCargo secara real-time tanpa biaya API bulanan.
                     </div>
 
-                    <div class="row g-3 align-items-end mb-3">
-                        <div class="col-md-8">
-                            <label class="form-label small fw-bold text-muted mb-1" for="sgpayTestAmount">Nominal
-                                Tagihan (IDR)</label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light fw-bold">Rp</span>
-                                <input type="number" id="sgpayTestAmount" class="form-control form-control-sm"
-                                    value="500000" min="1000" step="1000" placeholder="500000">
-                            </div>
+                    <div class="mb-3">
+                        <div class="fw-bold text-dark small mb-1">1. Trigger (Pemicu di MacroDroid)</div>
+                        <div class="p-2 bg-light border rounded small">
+                            Pilih <strong>Device Events &rarr; Notification &rarr; Notification Received</strong> &rarr;
+                            centang aplikasi merchant Anda (<em>GoBiz / GoPay Merchant</em>, <em>DANA Bisnis</em>,
+                            <em>ShopeePay Merchant</em>, atau aplikasi QRIS bank terkait).
                         </div>
-                        <div class="col-md-4">
-                            <button type="button" class="btn btn-warning btn-sm w-100 fw-bold shadow-sm"
-                                id="btnSgpayTestGenerate">
-                                <i class="fas fa-bolt me-1"></i> ⚡ Generate Dynamic QRIS
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="fw-bold text-dark small mb-1">2. Action &rarr; HTTP Request (POST)</div>
+                        <label class="form-label text-muted mb-1" style="font-size: 11px;"
+                            for="macrodroid-modal-url">Endpoint URL</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="macrodroid-modal-url" class="form-control font-monospace bg-white"
+                                value="{{ $paygConfig['webhook_url'] }}" readonly>
+                            <button type="button" class="btn btn-outline-primary" id="btn-copy-macrodroid-url">
+                                <i class="fas fa-copy me-1"></i> Copy URL
                             </button>
                         </div>
                     </div>
 
-                    <div id="sgpayTestFeedback" class="alert alert-danger py-2 px-3 small d-none mb-3"></div>
-
-                    <!-- Output Container -->
-                    <div id="sgpayTestResult" class="d-none border rounded p-3 bg-light shadow-sm">
-                        <div class="row g-3 align-items-center">
-                            <!-- QR SVG Display -->
-                            <div class="col-md-5 text-center">
-                                <div class="p-2 border rounded bg-white shadow-sm d-inline-block">
-                                    <div id="sgpayTestQrContainer"
-                                        style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                                        <!-- Dynamic QR SVG will be inserted here -->
-                                    </div>
-                                </div>
-                                <div class="mt-2 text-muted small" style="font-size: 11px;">
-                                    <span class="badge bg-success">EMVCo Tag 54 Injected</span>
-                                    <span class="badge bg-secondary font-monospace" id="sgpayTestRefBadge">-</span>
-                                </div>
+                    <div class="mb-3">
+                        <div class="fw-bold text-dark small mb-1">3. HTTP Headers (Wajib)</div>
+                        <div class="p-2 bg-light border rounded small">
+                            <div class="mb-2 font-monospace" style="font-size: 12px;">
+                                Content-Type: application/json
                             </div>
-
-                            <!-- Breakdown & Details -->
-                            <div class="col-md-7">
-                                <h6 class="fw-bold text-dark mb-2 border-bottom pb-1" style="font-size: 13px;">
-                                    <i class="fas fa-receipt me-1 text-primary"></i> Rincian Pembayaran QRIS
-                                </h6>
-                                <div class="bg-white p-2 rounded border mb-2 small" style="font-size: 12px;">
-                                    <div class="d-flex justify-content-between py-1 border-bottom">
-                                        <span class="text-muted">Tagihan Pokok:</span>
-                                        <span class="fw-bold text-dark" id="sgpayTestBaseAmount">Rp 500.000</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between py-1 border-bottom text-warning-emphasis">
-                                        <span><i class="fas fa-plus-circle me-1"></i> Kode Unik Otomatis:</span>
-                                        <span class="fw-bold font-monospace" id="sgpayTestUniqueCode">+Rp 0</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between pt-1 text-success fw-bold">
-                                        <span>Total Transfer Pas:</span>
-                                        <span class="fs-6" id="sgpayTestTotalAmount">Rp 500.xxx</span>
-                                    </div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                <div class="font-monospace text-dark" style="font-size: 12px;">
+                                    X-PayG-Secret: <span id="macrodroid-secret-preview"
+                                        class="fw-bold text-primary">Loading...</span>
                                 </div>
-
-                                <!-- Copyable Raw EMVCo QR String -->
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small fw-bold mb-1" style="font-size: 11px;">Raw
-                                        EMVCo ASPI QR String</label>
-                                    <div class="input-group input-group-sm">
-                                        <input type="text" id="sgpayTestRawQr"
-                                            class="form-control form-control-sm font-monospace text-muted" readonly
-                                            style="font-size: 10px;">
-                                        <button class="btn btn-outline-secondary btn-sm" type="button"
-                                            id="btnCopySgpayRawQr" title="Salin QR string">
-                                            <i class="fas fa-copy"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Simulasikan Mutasi Masuk Button -->
-                                <button type="button" class="btn btn-success btn-sm w-100 py-2 fw-bold shadow-sm"
-                                    id="btnSgpayTestSettle">
-                                    <i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Mutasi Masuk (Instant Settlement)
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2"
+                                    id="btn-copy-macrodroid-secret">
+                                    <i class="fas fa-key me-1"></i> Copy Secret
                                 </button>
-                                <div id="sgpaySettleFeedback" class="mt-2 text-center small fw-bold d-none"></div>
+                            </div>
+                            <div class="text-muted mt-1" style="font-size: 11px;">
+                                Alternatif untuk developer: gunakan header HMAC <code>X-PayG-Signature:
+                                    sha256=&lt;hmac&gt;</code> menggunakan secret yang sama.
                             </div>
                         </div>
                     </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div class="fw-bold text-dark small">4. Request Body (Content Type: application/json)</div>
+                            <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2"
+                                id="btn-copy-macrodroid-json">
+                                <i class="fas fa-copy me-1"></i> Copy JSON
+                            </button>
+                        </div>
+                        <pre id="macrodroid-json-template" class="p-2 bg-dark text-light rounded font-monospace mb-1"
+                            style="font-size: 12px; white-space: pre-wrap;">{"notification_text": "[not_text]", "app_package": "[not_app_package]", "title": "[not_title]"}</pre>
+                        <div class="text-muted" style="font-size: 11px;">
+                            Contoh format teks nominal yang otomatis dikenali: <code>Rp150.342</code>, <code>Rp
+                                150.342,00</code>, <code>IDR 1.250.342</code>, <code>Rp50,001</code>. Pembayaran dicocokkan
+                            dengan nominal tepat + kode unik dalam 24 jam terakhir.
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div>
+                        <div class="fw-bold text-dark small mb-1">
+                            <i class="fas fa-vial text-primary me-1"></i> Live Webhook Dry-Run / Test Matcher
+                        </div>
+                        <p class="text-muted mb-2" style="font-size: 11px;">
+                            Uji ekstraksi nominal Rupiah dan cek apakah ada invoice UNPAID dengan nominal sama (read-only,
+                            tidak mengubah status pembayaran).
+                        </p>
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" id="macrodroid-dryrun-text" class="form-control"
+                                value="Kamu menerima pembayaran QRIS sebesar Rp150.342"
+                                aria-label="Sample notification text for dry run">
+                            <button type="button" class="btn btn-primary fw-semibold" id="btn-run-macrodroid-dryrun">
+                                <i class="fas fa-play me-1"></i> Test Matcher
+                            </button>
+                        </div>
+                        <div id="macrodroid-dryrun-result" class="alert alert-light border py-2 px-3 small mb-0 d-none"
+                            role="status"></div>
+                    </div>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Live Testing SoBpay (SociaBuzz Aggregator & ASEAN) -->
-    <div class="modal fade" id="modalLiveTestSobpay" tabindex="-1" aria-labelledby="modalLiveTestSobpayLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-info bg-opacity-10 border-bottom border-info border-opacity-25 py-3">
-                    <h6 class="modal-title text-info-emphasis fw-bold mb-0" id="modalLiveTestSobpayLabel">
-                        <i class="fas fa-globe-asia text-info me-2"></i> 🧪 Live Testing SoBpay (SociaBuzz Aggregator
-                        &amp; ASEAN)
-                    </h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <div class="alert alert-light border small mb-3">
-                        <i class="fas fa-info-circle text-info me-1"></i>
-                        Simulasi alur transaksi SoBpay: invoice terhubung ke checkout page SociaBuzz dengan dukungan
-                        multi-channel lengkap (QRIS Midtrans/Xendit pas, VA 4 bank besar, E-Wallet, dan ASEAN Cross-Border).
-                    </div>
-
-                    <div class="row g-3 align-items-end mb-3">
-                        <div class="col-md-8">
-                            <label class="form-label small fw-bold text-muted mb-1" for="sobpayTestAmount">Nominal
-                                Tagihan (IDR)</label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light fw-bold">Rp</span>
-                                <input type="number" id="sobpayTestAmount" class="form-control form-control-sm"
-                                    value="2500000" min="1000" step="1000" placeholder="2500000">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <button type="button" class="btn btn-info btn-sm w-100 fw-bold text-white shadow-sm"
-                                id="btnSobpayTestGenerate">
-                                <i class="fas fa-bolt me-1"></i> ⚡ Generate SoBpay Checkout
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="sobpayTestFeedback" class="alert alert-danger py-2 px-3 small d-none mb-3"></div>
-
-                    <!-- Output Container -->
-                    <div id="sobpayTestResult" class="d-none border rounded p-3 bg-light shadow-sm">
-                        <h6 class="fw-bold text-dark mb-2 border-bottom pb-1" style="font-size: 13px;">
-                            <i class="fas fa-link me-1 text-info"></i> Hasil Generate SoBpay Checkout
-                        </h6>
-
-                        <!-- Preview Payment URL -->
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 11px;">Preview
-                                Payment URL (SociaBuzz Hosted Checkout)</label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-white text-info"><i
-                                        class="fas fa-external-link-alt"></i></span>
-                                <input type="text" id="sobpayTestPaymentUrl"
-                                    class="form-control form-control-sm font-monospace text-primary bg-white" readonly>
-                                <button class="btn btn-outline-secondary btn-sm" type="button" id="btnCopySobpayUrl"
-                                    title="Salin URL">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                                <a href="#" id="btnSobpayOpenUrl" target="_blank" rel="noopener noreferrer"
-                                    class="btn btn-outline-primary btn-sm disabled">
-                                    <i class="fas fa-external-link-alt me-1"></i> Buka Link di Tab Baru
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Active Multi-Channel Badges -->
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 11px;">Saluran
-                                Pembayaran Aktif (Multi-Channel &amp; ASEAN)</label>
-                            <div class="d-flex flex-wrap gap-1" id="sobpayChannelsContainer">
-                                <span class="badge bg-white text-dark border"><i
-                                        class="fas fa-qrcode text-primary me-1"></i> QRIS (Xendit/Midtrans)</span>
-                                <span class="badge bg-white text-dark border"><i
-                                        class="fas fa-university text-info me-1"></i> BCA VA</span>
-                                <span class="badge bg-white text-dark border"><i
-                                        class="fas fa-university text-info me-1"></i> Mandiri VA</span>
-                                <span class="badge bg-white text-dark border"><i
-                                        class="fas fa-university text-info me-1"></i> BNI VA</span>
-                                <span class="badge bg-white text-dark border"><i
-                                        class="fas fa-university text-info me-1"></i> BRI VA</span>
-                                <span class="badge bg-white text-dark border"><i
-                                        class="fas fa-wallet text-success me-1"></i> E-Wallet</span>
-                                <span class="badge bg-white text-dark border"><i
-                                        class="fas fa-globe text-warning me-1"></i> ASEAN PayNow &amp; FPX</span>
-                            </div>
-                        </div>
-
-                        <!-- Transaction Reference & Nominal Summary -->
-                        <div class="bg-white p-2 rounded border mb-3 small d-flex justify-content-between align-items-center"
-                            style="font-size: 12px;">
-                            <div>
-                                <span class="text-muted">Transaction Ref:</span>
-                                <span class="fw-bold font-monospace ms-1" id="sobpayTestRefBadge">-</span>
-                            </div>
-                            <div>
-                                <span class="text-muted">Nominal:</span>
-                                <span class="fw-bold text-dark ms-1 fs-6" id="sobpayTestAmountDisplay">Rp
-                                    2.500.000</span>
-                            </div>
-                        </div>
-
-                        <!-- Simulasikan Callback SociaBuzz Button -->
-                        <button type="button" class="btn btn-success btn-sm w-100 py-2 fw-bold shadow-sm"
-                            id="btnSobpayTestSettle">
-                            <i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Callback SociaBuzz (Instant Settlement)
-                        </button>
-                        <div id="sobpaySettleFeedback" class="mt-2 text-center small fw-bold d-none"></div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light border-top py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <script src="/assets/dashboard/js/jsQR.js"></script>
+    <script src="/assets/dashboard/js/qris-decoder.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Email Driver Dynamic Toggler & Resend Preset
             const mailMailerSelect = document.getElementById('mail_mailer');
             const smtpServerGroup = document.getElementById('smtpServerGroup');
             const smtpCredentialsRow = document.getElementById('smtpCredentialsRow');
-            const logModeNotice = document.getElementById('logModeNotice');
             const badgeMailDriver = document.getElementById('badge-mail-driver');
             const badgeMailStatus = document.getElementById('badge-mail-status');
             const presetBtn = document.getElementById('btn-preset-resend');
@@ -1750,20 +1179,15 @@
                 if (smtpCredentialsRow) {
                     smtpCredentialsRow.classList.toggle('d-none', isLog);
                 }
-                if (logModeNotice) {
-                    logModeNotice.classList.toggle('d-none', !isLog);
-                }
                 if (presetBtn) {
                     presetBtn.classList.toggle('d-none', isLog);
                 }
                 if (badgeMailDriver) {
                     badgeMailDriver.textContent = 'Driver: ' + (isLog ? 'LOG' : 'SMTP');
                 }
-                if (badgeMailStatus) {
-                    if (isLog) {
-                        badgeMailStatus.className = 'badge bg-info text-dark';
-                        badgeMailStatus.innerHTML = '<i class="fas fa-file-alt me-1"></i> Local Log Active';
-                    }
+                if (badgeMailStatus && isLog) {
+                    badgeMailStatus.className = 'badge bg-info text-dark';
+                    badgeMailStatus.innerHTML = '<i class="fas fa-file-alt me-1"></i> Local Log Active';
                 }
             }
 
@@ -1803,7 +1227,6 @@
             let aiFormIsDirty = false;
             let aiConnectionVerified = true;
 
-            // Restore last active view from localStorage if available
             try {
                 const savedView = localStorage.getItem('fastcargo_ai_selected_view');
                 if (savedView && providerSelect && (savedView === 'gemini' || savedView === 'custom')) {
@@ -1835,7 +1258,6 @@
                 });
             }
 
-            // Dirty State Tracker on AI Inputs
             document.querySelectorAll('.ai-dirty-tracker').forEach(function(el) {
                 el.addEventListener('input', function() {
                     aiFormIsDirty = true;
@@ -1849,8 +1271,7 @@
                     btnSaveAi.classList.remove('btn-primary');
                     btnSaveAi.classList.add('btn-secondary');
                     btnSaveAi.setAttribute('disabled', 'disabled');
-                    btnSaveAi.setAttribute('title',
-                        'Jalankan Test Connection terlebih dahulu untuk memvalidasi perubahan');
+                    btnSaveAi.setAttribute('title', 'Run Test Connection first to verify configuration changes');
                 } else {
                     btnSaveAi.classList.remove('btn-secondary');
                     btnSaveAi.classList.add('btn-primary');
@@ -1859,7 +1280,6 @@
                 }
             }
 
-            // Intercept Switch Engine if Unsaved Changes Exist
             if (btnSwitchEngine) {
                 btnSwitchEngine.addEventListener('click', function(e) {
                     if (aiFormIsDirty) {
@@ -1888,7 +1308,6 @@
                 }
             };
 
-            // Real-time AJAX Save AI Settings (No Page Reload)
             if (formAiSettings) {
                 formAiSettings.addEventListener('submit', function(e) {
                     e.preventDefault();
@@ -1896,7 +1315,7 @@
                     const originalSaveHtml = btnSaveAi.innerHTML;
                     btnSaveAi.disabled = true;
                     btnSaveAi.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Menyimpan...';
+                        '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Saving...';
 
                     const formData = new FormData(formAiSettings);
                     const payload = {};
@@ -1923,16 +1342,16 @@
                             if (data.success) {
                                 testFeedback.className = 'alert alert-success py-2 px-3 small mb-3';
                                 testFeedback.innerHTML =
-                                    '<i class="fas fa-check-circle me-2"></i> <strong>Tersimpan:</strong> ' +
-                                    (data.message || 'Konfigurasi pengaturan AI berhasil disimpan.');
+                                    '<i class="fas fa-check-circle me-2"></i> <strong>Saved:</strong> ' +
+                                    (data.message || 'AI configuration settings saved successfully.');
                                 testFeedback.classList.remove('d-none');
                                 aiFormIsDirty = false;
                                 updateSaveButtonState();
                             } else {
                                 testFeedback.className = 'alert alert-danger py-2 px-3 small mb-3';
                                 testFeedback.innerHTML =
-                                    '<i class="fas fa-times-circle me-2"></i> <strong>Gagal:</strong> ' +
-                                    (data.message || 'Gagal menyimpan pengaturan.');
+                                    '<i class="fas fa-times-circle me-2"></i> <strong>Failed:</strong> ' +
+                                    (data.message || 'Failed to save configuration.');
                                 testFeedback.classList.remove('d-none');
                             }
                         })
@@ -1942,13 +1361,12 @@
                             testFeedback.className = 'alert alert-danger py-2 px-3 small mb-3';
                             testFeedback.innerHTML =
                                 '<i class="fas fa-exclamation-triangle me-2"></i> <strong>Error:</strong> ' +
-                                (err.message || 'Gagal menghubungi server.');
+                                (err.message || 'Failed to contact server.');
                             testFeedback.classList.remove('d-none');
                         });
                 });
             }
 
-            // Real-time AJAX Test Connection
             if (btnTestAi) {
                 btnTestAi.addEventListener('click', function() {
                     const originalHtml = btnTestAi.innerHTML;
@@ -1958,7 +1376,7 @@
 
                     testFeedback.className = 'alert alert-info py-2 px-3 small mb-3';
                     testFeedback.innerHTML =
-                        '<i class="fas fa-spinner fa-spin me-2"></i> Menghubungi endpoint AI untuk verifikasi realtime...';
+                        '<i class="fas fa-spinner fa-spin me-2"></i> Contacting AI endpoint for real-time verification...';
                     testFeedback.classList.remove('d-none');
 
                     const selectedProvider = providerSelect ? providerSelect.value : 'gemini';
@@ -1997,14 +1415,14 @@
                             if (data.success) {
                                 testFeedback.className = 'alert alert-success py-2 px-3 small mb-3';
                                 testFeedback.innerHTML =
-                                    '<i class="fas fa-check-circle me-2"></i> <strong>Koneksi Berhasil:</strong> ' +
+                                    '<i class="fas fa-check-circle me-2"></i> <strong>Connected:</strong> ' +
                                     data.message;
                                 aiConnectionVerified = true;
                                 updateSaveButtonState();
                             } else {
                                 testFeedback.className = 'alert alert-danger py-2 px-3 small mb-3';
                                 testFeedback.innerHTML =
-                                    '<i class="fas fa-times-circle me-2"></i> <strong>Koneksi Gagal:</strong> ' +
+                                    '<i class="fas fa-times-circle me-2"></i> <strong>Connection Failed:</strong> ' +
                                     data.message;
                                 aiConnectionVerified = false;
                                 updateSaveButtonState();
@@ -2016,7 +1434,7 @@
                             testFeedback.className = 'alert alert-danger py-2 px-3 small mb-3';
                             testFeedback.innerHTML =
                                 '<i class="fas fa-exclamation-triangle me-2"></i> <strong>Error:</strong> ' +
-                                (err.message || 'Gagal menghubungi server.');
+                                (err.message || 'Failed to contact server.');
                             aiConnectionVerified = false;
                             updateSaveButtonState();
                         });
@@ -2079,15 +1497,9 @@
                             }
                         });
                     }
-                    if (completion && inputMaxCompletion) {
-                        inputMaxCompletion.value = completion;
-                    }
-                    if (output && inputMaxOutput) {
-                        inputMaxOutput.value = output;
-                    }
-                    if (max && inputMaxTokens) {
-                        inputMaxTokens.value = max;
-                    }
+                    if (completion && inputMaxCompletion) inputMaxCompletion.value = completion;
+                    if (output && inputMaxOutput) inputMaxOutput.value = output;
+                    if (max && inputMaxTokens) inputMaxTokens.value = max;
                 }
 
                 aiFormIsDirty = true;
@@ -2111,17 +1523,13 @@
             if (formAddAi) {
                 formAddAi.addEventListener('submit', function(e) {
                     e.preventDefault();
-                    if (btnSubmitAddAi) {
-                        btnSubmitAddAi.click();
-                    }
+                    if (btnSubmitAddAi) btnSubmitAddAi.click();
                 });
             }
 
             if (modalAddAiEl) {
                 modalAddAiEl.addEventListener('shown.bs.modal', function() {
-                    if (inputNewModelName) {
-                        inputNewModelName.focus();
-                    }
+                    if (inputNewModelName) inputNewModelName.focus();
                 });
             }
 
@@ -2133,11 +1541,9 @@
                 const engineLabel = (engine === 'google_gemini_api') ? 'Google Gemini API' : 'OpenAI Compatible';
                 const titleEl = document.getElementById('modalAddAiTitleText');
                 if (titleEl) {
-                    titleEl.textContent = `Tambah Model AI Baru (${engineLabel})`;
+                    titleEl.textContent = `Add New AI Model (${engineLabel})`;
                 }
-                if (inputTargetEngine) {
-                    inputTargetEngine.value = engine;
-                }
+                if (inputTargetEngine) inputTargetEngine.value = engine;
                 if (inputNewModelName) inputNewModelName.value = '';
                 if (inputNewCompletion) inputNewCompletion.value = '4096';
                 if (inputNewOutput) inputNewOutput.value = '2048';
@@ -2170,7 +1576,7 @@
 
                     if (!modelName) {
                         if (modalAddAiAlert) {
-                            modalAddAiAlert.textContent = 'Nama model wajib diisi.';
+                            modalAddAiAlert.textContent = 'Model identifier is required.';
                             modalAddAiAlert.classList.remove('d-none');
                         }
                         return;
@@ -2179,7 +1585,7 @@
                     const originalSubmitText = btnSubmitAddAi.innerHTML;
                     btnSubmitAddAi.disabled = true;
                     btnSubmitAddAi.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
+                        '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
 
                     const completionVal = inputNewCompletion ? parseInt(inputNewCompletion.value, 10) ||
                         4096 : 4096;
@@ -2246,8 +1652,8 @@
                                     btnDel.dataset.action = 'delete-model';
                                     btnDel.dataset.engine = engine;
                                     btnDel.dataset.model = modelName;
-                                    btnDel.title = `Hapus model ${modelName}`;
-                                    btnDel.setAttribute('aria-label', `Hapus model ${modelName}`);
+                                    btnDel.title = `Remove model ${modelName}`;
+                                    btnDel.setAttribute('aria-label', `Remove model ${modelName}`);
                                     btnDel.innerHTML =
                                         '<i class="fas fa-trash-alt" aria-hidden="true"></i>';
 
@@ -2277,7 +1683,7 @@
                             } else {
                                 if (modalAddAiAlert) {
                                     modalAddAiAlert.textContent = (resObj.data && resObj.data.message) ?
-                                        resObj.data.message : 'Gagal menambahkan model.';
+                                        resObj.data.message : 'Failed to add model.';
                                     modalAddAiAlert.classList.remove('d-none');
                                 }
                             }
@@ -2286,8 +1692,7 @@
                             btnSubmitAddAi.disabled = false;
                             btnSubmitAddAi.innerHTML = originalSubmitText;
                             if (modalAddAiAlert) {
-                                modalAddAiAlert.textContent = err.message ||
-                                    'Terjadi kesalahan sistem.';
+                                modalAddAiAlert.textContent = err.message || 'System error occurred.';
                                 modalAddAiAlert.classList.remove('d-none');
                             }
                         });
@@ -2306,11 +1711,11 @@
 
                 const items = targetList.querySelectorAll('.model-item');
                 if (items.length <= 1) {
-                    alert('Tidak dapat menghapus satu-satunya model yang tersisa untuk engine ini.');
+                    alert('Cannot delete the last remaining model for this engine.');
                     return;
                 }
 
-                if (!confirm(`Hapus model "${modelName}" dari registry?`)) {
+                if (!confirm(`Remove model "${modelName}" from registry?`)) {
                     return;
                 }
 
@@ -2355,9 +1760,7 @@
                             }
 
                             targetList.querySelectorAll('.model-item').forEach(function(item) {
-                                if (item.dataset.model === modelName) {
-                                    item.remove();
-                                }
+                                if (item.dataset.model === modelName) item.remove();
                             });
 
                             if (removedItemWasActive) {
@@ -2393,14 +1796,14 @@
                             });
                         } else {
                             alert((resObj.data && resObj.data.message) ? resObj.data.message :
-                                'Gagal menghapus model.');
+                                'Failed to remove model.');
                         }
                     })
                     .catch(function(err) {
                         deleteBtns.forEach(function(btn) {
                             btn.disabled = false;
                         });
-                        alert(err.message || 'Terjadi kesalahan komunikasi server.');
+                        alert(err.message || 'Server communication error.');
                     });
             }
 
@@ -2429,22 +1832,16 @@
                         document.getElementById('dropdownCustomModelBtn');
                     if (toggleBtn && window.bootstrap && window.bootstrap.Dropdown) {
                         const inst = bootstrap.Dropdown.getInstance(toggleBtn);
-                        if (inst) {
-                            inst.hide();
-                        }
+                        if (inst) inst.hide();
                     }
                 }
             }
 
             const geminiListEl = document.getElementById('dropdownGeminiModelList');
-            if (geminiListEl) {
-                geminiListEl.addEventListener('click', handleDropdownMenuClick);
-            }
+            if (geminiListEl) geminiListEl.addEventListener('click', handleDropdownMenuClick);
 
             const customListEl = document.getElementById('dropdownCustomModelList');
-            if (customListEl) {
-                customListEl.addEventListener('click', handleDropdownMenuClick);
-            }
+            if (customListEl) customListEl.addEventListener('click', handleDropdownMenuClick);
 
             const btnDeleteGemini = document.getElementById('btnDeleteGeminiModel');
             if (btnDeleteGemini) {
@@ -2487,16 +1884,16 @@
                                 if (wagDetailStatus) {
                                     wagDetailStatus.className = 'fw-bold small text-danger';
                                     wagDetailStatus.innerHTML =
-                                        '<i class="fas fa-times-circle me-1"></i> Offline / Terputus';
+                                        '<i class="fas fa-times-circle me-1"></i> Offline / Disconnected';
                                 }
                                 if (wagDetailPhone) wagDetailPhone.innerHTML =
-                                    '<span class="text-muted fst-italic">Belum Terhubung</span>';
+                                    '<span class="text-muted fst-italic">Not Connected</span>';
                                 if (wagDetailPairedAt) wagDetailPairedAt.innerHTML =
-                                    '<i class="far fa-clock me-1"></i> Menunggu scan';
+                                    '<i class="far fa-clock me-1"></i> Awaiting scan';
                                 wagLeftBox.innerHTML = `
                                     <div class="text-danger mb-2"><i class="fas fa-plug fa-3x"></i></div>
                                     <span class="badge bg-danger px-2 py-1 mb-1 small">waG Offline</span>
-                                    <div class="text-muted" style="font-size: 10px;">Layanan tidak dapat dijangkau</div>
+                                    <div class="text-muted" style="font-size: 10px;">Service unreachable</div>
                                 `;
                             } else if (data.connected) {
                                 wagBadgeEl.innerHTML =
@@ -2512,7 +1909,7 @@
                                 }
                                 if (wagDetailPhone) {
                                     wagDetailPhone.innerHTML = userPhone ? `<code>${userPhone}</code>` :
-                                        '<span class="text-muted fst-italic">Terhubung</span>';
+                                        '<span class="text-muted fst-italic">Connected</span>';
                                 }
                                 if (wagDetailPairedAt && data.paired_at) {
                                     wagDetailPairedAt.innerHTML =
@@ -2520,7 +1917,7 @@
                                 }
                                 wagLeftBox.innerHTML = `
                                     <div class="text-success mb-2"><i class="fab fa-whatsapp fa-3x"></i></div>
-                                    <span class="badge bg-success px-2 py-1 mb-1 small"><i class="fas fa-check-circle me-1"></i> Sesi Terhubung</span>
+                                    <span class="badge bg-success px-2 py-1 mb-1 small"><i class="fas fa-check-circle me-1"></i> Session Connected</span>
                                     <div class="small fw-bold text-dark mb-0" style="font-size: 11px;">${userName}</div>
                                     <code class="text-muted" style="font-size: 10px;">${userPhone}</code>
                                 `;
@@ -2530,18 +1927,18 @@
                                 if (wagDetailStatus) {
                                     wagDetailStatus.className = 'fw-bold small text-warning';
                                     wagDetailStatus.innerHTML =
-                                        '<i class="fas fa-hourglass-half me-1"></i> Menunggu Pairing';
+                                        '<i class="fas fa-hourglass-half me-1"></i> Awaiting Pairing';
                                 }
                                 if (wagDetailPhone) wagDetailPhone.innerHTML =
-                                    '<span class="text-muted fst-italic">Belum Terhubung</span>';
+                                    '<span class="text-muted fst-italic">Not Connected</span>';
                                 if (wagDetailPairedAt) wagDetailPairedAt.innerHTML =
-                                    '<i class="far fa-clock me-1"></i> Menunggu scan';
+                                    '<i class="far fa-clock me-1"></i> Awaiting scan';
                                 wagLeftBox.innerHTML = `
                                     <div class="p-1 bg-white rounded border mb-1 d-flex align-items-center justify-content-center" style="width: 122px; height: 122px;">
                                         ${data.qr_svg}
                                     </div>
-                                    <div class="fw-bold text-dark" style="font-size: 11px;"><i class="fas fa-qrcode me-1 text-primary"></i> Scan QR WhatsApp</div>
-                                    <div class="text-muted" style="font-size: 9.5px;">Buka WA &gt; Perangkat Tertaut</div>
+                                    <div class="fw-bold text-dark" style="font-size: 11px;"><i class="fas fa-qrcode me-1 text-primary"></i> Scan WhatsApp QR</div>
+                                    <div class="text-muted" style="font-size: 9.5px;">Open WhatsApp &gt; Linked Devices</div>
                                 `;
                             }
                         })
@@ -2550,101 +1947,71 @@
                 setInterval(checkWagStatus, 4000);
             }
 
-            // AJAX Dispatch for Direct WhatsApp Test Form
-            const formWaTest = document.getElementById('formWaTestDirect');
-            const btnWaTestSubmit = document.getElementById('btnWaTestSubmit');
-            const waTestAlertBox = document.getElementById('waTestAlertBox');
-
-            if (formWaTest && btnWaTestSubmit) {
-                formWaTest.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const originalHtml = btnWaTestSubmit.innerHTML;
-                    btnWaTestSubmit.disabled = true;
-                    btnWaTestSubmit.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sending...';
-
-                    if (waTestAlertBox) {
-                        waTestAlertBox.className = 'alert alert-info py-1 px-2 small mb-2';
-                        waTestAlertBox.innerHTML =
-                            '<i class="fas fa-spinner fa-spin me-1"></i> Mengirim notifikasi WhatsApp via gateway...';
-                        waTestAlertBox.classList.remove('d-none');
-                    }
-
-                    const payload = {
-                        phone: document.getElementById('wa_direct_phone').value,
-                        message: document.getElementById('wa_direct_message').value
-                    };
-
-                    fetch(formWaTest.action, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify(payload)
-                        })
-                        .then(function(res) {
-                            return res.json().then(function(data) {
-                                return {
-                                    ok: res.ok,
-                                    data: data
-                                };
-                            });
-                        })
-                        .then(function(result) {
-                            btnWaTestSubmit.disabled = false;
-                            btnWaTestSubmit.innerHTML = originalHtml;
-
-                            if (result.ok && result.data.success) {
-                                if (waTestAlertBox) {
-                                    waTestAlertBox.className =
-                                        'alert alert-success py-1 px-2 small mb-2';
-                                    waTestAlertBox.innerHTML =
-                                        '<i class="fas fa-check-circle me-1"></i> <strong>Berhasil:</strong> ' +
-                                        result.data.message;
-                                }
-                            } else {
-                                if (waTestAlertBox) {
-                                    waTestAlertBox.className =
-                                        'alert alert-danger py-1 px-2 small mb-2';
-                                    waTestAlertBox.innerHTML =
-                                        '<i class="fas fa-times-circle me-1"></i> <strong>Gagal:</strong> ' +
-                                        (result.data.message || 'Gagal mengirim pesan.');
-                                }
-                            }
-                        })
-                        .catch(function(err) {
-                            btnWaTestSubmit.disabled = false;
-                            btnWaTestSubmit.innerHTML = originalHtml;
-                            if (waTestAlertBox) {
-                                waTestAlertBox.className = 'alert alert-danger py-1 px-2 small mb-2';
-                                waTestAlertBox.innerHTML =
-                                    '<i class="fas fa-exclamation-triangle me-1"></i> <strong>Error:</strong> ' +
-                                    (err.message || 'Gagal menghubungi server.');
-                            }
-                        });
-                });
-            }
-
             // PayG Payment Station Handlers
-            const paygModeSelect = document.getElementById('payg_active_mode');
-            const badgePaygMode = document.getElementById('badge-payg-mode');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                @json(csrf_token());
+            const qrPreviewUrl = @json(route('admin.settings.payment.qr-preview', [], false));
+            const revealSecretUrl = @json(route('admin.settings.payment.reveal-secret', [], false));
+            const webhookTestUrl = @json(route('admin.settings.payment.webhook-test', [], false));
+
             const btnTogglePaygSecret = document.getElementById('btn-toggle-payg-secret');
+            const btnCopyPaygSecret = document.getElementById('btn-copy-payg-secret');
             const paygSecretInput = document.getElementById('payg_secret');
             const iconTogglePaygSecret = document.getElementById('icon-toggle-payg-secret');
             const btnCopyPaygWebhook = document.getElementById('btn-copy-payg-webhook');
             const paygWebhookInput = document.getElementById('payg_webhook_url');
 
-            if (paygModeSelect && badgePaygMode) {
-                paygModeSelect.addEventListener('change', function() {
-                    badgePaygMode.textContent = this.value.toUpperCase() + ' ENGINE';
+            const staticQrTextarea = document.getElementById('payg_sgpay_static_qr');
+            const qrPreviewFrame = document.getElementById('qris-preview-frame');
+            const qrisDropzone = document.getElementById('qris-dropzone');
+            const qrisImageInput = document.getElementById('qris-image-input');
+            const qrisDecodeStatus = document.getElementById('qris-decode-status');
+            const badgeStaticQrState = document.getElementById('badge-static-qr-state');
+            const previewCrcBadge = document.getElementById('preview-crc-badge');
+            const previewMerchantName = document.getElementById('preview-merchant-name');
+            const previewMerchantCity = document.getElementById('preview-merchant-city');
+            const previewAcquirerNmid = document.getElementById('preview-acquirer-nmid');
+
+            let cachedRevealedSecret = null;
+
+            async function resolveActivePaygSecret() {
+                const currentVal = paygSecretInput ? paygSecretInput.value.trim() : '';
+                if (currentVal && !currentVal.startsWith('••••')) {
+                    return currentVal;
+                }
+                if (cachedRevealedSecret) {
+                    return cachedRevealedSecret;
+                }
+                const resp = await fetch(revealSecretUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify({})
                 });
+                if (!resp.ok) {
+                    throw new Error('Could not load PayG secret.');
+                }
+                const data = await resp.json();
+                cachedRevealedSecret = data.secret || '';
+                return cachedRevealedSecret;
             }
 
             if (btnTogglePaygSecret && paygSecretInput && iconTogglePaygSecret) {
-                btnTogglePaygSecret.addEventListener('click', function() {
+                btnTogglePaygSecret.addEventListener('click', async function() {
                     if (paygSecretInput.type === 'password') {
+                        if (paygSecretInput.value.trim().startsWith('••••')) {
+                            try {
+                                const realSecret = await resolveActivePaygSecret();
+                                if (realSecret) {
+                                    paygSecretInput.value = realSecret;
+                                }
+                            } catch (err) {
+                                console.error(err);
+                            }
+                        }
                         paygSecretInput.type = 'text';
                         iconTogglePaygSecret.className = 'fas fa-eye-slash';
                     } else {
@@ -2654,9 +2021,66 @@
                 });
             }
 
+            if (btnCopyPaygSecret && paygSecretInput) {
+                btnCopyPaygSecret.addEventListener('click', async function() {
+                    try {
+                        const secretToCopy = await resolveActivePaygSecret();
+                        if (!secretToCopy) return;
+                        copyToClipboardSecure(secretToCopy, function() {
+                            const orig = btnCopyPaygSecret.innerHTML;
+                            btnCopyPaygSecret.className = 'btn btn-success';
+                            btnCopyPaygSecret.innerHTML =
+                                '<i class="fas fa-check me-1"></i> Copied';
+                            setTimeout(function() {
+                                btnCopyPaygSecret.className = 'btn btn-outline-primary';
+                                btnCopyPaygSecret.innerHTML = orig;
+                            }, 2000);
+                        });
+                    } catch (err) {
+                        console.error('Copy secret failed:', err);
+                    }
+                });
+            }
+
+            function copyToClipboardSecure(text, onSuccess) {
+                if (!text) return;
+                const executeFallback = function() {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    ta.style.top = '-9999px';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    try {
+                        const successful = document.execCommand('copy');
+                        if (successful && typeof onSuccess === 'function') {
+                            onSuccess();
+                        }
+                    } catch (err) {
+                        console.error('Clipboard copy failed:', err);
+                    }
+                    document.body.removeChild(ta);
+                };
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text)
+                        .then(function() {
+                            if (typeof onSuccess === 'function') onSuccess();
+                        })
+                        .catch(function() {
+                            executeFallback();
+                        });
+                } else {
+                    executeFallback();
+                }
+            }
+
             if (btnCopyPaygWebhook && paygWebhookInput) {
                 btnCopyPaygWebhook.addEventListener('click', function() {
-                    navigator.clipboard.writeText(paygWebhookInput.value).then(function() {
+                    copyToClipboardSecure(paygWebhookInput.value, function() {
                         const orig = btnCopyPaygWebhook.innerHTML;
                         btnCopyPaygWebhook.className = 'btn btn-success';
                         btnCopyPaygWebhook.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
@@ -2668,1061 +2092,349 @@
                 });
             }
 
-            // SoBpay Fee Calculator
-            const btnCalcFees = document.getElementById('btn-calc-fees');
-            const feeCountrySelect = document.getElementById('fee_country');
-            const feeAmountInput = document.getElementById('fee_amount');
-            const feeCalcResults = document.getElementById('fee-calc-results');
-
-            if (btnCalcFees && feeCountrySelect && feeAmountInput && feeCalcResults) {
-                btnCalcFees.addEventListener('click', function() {
-                    btnCalcFees.disabled = true;
-                    btnCalcFees.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Checking...';
-
-                    const country = feeCountrySelect.value;
-                    const amount = feeAmountInput.value || 1000000;
-
-                    fetch(`{{ route('admin.settings.payg.fees', [], false) }}?country=${encodeURIComponent(country)}&amount=${encodeURIComponent(amount)}`, {
-                            headers: {
-                                'Accept': 'application/json'
-                            }
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            btnCalcFees.disabled = false;
-                            btnCalcFees.innerHTML = '<i class="fas fa-search-dollar me-1"></i> Cek Fee';
-                            if (data.success && data.estimates) {
-                                feeCalcResults.style.display = 'block';
-                                let html =
-                                    `<div class="fw-bold mb-1 text-dark">Estimasi Biaya Transaksi (${country}):</div><ul class="mb-0 ps-3">`;
-                                data.estimates.forEach(est => {
-                                    html +=
-                                        `<li><strong>${est.method_name}:</strong> Fee ${est.currency} ${Number(est.estimated_fee).toLocaleString()} &rarr; Total <strong>${est.currency} ${Number(est.total_amount).toLocaleString()}</strong></li>`;
-                                });
-                                html += `</ul>`;
-                                feeCalcResults.innerHTML = html;
-                            }
-                        })
-                        .catch(err => {
-                            btnCalcFees.disabled = false;
-                            btnCalcFees.innerHTML = '<i class="fas fa-search-dollar me-1"></i> Cek Fee';
-                        });
-                });
+            function escapeHtml(str) {
+                return String(str || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
             }
 
-            // Legacy DANA fallback handlers (to preserve test compatibility)
-            const danaEnvSelect = document.getElementById('dana_env');
-            const badgeDanaMode = document.getElementById('badge-dana-mode');
-            const btnPresetDana = document.getElementById('btn-preset-dana');
-            const btnCopyDanaWebhook = document.getElementById('btn-copy-dana-webhook');
-            const danaWebhookInput = document.getElementById('dana_webhook_url');
-            const btnToggleDanaSecret = document.getElementById('btn-toggle-dana-secret');
-            const danaSecretInput = document.getElementById('dana_client_secret');
-            const iconToggleDanaSecret = document.getElementById('icon-toggle-dana-secret');
-
-            if (danaEnvSelect && badgeDanaMode) {
-                danaEnvSelect.addEventListener('change', function() {
-                    const isProd = this.value === 'production';
-                    badgeDanaMode.className = 'badge ' + (isProd ? 'bg-danger' : 'bg-info text-dark');
-                    badgeDanaMode.innerHTML = '<i class="fas ' + (isProd ? 'fa-fire' : 'fa-flask') +
-                        ' me-1"></i> ' +
-                        (isProd ? 'Live Production Snap' : 'Sandbox (Simulator)');
-                });
+            function setDecodeBanner(variant, htmlMessage) {
+                if (!qrisDecodeStatus) return;
+                qrisDecodeStatus.className = 'alert alert-' + variant + ' border py-2 px-2 mt-2 mb-0';
+                qrisDecodeStatus.innerHTML = htmlMessage;
             }
 
-            if (btnPresetDana) {
-                btnPresetDana.addEventListener('click', function() {
-                    if (danaEnvSelect) {
-                        danaEnvSelect.value = 'sandbox';
-                        danaEnvSelect.dispatchEvent(new Event('change'));
+            function renderEmptyQrPreview(message) {
+                if (!qrPreviewFrame) return;
+                const msg = escapeHtml(message ||
+                    'Upload your GoBiz / DANA / Bank QR poster or paste an EMVCo QRIS string.');
+                qrPreviewFrame.innerHTML =
+                    '<div class="text-center text-muted py-3 px-2">' +
+                    '<i class="fas fa-qrcode fa-2x mb-2 opacity-50"></i>' +
+                    '<div class="small fw-semibold">No Static QRIS Configured</div>' +
+                    '<div class="text-muted" style="font-size: 11px;">' + msg + '</div>' +
+                    '</div>';
+            }
+
+            function updateMerchantMetadataUi(rawValue) {
+                const cleaned = window.FastCargoQris ?
+                    window.FastCargoQris.cleanQrisString(rawValue) :
+                    String(rawValue || '').replace(/[\r\n]+/g, '').trim();
+
+                if (!cleaned) {
+                    if (previewMerchantName) previewMerchantName.textContent = '—';
+                    if (previewMerchantCity) previewMerchantCity.textContent = '—';
+                    if (previewAcquirerNmid) previewAcquirerNmid.textContent = '—';
+                    if (previewCrcBadge) {
+                        previewCrcBadge.className = 'badge bg-secondary';
+                        previewCrcBadge.textContent = 'CRC-16 Unconfigured';
                     }
-                    const merchantInput = document.getElementById('dana_merchant_id');
-                    const clientInput = document.getElementById('dana_client_id');
-                    if (merchantInput) merchantInput.value = '2166100000000001';
-                    if (clientInput) clientInput.value = 'fastcargo-snap-sandbox';
-                    if (danaSecretInput) {
-                        danaSecretInput.value = 'sandbox_secret_998877665544';
-                        danaSecretInput.type = 'text';
-                        if (iconToggleDanaSecret) {
-                            iconToggleDanaSecret.className = 'fas fa-eye-slash';
-                        }
+                    if (badgeStaticQrState) {
+                        badgeStaticQrState.className = 'badge bg-secondary';
+                        badgeStaticQrState.textContent = 'Not Set';
+                    }
+                    return null;
+                }
+
+                if (!window.FastCargoQris) return null;
+
+                const parsed = window.FastCargoQris.parseEmvcoQris(cleaned);
+                if (previewMerchantName) {
+                    previewMerchantName.textContent = parsed.merchantName || '—';
+                }
+                if (previewMerchantCity) {
+                    previewMerchantCity.textContent = parsed.merchantCity || '—';
+                }
+                if (previewAcquirerNmid) {
+                    const acq = parsed.acquirerLabel || (parsed.acquirerDomain || '');
+                    const nmid = parsed.nmid || '';
+                    if (acq || nmid) {
+                        previewAcquirerNmid.textContent = acq && nmid ? (acq + ' · ' + nmid) : (acq || nmid);
+                    } else {
+                        previewAcquirerNmid.textContent = '—';
+                    }
+                }
+                if (previewCrcBadge) {
+                    if (parsed.crcValid && parsed.valid) {
+                        previewCrcBadge.className = 'badge bg-success';
+                        previewCrcBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i> CRC-16 Valid';
+                    } else {
+                        previewCrcBadge.className = 'badge bg-danger';
+                        previewCrcBadge.innerHTML =
+                            '<i class="fas fa-exclamation-triangle me-1"></i> CRC-16 Invalid';
+                    }
+                }
+                if (badgeStaticQrState) {
+                    badgeStaticQrState.className = parsed.valid ? 'badge bg-success' : 'badge bg-danger';
+                    badgeStaticQrState.textContent = parsed.valid ? 'Ready to Save' : 'Invalid';
+                }
+                return parsed;
+            }
+
+            async function refreshServerQrSvgPreview(rawValue) {
+                const cleaned = window.FastCargoQris ?
+                    window.FastCargoQris.cleanQrisString(rawValue) :
+                    String(rawValue || '').replace(/[\r\n]+/g, '').trim();
+
+                if (!cleaned) {
+                    renderEmptyQrPreview();
+                    return;
+                }
+
+                try {
+                    const resp = await fetch(qrPreviewUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({
+                            qris: cleaned
+                        })
+                    });
+                    const data = await resp.json();
+                    if (data.valid && data.svg && qrPreviewFrame) {
+                        qrPreviewFrame.innerHTML = data.svg;
+                    } else {
+                        renderEmptyQrPreview(data.metadata?.error ||
+                            'Invalid EMVCo QRIS format or CRC-16 checksum.');
+                    }
+                } catch (err) {
+                    console.error('QR preview render error:', err);
+                }
+            }
+
+            let previewTimer = null;
+            if (staticQrTextarea) {
+                staticQrTextarea.addEventListener('input', function() {
+                    const parsed = updateMerchantMetadataUi(staticQrTextarea.value);
+                    clearTimeout(previewTimer);
+                    previewTimer = setTimeout(function() {
+                        refreshServerQrSvgPreview(staticQrTextarea.value);
+                    }, 260);
+
+                    if (parsed && parsed.raw && !parsed.valid) {
+                        setDecodeBanner('warning', '<i class="fas fa-exclamation-triangle me-1"></i> ' +
+                            escapeHtml(parsed.error || 'Invalid EMVCo QRIS string.'));
+                    } else if (parsed && parsed.valid && qrisDecodeStatus && !qrisDecodeStatus.classList
+                        .contains('d-none')) {
+                        setDecodeBanner('success',
+                            '<i class="fas fa-check-circle me-1"></i> Valid EMVCo QRIS detected (' +
+                            escapeHtml(parsed.merchantName || 'Merchant') +
+                            '). Click <strong>Save PayG Settings</strong> to apply.');
                     }
                 });
             }
 
-            if (btnCopyDanaWebhook && danaWebhookInput) {
-                btnCopyDanaWebhook.addEventListener('click', function() {
-                    const text = danaWebhookInput.value;
-                    navigator.clipboard.writeText(text).then(function() {
-                        const originalHtml = btnCopyDanaWebhook.innerHTML;
-                        btnCopyDanaWebhook.className = 'btn btn-success';
-                        btnCopyDanaWebhook.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
+            function isSupportedImageFile(file) {
+                if (!file) return false;
+                if (file.type && file.type.startsWith('image/')) return true;
+                return /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name || '');
+            }
+
+            async function handleQrImageFile(file) {
+                if (!file) return;
+                if (!isSupportedImageFile(file)) {
+                    setDecodeBanner('warning',
+                        '<i class="fas fa-exclamation-triangle me-1"></i> Please select a valid image file (PNG, JPG, or WEBP).'
+                    );
+                    return;
+                }
+                if (!window.FastCargoQris) {
+                    setDecodeBanner('danger',
+                        '<i class="fas fa-times-circle me-1"></i> Local QR decoder script failed to load.');
+                    return;
+                }
+                setDecodeBanner('light',
+                    '<i class="fas fa-spinner fa-spin me-1"></i> Decoding QR image locally in your browser...'
+                );
+
+                try {
+                    const decoded = await window.FastCargoQris.decodeQrFromFile(file);
+                    if (staticQrTextarea) {
+                        staticQrTextarea.value = decoded.rawText;
+                    }
+                    const parsed = updateMerchantMetadataUi(decoded.rawText);
+                    await refreshServerQrSvgPreview(decoded.rawText);
+
+                    if (parsed && parsed.valid) {
+                        setDecodeBanner(
+                            'success',
+                            '<i class="fas fa-check-circle me-1"></i> Decoded via <strong>' + escapeHtml(
+                                decoded.method) + '</strong>' +
+                            (parsed.acquirerLabel ? ' (' + escapeHtml(parsed.acquirerLabel) + ')' : '') +
+                            '. Review merchant identity &amp; click <strong>Save PayG Settings</strong>.'
+                        );
+                    } else {
+                        setDecodeBanner(
+                            'warning',
+                            '<i class="fas fa-exclamation-triangle me-1"></i> QR read via <strong>' +
+                            escapeHtml(decoded.method) + '</strong>, but EMVCo QRIS validation failed: ' +
+                            escapeHtml((parsed && parsed.error) ? parsed.error : 'Not an EMVCo QRIS code.')
+                        );
+                    }
+                } catch (err) {
+                    setDecodeBanner('danger', '<i class="fas fa-times-circle me-1"></i> ' + escapeHtml(err
+                        .message || 'Unable to decode QR code from image.'));
+                }
+            }
+
+            if (qrisDropzone && qrisImageInput) {
+                qrisDropzone.addEventListener('click', function() {
+                    qrisImageInput.click();
+                });
+                qrisDropzone.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        qrisImageInput.click();
+                    }
+                });
+                qrisDropzone.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    qrisDropzone.classList.add('is-dragover');
+                });
+                qrisDropzone.addEventListener('dragleave', function() {
+                    qrisDropzone.classList.remove('is-dragover');
+                });
+                qrisDropzone.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    qrisDropzone.classList.remove('is-dragover');
+                    const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
+                    if (file) handleQrImageFile(file);
+                });
+                qrisImageInput.addEventListener('change', function() {
+                    const file = qrisImageInput.files ? qrisImageInput.files[0] : null;
+                    if (file) handleQrImageFile(file);
+                    qrisImageInput.value = '';
+                });
+            }
+
+            // MacroDroid Modal Handlers
+            const modalMacroDroidGuide = document.getElementById('modalMacroDroidGuide');
+            const macrodroidSecretPreview = document.getElementById('macrodroid-secret-preview');
+            const macrodroidModalUrl = document.getElementById('macrodroid-modal-url');
+            const btnCopyMacrodroidUrl = document.getElementById('btn-copy-macrodroid-url');
+            const btnCopyMacrodroidSecret = document.getElementById('btn-copy-macrodroid-secret');
+            const btnCopyMacrodroidJson = document.getElementById('btn-copy-macrodroid-json');
+            const macrodroidJsonTemplate = document.getElementById('macrodroid-json-template');
+            const macrodroidDryrunText = document.getElementById('macrodroid-dryrun-text');
+            const btnRunMacrodroidDryrun = document.getElementById('btn-run-macrodroid-dryrun');
+            const macrodroidDryrunResult = document.getElementById('macrodroid-dryrun-result');
+
+            if (modalMacroDroidGuide && macrodroidSecretPreview) {
+                modalMacroDroidGuide.addEventListener('show.bs.modal', async function() {
+                    try {
+                        const sec = await resolveActivePaygSecret();
+                        macrodroidSecretPreview.textContent = sec || 'fastcargo-payg-secret-2026';
+                    } catch (err) {
+                        macrodroidSecretPreview.textContent = '<configured payg_secret>';
+                    }
+                });
+            }
+
+            if (btnCopyMacrodroidUrl && macrodroidModalUrl) {
+                btnCopyMacrodroidUrl.addEventListener('click', function() {
+                    copyToClipboardSecure(macrodroidModalUrl.value, function() {
+                        const orig = btnCopyMacrodroidUrl.innerHTML;
+                        btnCopyMacrodroidUrl.className = 'btn btn-success';
+                        btnCopyMacrodroidUrl.innerHTML = '<i class="fas fa-check me-1"></i> Copied';
                         setTimeout(function() {
-                            btnCopyDanaWebhook.className = 'btn btn-primary';
-                            btnCopyDanaWebhook.innerHTML = originalHtml;
+                            btnCopyMacrodroidUrl.className = 'btn btn-outline-primary';
+                            btnCopyMacrodroidUrl.innerHTML = orig;
                         }, 2000);
                     });
                 });
             }
 
-            if (btnToggleDanaSecret && danaSecretInput && iconToggleDanaSecret) {
-                btnToggleDanaSecret.addEventListener('click', function() {
-                    if (danaSecretInput.type === 'password') {
-                        danaSecretInput.type = 'text';
-                        iconToggleDanaSecret.className = 'fas fa-eye-slash';
-                    } else {
-                        danaSecretInput.type = 'password';
-                        iconToggleDanaSecret.className = 'fas fa-eye';
-                    }
-                });
-            }
-
-            // Embedded PayG Smart Simulator Logic
-            const btnGenDirect = document.getElementById('btnGenSandboxDirect');
-            const selectTxDirect = document.getElementById('selectTransactionDirect');
-            const partnerRefDirect = document.getElementById('partnerRefDirect');
-            const amountDirect = document.getElementById('amountDirect');
-            const btnDispatchDirect = document.getElementById('btnDispatchDirect');
-            const statusBadgeDirect = document.getElementById('responseStatusBadgeDirect');
-
-            const stateTxDirect = document.getElementById('stateTxDirect');
-            const stateInvoiceDirect = document.getElementById('stateInvoiceDirect');
-            const stateEscrowDirect = document.getElementById('stateEscrowDirect');
-
-            const jsonDirectReq = document.getElementById('jsonDirectRequest');
-            const jsonDirectRes = document.getElementById('jsonDirectResponse');
-
-            const recentTxEmpty = document.getElementById('recentTxEmpty');
-            const recentTxTableWrapper = document.getElementById('recentTxTableWrapper');
-            const recentTxTableBody = document.getElementById('recentTransactionsTableBody');
-            const simulatorAuditTableBody = document.getElementById('simulatorAuditTableBody');
-
-            // Prepend new row to the embedded audit trail table
-            function prependAuditLog(action, targetRef) {
-                if (!simulatorAuditTableBody) return;
-                const emptyRow = simulatorAuditTableBody.querySelector('.audit-empty-row');
-                if (emptyRow) emptyRow.remove();
-
-                const now = new Date();
-                const timeStr = String(now.getHours()).padStart(2, '0') + ':' +
-                    String(now.getMinutes()).padStart(2, '0') + ':' +
-                    String(now.getSeconds()).padStart(2, '0');
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-nowrap">${timeStr}</td>
-                    <td><span class="badge bg-light text-dark border">${action}</span></td>
-                    <td class="font-monospace text-primary text-truncate" style="max-width: 100px;">${targetRef || 'N/A'}</td>
-                    <td>127.0.0.1</td>
-                `;
-                simulatorAuditTableBody.prepend(tr);
-            }
-
-            // Safe clipboard copy with fallback
-            function copyDirectJson(text, btnElement) {
-                if (!text || text.startsWith('//')) return;
-                const successCallback = () => {
-                    const orig = btnElement.innerHTML;
-                    btnElement.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
-                    setTimeout(() => {
-                        btnElement.innerHTML = orig;
-                    }, 2000);
-                };
-
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(text).then(successCallback).catch(() => fallbackDirectCopy(text,
-                        successCallback));
-                } else {
-                    fallbackDirectCopy(text, successCallback);
-                }
-            }
-
-            function fallbackDirectCopy(text, callback) {
-                const ta = document.createElement('textarea');
-                ta.value = text;
-                ta.style.position = 'fixed';
-                ta.style.opacity = '0';
-                document.body.appendChild(ta);
-                ta.select();
-                try {
-                    document.execCommand('copy');
-                    callback();
-                } catch (e) {}
-                document.body.removeChild(ta);
-            }
-
-            function updateRecentTransactionsTable(ref, status, amount, invoiceNo) {
-                if (recentTxEmpty) recentTxEmpty.classList.add('d-none');
-                if (recentTxTableWrapper) recentTxTableWrapper.classList.remove('d-none');
-
-                let badgeHtml = '';
-                const upperStatus = (status || '').toUpperCase();
-                let hlClass = 'table-danger';
-
-                if (upperStatus === 'SETTLEMENT' || upperStatus === 'SETTLED') {
-                    badgeHtml = '<span class="badge bg-success">SETTLED</span>';
-                    hlClass = 'table-success';
-                } else if (upperStatus === 'PENDING') {
-                    badgeHtml = '<span class="badge bg-warning text-dark">PENDING</span>';
-                    hlClass = 'table-warning';
-                } else if (upperStatus === 'EXPIRED') {
-                    badgeHtml = '<span class="badge bg-secondary">EXPIRED</span>';
-                    hlClass = 'table-secondary';
-                } else if (upperStatus === 'CANCELLED') {
-                    badgeHtml = '<span class="badge bg-dark">CANCELLED</span>';
-                    hlClass = 'table-secondary';
-                } else {
-                    badgeHtml = `<span class="badge bg-danger">${upperStatus}</span>`;
-                }
-
-                const existingRow = recentTxTableBody ? recentTxTableBody.querySelector(
-                    `tr[data-tx-ref="${ref}"]`) : null;
-                if (existingRow) {
-                    const statusCell = existingRow.querySelector('.tx-status-cell');
-                    if (statusCell) statusCell.innerHTML = badgeHtml;
-                    const timeCell = existingRow.querySelector('.tx-time');
-                    if (timeCell) timeCell.textContent = 'Baru saja';
-                    if (amount) {
-                        const amountCell = existingRow.querySelector('.tx-amount');
-                        if (amountCell) amountCell.textContent = 'Rp ' + Number(amount).toLocaleString('id-ID');
-                    }
-                    if (invoiceNo) {
-                        const invSpan = existingRow.querySelector('.tx-invoice');
-                        if (invSpan && (!invSpan.textContent || invSpan.textContent.trim() === '-')) {
-                            invSpan.textContent = invoiceNo;
-                        }
-                    }
-                    recentTxTableBody.prepend(existingRow);
-                    existingRow.classList.remove('table-success', 'table-warning', 'table-secondary',
-                        'table-danger');
-                    existingRow.classList.add(hlClass);
-                    setTimeout(() => existingRow.classList.remove(hlClass), 2500);
-                } else if (recentTxTableBody) {
-                    const newRow = document.createElement('tr');
-                    newRow.dataset.txRef = ref;
-                    newRow.innerHTML = `
-                        <td>
-                            <div class="fw-bold font-monospace text-truncate tx-ref" style="max-width: 120px;" title="${ref}">
-                                ${ref}
-                            </div>
-                            <div class="text-muted" style="font-size: 10px;">
-                                <span class="badge bg-light text-dark border">PAYG</span>
-                                <span class="tx-invoice">${invoiceNo || '-'}</span>
-                            </div>
-                        </td>
-                        <td class="fw-bold text-dark tx-amount">
-                            Rp ${Number(amount || 0).toLocaleString('id-ID')}
-                        </td>
-                        <td class="text-center tx-status-cell">
-                            ${badgeHtml}
-                        </td>
-                        <td class="text-end text-muted tx-time" style="font-size: 10.5px;">
-                            Baru saja
-                        </td>
-                    `;
-                    recentTxTableBody.prepend(newRow);
-                    newRow.classList.add(hlClass);
-                    setTimeout(() => newRow.classList.remove(hlClass), 2500);
-                }
-            }
-
-            // Prevent accidental form submission on Enter in simulator inputs
-            if (partnerRefDirect) {
-                partnerRefDirect.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (btnDispatchDirect) btnDispatchDirect.click();
-                    }
-                });
-            }
-            if (amountDirect) {
-                amountDirect.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (btnDispatchDirect) btnDispatchDirect.click();
-                    }
-                });
-            }
-
-            // Quick Switch button from Right Column to Tab 3
-            const btnSwitchToSimulator = document.getElementById('btnSwitchToSimulatorTab');
-            if (btnSwitchToSimulator) {
-                btnSwitchToSimulator.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const tabBtn = document.getElementById('tab-simulator-btn');
-                    if (tabBtn) {
-                        tabBtn.click();
-                        tabBtn.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest'
+            if (btnCopyMacrodroidSecret) {
+                btnCopyMacrodroidSecret.addEventListener('click', async function() {
+                    try {
+                        const sec = await resolveActivePaygSecret();
+                        if (!sec) return;
+                        copyToClipboardSecure(sec, function() {
+                            const orig = btnCopyMacrodroidSecret.innerHTML;
+                            btnCopyMacrodroidSecret.className =
+                                'btn btn-success btn-sm py-0 px-2';
+                            btnCopyMacrodroidSecret.innerHTML =
+                                '<i class="fas fa-check me-1"></i> Copied';
+                            setTimeout(function() {
+                                btnCopyMacrodroidSecret.className =
+                                    'btn btn-outline-secondary btn-sm py-0 px-2';
+                                btnCopyMacrodroidSecret.innerHTML = orig;
+                            }, 2000);
                         });
+                    } catch (err) {
+                        console.error(err);
                     }
                 });
             }
 
-            // Auto-activate Tab 3 if URL hash or parameter requests it
-            if (window.location.hash === '#tab-simulator' || window.location.search.includes('tab=simulator')) {
-                const tabBtn = document.getElementById('tab-simulator-btn');
-                if (tabBtn) {
-                    setTimeout(() => {
-                        tabBtn.click();
-                        tabBtn.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest'
-                        });
-                    }, 150);
-                }
+            if (btnCopyMacrodroidJson && macrodroidJsonTemplate) {
+                btnCopyMacrodroidJson.addEventListener('click', function() {
+                    copyToClipboardSecure(macrodroidJsonTemplate.textContent.trim(), function() {
+                        const orig = btnCopyMacrodroidJson.innerHTML;
+                        btnCopyMacrodroidJson.className = 'btn btn-success btn-sm py-0 px-2';
+                        btnCopyMacrodroidJson.innerHTML =
+                            '<i class="fas fa-check me-1"></i> Copied';
+                        setTimeout(function() {
+                            btnCopyMacrodroidJson.className =
+                                'btn btn-outline-primary btn-sm py-0 px-2';
+                            btnCopyMacrodroidJson.innerHTML = orig;
+                        }, 2000);
+                    });
+                });
             }
 
-            // 1-Click Sandbox Test Generator
-            if (btnGenDirect) {
-                btnGenDirect.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    btnGenDirect.disabled = true;
-                    btnGenDirect.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Generating Sandbox TX...';
+            if (btnRunMacrodroidDryrun && macrodroidDryrunText && macrodroidDryrunResult) {
+                btnRunMacrodroidDryrun.addEventListener('click', async function() {
+                    const text = macrodroidDryrunText.value.trim();
+                    if (!text) return;
 
-                    fetch('{{ route('admin.simulator.generate', [], false) }}', {
+                    btnRunMacrodroidDryrun.disabled = true;
+                    macrodroidDryrunResult.className = 'alert alert-light border py-2 px-3 small mb-0';
+                    macrodroidDryrunResult.innerHTML =
+                        '<i class="fas fa-spinner fa-spin me-1"></i> Testing amount extraction...';
+
+                    try {
+                        const resp = await fetch(webhookTestUrl, {
                             method: 'POST',
                             headers: {
+                                'Accept': 'application/json',
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
-                            }
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            btnGenDirect.disabled = false;
-                            btnGenDirect.innerHTML =
-                                '<i class="fas fa-magic me-1"></i> Generate Sandbox Test Invoice';
-
-                            if (data.success && data.transaction) {
-                                if (partnerRefDirect) partnerRefDirect.value = data.transaction
-                                    .transaction_ref;
-                                if (amountDirect) amountDirect.value = data.transaction.amount;
-
-                                if (selectTxDirect) {
-                                    const opt = document.createElement('option');
-                                    opt.value = data.transaction.transaction_ref;
-                                    opt.dataset.amount = data.transaction.amount;
-                                    opt.dataset.invoice = data.transaction.invoice_number;
-                                    opt.dataset.txStatus = 'PENDING';
-                                    opt.dataset.invoiceStatus = 'PENDING';
-                                    opt.dataset.escrowStatus = 'NOT_FUNDED';
-                                    opt.dataset.escrowAmount = '0.00';
-                                    opt.textContent =
-                                        `${data.transaction.transaction_ref} (${data.transaction.invoice_number}) — IDR ${Number(data.transaction.amount).toLocaleString('id-ID')} [PENDING]`;
-
-                                    // Keep the placeholder at index 0
-                                    if (selectTxDirect.children.length > 0 && selectTxDirect.children[0]
-                                        .value === '') {
-                                        selectTxDirect.children[0].insertAdjacentElement('afterend',
-                                            opt);
-                                    } else {
-                                        selectTxDirect.prepend(opt);
-                                    }
-                                    selectTxDirect.value = data.transaction.transaction_ref;
-                                }
-
-                                if (stateTxDirect) stateTxDirect.innerHTML =
-                                    '<span class="badge bg-warning text-dark">PENDING</span>';
-                                if (stateInvoiceDirect) stateInvoiceDirect.innerHTML =
-                                    '<span class="badge bg-warning text-dark">PENDING</span>';
-                                if (stateEscrowDirect) stateEscrowDirect.innerHTML =
-                                    '<span class="badge bg-secondary">NOT_FUNDED</span>';
-
-                                updateRecentTransactionsTable(
-                                    data.transaction.transaction_ref,
-                                    'PENDING',
-                                    data.transaction.amount,
-                                    data.transaction.invoice_number
-                                );
-
-                                prependAuditLog('SIMULATOR_SANDBOX_TX_CREATED', data.transaction
-                                    .transaction_ref);
-                            } else {
-                                alert(data.message || 'Gagal generate sandbox transaction');
-                            }
-                        })
-                        .catch(err => {
-                            btnGenDirect.disabled = false;
-                            btnGenDirect.innerHTML =
-                                '<i class="fas fa-magic me-1"></i> Generate Sandbox Test Invoice';
-                            alert('Network Error saat generate sandbox: ' + err);
-                        });
-                });
-            }
-
-            // Dropdown selection change
-            if (selectTxDirect) {
-                selectTxDirect.addEventListener('change', function() {
-                    const selected = selectTxDirect.options[selectTxDirect.selectedIndex];
-                    if (selected && selected.value) {
-                        if (partnerRefDirect) partnerRefDirect.value = selected.value;
-                        if (selected.dataset.amount && amountDirect) {
-                            amountDirect.value = selected.dataset.amount;
-                        }
-
-                        // Update Live Ledger Indicators to reflect selected transaction
-                        if (selected.dataset.txStatus && stateTxDirect) {
-                            const st = selected.dataset.txStatus;
-                            const cls = st === 'SETTLEMENT' ? 'bg-success' : (st === 'PENDING' ?
-                                'bg-warning text-dark' : (st === 'EXPIRED' || st === 'CANCELLED' ?
-                                    'bg-secondary' : 'bg-danger'));
-                            stateTxDirect.innerHTML = `<span class="badge ${cls}">${st}</span>`;
-                        }
-                        if (selected.dataset.invoiceStatus && stateInvoiceDirect) {
-                            const invSt = selected.dataset.invoiceStatus;
-                            const cls = invSt === 'PAID_SETTLED' ? 'bg-success' : (invSt === 'PENDING' ?
-                                'bg-warning text-dark' : 'bg-danger');
-                            stateInvoiceDirect.innerHTML = `<span class="badge ${cls}">${invSt}</span>`;
-                        }
-                        if (selected.dataset.escrowStatus && stateEscrowDirect) {
-                            const escSt = selected.dataset.escrowStatus;
-                            const cls = escSt === 'HELD_IN_ESCROW' ? 'bg-success' : 'bg-secondary';
-                            const escAmt = selected.dataset.escrowAmount ? Number(selected.dataset
-                                .escrowAmount).toLocaleString('id-ID') : '0';
-                            const text = escSt === 'HELD_IN_ESCROW' ? `HELD (Rp ${escAmt})` : escSt;
-                            stateEscrowDirect.innerHTML = `<span class="badge ${cls}">${text}</span>`;
-                        }
-                    } else if (selected && !selected.value) {
-                        if (partnerRefDirect) partnerRefDirect.value = '';
-                        if (stateTxDirect) stateTxDirect.innerHTML = '—';
-                        if (stateInvoiceDirect) stateInvoiceDirect.innerHTML = '—';
-                        if (stateEscrowDirect) stateEscrowDirect.innerHTML = '—';
-                    }
-                });
-            }
-
-            // Webhook Dispatcher
-            if (btnDispatchDirect) {
-                btnDispatchDirect.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const ref = partnerRefDirect ? partnerRefDirect.value.trim() : '';
-                    const amount = (amountDirect && amountDirect.value.trim() !== '') ? amountDirect.value
-                        .trim() : '6500000';
-                    const scenarioRadio = document.querySelector('input[name="direct_scenario"]:checked');
-                    const scenario = scenarioRadio ? scenarioRadio.value : 'SETTLEMENT';
-
-                    if (!ref) {
-                        alert('Mohon masukkan atau pilih Partner Reference No.');
-                        if (partnerRefDirect) partnerRefDirect.focus();
-                        return;
-                    }
-
-                    btnDispatchDirect.disabled = true;
-                    btnDispatchDirect.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Dispatching Webhook...';
-                    if (statusBadgeDirect) {
-                        statusBadgeDirect.className = 'badge bg-secondary';
-                        statusBadgeDirect.textContent = 'Sending...';
-                    }
-
-                    fetch('{{ route('admin.simulator.fire', [], false) }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
+                                'X-CSRF-TOKEN': csrfToken
                             },
                             body: JSON.stringify({
-                                partnerReferenceNo: ref,
-                                scenario: scenario,
-                                amount: amount
+                                notification_text: text
                             })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            btnDispatchDirect.disabled = false;
-                            btnDispatchDirect.innerHTML =
-                                '<i class="fas fa-paper-plane me-1"></i> Dispatch Simulated Webhook';
-
-                            if (statusBadgeDirect) {
-                                if (data.http_status === 200) {
-                                    statusBadgeDirect.className = 'badge bg-success';
-                                    statusBadgeDirect.textContent = `HTTP ${data.http_status} OK`;
-                                } else {
-                                    statusBadgeDirect.className = 'badge bg-danger';
-                                    statusBadgeDirect.textContent = `HTTP ${data.http_status || 'ERR'}`;
-                                }
-                            }
-
-                            // Render payload and response JSON
-                            if (jsonDirectReq) {
-                                jsonDirectReq.textContent = typeof data.request_payload === 'string' ?
-                                    data.request_payload :
-                                    JSON.stringify(data.request_payload, null, 2);
-                            }
-                            if (jsonDirectRes) {
-                                jsonDirectRes.textContent = typeof data.response_payload === 'string' ?
-                                    data.response_payload :
-                                    JSON.stringify(data.response_payload, null, 2);
-                            }
-
-                            // Auto expand response collapse box
-                            const collapseResEl = document.getElementById('collapseDirectResponse');
-                            if (collapseResEl && window.bootstrap && window.bootstrap.Collapse) {
-                                bootstrap.Collapse.getOrCreateInstance(collapseResEl).show();
-                            }
-
-                            // Update Live Ledger Indicators
-                            if (data.ledger_state) {
-                                const txStatus = data.ledger_state.transaction_status;
-                                const invStatus = data.ledger_state.invoice_status;
-                                const escStatus = data.ledger_state.escrow_status;
-                                const escAmount = data.ledger_state.escrow_amount_held;
-
-                                if (stateTxDirect) {
-                                    const txClass = txStatus === 'SETTLEMENT' ? 'bg-success' : (
-                                        txStatus === 'PENDING' ? 'bg-warning text-dark' : (
-                                            txStatus === 'EXPIRED' || txStatus === 'CANCELLED' ?
-                                            'bg-secondary' : 'bg-danger'));
-                                    stateTxDirect.innerHTML =
-                                        `<span class="badge ${txClass}">${txStatus}</span>`;
-                                }
-
-                                if (stateInvoiceDirect) {
-                                    const invClass = invStatus === 'PAID_SETTLED' ? 'bg-success' : (
-                                        invStatus === 'PENDING' ? 'bg-warning text-dark' :
-                                        'bg-danger');
-                                    stateInvoiceDirect.innerHTML =
-                                        `<span class="badge ${invClass}">${invStatus}</span>`;
-                                }
-
-                                if (stateEscrowDirect) {
-                                    const escClass = escStatus === 'HELD_IN_ESCROW' ? 'bg-success' :
-                                        'bg-secondary';
-                                    const escText = escStatus === 'HELD_IN_ESCROW' ?
-                                        `HELD (Rp ${Number(escAmount).toLocaleString('id-ID')})` :
-                                        escStatus;
-                                    stateEscrowDirect.innerHTML =
-                                        `<span class="badge ${escClass}">${escText}</span>`;
-                                }
-                            }
-
-                            // Determine resolved status
-                            const resolvedTxStatus = (data.ledger_state && data.ledger_state
-                                    .transaction_status && data.ledger_state.transaction_status !==
-                                    'NOT_FOUND') ?
-                                data.ledger_state.transaction_status :
-                                scenario;
-
-                            // Lookup invoice number if known
-                            let invoiceNo = null;
-                            if (selectTxDirect) {
-                                for (let i = 0; i < selectTxDirect.options.length; i++) {
-                                    if (selectTxDirect.options[i].value === ref) {
-                                        invoiceNo = selectTxDirect.options[i].dataset.invoice || null;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            // Immediately update "Riwayat Transaksi Masuk" table on right column
-                            updateRecentTransactionsTable(ref, resolvedTxStatus, amount, invoiceNo);
-
-                            // Update or insert option in dropdown
-                            if (selectTxDirect) {
-                                let found = false;
-                                for (let i = 0; i < selectTxDirect.options.length; i++) {
-                                    if (selectTxDirect.options[i].value === ref) {
-                                        const inv = selectTxDirect.options[i].dataset.invoice || 'INV';
-                                        const amt = selectTxDirect.options[i].dataset.amount || amount;
-                                        selectTxDirect.options[i].textContent =
-                                            `${ref} (${inv}) — IDR ${Number(amt).toLocaleString('id-ID')} [${resolvedTxStatus}]`;
-                                        selectTxDirect.options[i].dataset.txStatus = resolvedTxStatus;
-                                        if (data.ledger_state) {
-                                            selectTxDirect.options[i].dataset.invoiceStatus = data
-                                                .ledger_state.invoice_status;
-                                            selectTxDirect.options[i].dataset.escrowStatus = data
-                                                .ledger_state.escrow_status;
-                                            selectTxDirect.options[i].dataset.escrowAmount = data
-                                                .ledger_state.escrow_amount_held;
-                                        }
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                if (!found) {
-                                    const opt = document.createElement('option');
-                                    opt.value = ref;
-                                    opt.dataset.amount = amount;
-                                    opt.dataset.invoice = 'MANUAL';
-                                    opt.dataset.txStatus = resolvedTxStatus;
-                                    if (data.ledger_state) {
-                                        opt.dataset.invoiceStatus = data.ledger_state.invoice_status;
-                                        opt.dataset.escrowStatus = data.ledger_state.escrow_status;
-                                        opt.dataset.escrowAmount = data.ledger_state.escrow_amount_held;
-                                    }
-                                    opt.textContent =
-                                        `${ref} (MANUAL) — IDR ${Number(amount).toLocaleString('id-ID')} [${resolvedTxStatus}]`;
-                                    if (selectTxDirect.children.length > 0 && selectTxDirect.children[0]
-                                        .value === '') {
-                                        selectTxDirect.children[0].insertAdjacentElement('afterend',
-                                            opt);
-                                    } else {
-                                        selectTxDirect.prepend(opt);
-                                    }
-                                    selectTxDirect.value = ref;
-                                }
-                            }
-
-                            prependAuditLog('WEBHOOK_SIMULATOR_DISPATCHED', ref);
-                        })
-                        .catch(err => {
-                            btnDispatchDirect.disabled = false;
-                            btnDispatchDirect.innerHTML =
-                                '<i class="fas fa-paper-plane me-1"></i> Dispatch Simulated Webhook';
-                            if (statusBadgeDirect) {
-                                statusBadgeDirect.className = 'badge bg-danger';
-                                statusBadgeDirect.textContent = 'Network Error';
-                            }
-                            if (jsonDirectRes) jsonDirectRes.textContent = String(err);
-                            const collapseResEl = document.getElementById('collapseDirectResponse');
-                            if (collapseResEl && window.bootstrap && window.bootstrap.Collapse) {
-                                bootstrap.Collapse.getOrCreateInstance(collapseResEl).show();
-                            }
                         });
-                });
-            }
-
-            // Copy JSON buttons
-            const btnCopyDirectReq = document.getElementById('btnCopyDirectReq');
-            const btnCopyDirectRes = document.getElementById('btnCopyDirectRes');
-
-            if (btnCopyDirectReq && jsonDirectReq) {
-                btnCopyDirectReq.addEventListener('click', function() {
-                    copyDirectJson(jsonDirectReq.textContent, btnCopyDirectReq);
-                });
-            }
-
-            if (btnCopyDirectRes && jsonDirectRes) {
-                btnCopyDirectRes.addEventListener('click', function() {
-                    copyDirectJson(jsonDirectRes.textContent, btnCopyDirectRes);
-                });
-            }
-
-            // --- PayG Live Testing Modals Logic ---
-
-            // Dynamic bottom-right Live Testing Button synchronization
-            const btnDynamicLiveTesting = document.getElementById('btnDynamicLiveTesting');
-            const paygTabButtons = document.querySelectorAll('#paygTabs button[data-bs-toggle="tab"]');
-
-            function syncLiveTestingButtonState() {
-                if (!btnDynamicLiveTesting) return;
-                const activeTab = document.querySelector('#paygTabs button.active');
-                const target = activeTab ? activeTab.getAttribute('data-bs-target') : '#tab-sgpay';
-
-                if (target === '#tab-sobpay') {
-                    btnDynamicLiveTesting.className = 'btn btn-sm btn-outline-info fw-bold text-dark shadow-sm';
-                    btnDynamicLiveTesting.style.display = '';
-                    btnDynamicLiveTesting.title = 'Buka Live Testing SoBpay';
-                } else if (target === '#tab-sgpay') {
-                    btnDynamicLiveTesting.className = 'btn btn-sm btn-outline-warning fw-bold text-dark shadow-sm';
-                    btnDynamicLiveTesting.style.display = '';
-                    btnDynamicLiveTesting.title = 'Buka Live Testing SGpay';
-                } else {
-                    btnDynamicLiveTesting.style.display = 'none';
-                }
-            }
-
-            if (paygTabButtons.length > 0) {
-                paygTabButtons.forEach(function(tabBtn) {
-                    tabBtn.addEventListener('shown.bs.tab', syncLiveTestingButtonState);
-                });
-            }
-            syncLiveTestingButtonState();
-
-            if (btnDynamicLiveTesting) {
-                btnDynamicLiveTesting.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const activeTab = document.querySelector('#paygTabs button.active');
-                    const target = activeTab ? activeTab.getAttribute('data-bs-target') : '#tab-sgpay';
-
-                    if (target === '#tab-sobpay') {
-                        const modalEl = document.getElementById('modalLiveTestSobpay');
-                        if (modalEl) {
-                            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                            modal.show();
+                        const data = await resp.json();
+                        if (resp.ok && data.success) {
+                            const variant = data.matching_invoices > 0 ? 'success' : 'info';
+                            macrodroidDryrunResult.className = 'alert alert-' + variant +
+                                ' border py-2 px-3 small mb-0';
+                            macrodroidDryrunResult.innerHTML =
+                                '<strong>IDR ' + Number(data.amount).toLocaleString('id-ID') +
+                                '</strong> extracted &mdash; ' +
+                                escapeHtml(data.message || '') +
+                                (data.matching_invoices > 0 ? ' <span class="badge bg-success ms-1">' +
+                                    Number(data.matching_invoices) + ' pending match</span>' : '');
+                        } else {
+                            macrodroidDryrunResult.className =
+                                'alert alert-warning border py-2 px-3 small mb-0';
+                            macrodroidDryrunResult.textContent = data.message ||
+                                'Could not extract a positive IDR amount.';
                         }
-                    } else {
-                        const modalEl = document.getElementById('modalLiveTestSgpay');
-                        if (modalEl) {
-                            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                            modal.show();
-                        }
+                    } catch (err) {
+                        macrodroidDryrunResult.className =
+                            'alert alert-danger border py-2 px-3 small mb-0';
+                        macrodroidDryrunResult.textContent = 'Dry-run request failed: ' + err.message;
+                    } finally {
+                        btnRunMacrodroidDryrun.disabled = false;
                     }
-                });
-            }
-
-            // 1. SGpay Live Test Logic
-            const btnSgpayTestGenerate = document.getElementById('btnSgpayTestGenerate');
-            const sgpayTestAmount = document.getElementById('sgpayTestAmount');
-            const sgpayTestFeedback = document.getElementById('sgpayTestFeedback');
-            const sgpayTestResult = document.getElementById('sgpayTestResult');
-            const sgpayTestQrContainer = document.getElementById('sgpayTestQrContainer');
-            const sgpayTestRefBadge = document.getElementById('sgpayTestRefBadge');
-            const sgpayTestBaseAmount = document.getElementById('sgpayTestBaseAmount');
-            const sgpayTestUniqueCode = document.getElementById('sgpayTestUniqueCode');
-            const sgpayTestTotalAmount = document.getElementById('sgpayTestTotalAmount');
-            const sgpayTestRawQr = document.getElementById('sgpayTestRawQr');
-            const btnCopySgpayRawQr = document.getElementById('btnCopySgpayRawQr');
-            const btnSgpayTestSettle = document.getElementById('btnSgpayTestSettle');
-            const sgpaySettleFeedback = document.getElementById('sgpaySettleFeedback');
-
-            let currentSgpayTxRef = '';
-            let currentSgpayInvoice = '';
-            let currentSgpayPayable = 0;
-
-            if (btnSgpayTestGenerate) {
-                btnSgpayTestGenerate.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const amount = sgpayTestAmount ? sgpayTestAmount.value : 500000;
-                    btnSgpayTestGenerate.disabled = true;
-                    btnSgpayTestGenerate.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Generating...';
-                    if (sgpayTestFeedback) sgpayTestFeedback.classList.add('d-none');
-                    if (sgpaySettleFeedback) sgpaySettleFeedback.classList.add('d-none');
-
-                    fetch('{{ route('admin.settings.payg.test.sgpay', [], false) }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                amount: amount
-                            })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            btnSgpayTestGenerate.disabled = false;
-                            btnSgpayTestGenerate.innerHTML =
-                                '<i class="fas fa-bolt me-1"></i> ⚡ Generate Dynamic QRIS';
-
-                            if (data.success) {
-                                currentSgpayTxRef = data.transaction_ref;
-                                currentSgpayInvoice = data.invoice_number;
-                                currentSgpayPayable = data.payable_amount;
-
-                                if (sgpayTestQrContainer) sgpayTestQrContainer.innerHTML = data.qr_svg;
-                                if (sgpayTestRefBadge) sgpayTestRefBadge.textContent = data
-                                    .transaction_ref;
-                                if (sgpayTestBaseAmount) sgpayTestBaseAmount.textContent = 'Rp ' +
-                                    Number(data.amount).toLocaleString('id-ID');
-                                if (sgpayTestUniqueCode) sgpayTestUniqueCode.textContent = '+Rp ' +
-                                    Number(data.unique_code).toLocaleString('id-ID');
-                                if (sgpayTestTotalAmount) sgpayTestTotalAmount.textContent = 'Rp ' +
-                                    Number(data.payable_amount).toLocaleString('id-ID');
-                                if (sgpayTestRawQr) sgpayTestRawQr.value = data.qr_string;
-
-                                if (btnSgpayTestSettle) {
-                                    btnSgpayTestSettle.disabled = false;
-                                    btnSgpayTestSettle.className =
-                                        'btn btn-success btn-sm w-100 py-2 fw-bold shadow-sm';
-                                    btnSgpayTestSettle.innerHTML =
-                                        '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Mutasi Masuk (Instant Settlement)';
-                                }
-
-                                if (sgpayTestResult) sgpayTestResult.classList.remove('d-none');
-
-                                updateRecentTransactionsTable(
-                                    data.transaction_ref,
-                                    'PENDING',
-                                    data.payable_amount,
-                                    data.invoice_number
-                                );
-                            } else {
-                                if (sgpayTestFeedback) {
-                                    sgpayTestFeedback.textContent = data.message ||
-                                        'Gagal generate SGpay QRIS';
-                                    sgpayTestFeedback.classList.remove('d-none');
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            btnSgpayTestGenerate.disabled = false;
-                            btnSgpayTestGenerate.innerHTML =
-                                '<i class="fas fa-bolt me-1"></i> ⚡ Generate Dynamic QRIS';
-                            if (sgpayTestFeedback) {
-                                sgpayTestFeedback.textContent = 'Terjadi kesalahan sistem: ' + err;
-                                sgpayTestFeedback.classList.remove('d-none');
-                            }
-                        });
-                });
-            }
-
-            function copyToClipboard(text, btnElement) {
-                if (!text || !btnElement) return;
-                const showSuccess = () => {
-                    const orig = btnElement.innerHTML;
-                    btnElement.innerHTML = '<i class="fas fa-check text-success"></i>';
-                    setTimeout(() => btnElement.innerHTML = orig, 1500);
-                };
-
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(text).then(showSuccess).catch(() => fallbackDirectCopy(text,
-                        showSuccess));
-                } else {
-                    fallbackDirectCopy(text, showSuccess);
-                }
-            }
-
-            if (btnCopySgpayRawQr && sgpayTestRawQr) {
-                btnCopySgpayRawQr.addEventListener('click', function() {
-                    copyToClipboard(sgpayTestRawQr.value, btnCopySgpayRawQr);
-                });
-            }
-
-            if (btnSgpayTestSettle) {
-                btnSgpayTestSettle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (!currentSgpayTxRef) return;
-
-                    btnSgpayTestSettle.disabled = true;
-                    btnSgpayTestSettle.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Settlement in progress...';
-
-                    fetch('{{ route('admin.settings.payg.test.settle', [], false) }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                transaction_ref: currentSgpayTxRef
-                            })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                btnSgpayTestSettle.className =
-                                    'btn btn-outline-success btn-sm w-100 py-2 fw-bold';
-                                btnSgpayTestSettle.innerHTML =
-                                    '<i class="fas fa-check-circle me-1"></i> ✓ Mutasi Berhasil Disimulasikan (Settled)';
-
-                                if (sgpaySettleFeedback) {
-                                    sgpaySettleFeedback.className =
-                                        'mt-2 text-center small fw-bold text-success';
-                                    const escAmt = data.ledger_state && data.ledger_state
-                                        .escrow_amount_held ? Number(data.ledger_state
-                                            .escrow_amount_held).toLocaleString('id-ID') : Number(
-                                            currentSgpayPayable).toLocaleString('id-ID');
-                                    sgpaySettleFeedback.innerHTML =
-                                        '<i class="fas fa-shield-alt me-1"></i> Invoice ' + (
-                                            currentSgpayInvoice || '') +
-                                        ' PAID_SETTLED & Escrow HELD (Rp ' + escAmt + ')';
-                                    sgpaySettleFeedback.classList.remove('d-none');
-                                }
-
-                                updateRecentTransactionsTable(
-                                    data.transaction?.transaction_ref || currentSgpayTxRef,
-                                    'SETTLEMENT',
-                                    data.transaction?.amount || currentSgpayPayable,
-                                    data.transaction?.invoice_number || currentSgpayInvoice
-                                );
-                            } else {
-                                btnSgpayTestSettle.disabled = false;
-                                btnSgpayTestSettle.innerHTML =
-                                    '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Mutasi Masuk (Instant Settlement)';
-                                if (sgpaySettleFeedback) {
-                                    sgpaySettleFeedback.className =
-                                        'mt-2 text-center small fw-bold text-danger';
-                                    sgpaySettleFeedback.textContent = data.message ||
-                                        'Settlement gagal.';
-                                    sgpaySettleFeedback.classList.remove('d-none');
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            btnSgpayTestSettle.disabled = false;
-                            btnSgpayTestSettle.innerHTML =
-                                '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Mutasi Masuk (Instant Settlement)';
-                            if (sgpaySettleFeedback) {
-                                sgpaySettleFeedback.className =
-                                    'mt-2 text-center small fw-bold text-danger';
-                                sgpaySettleFeedback.textContent = 'Network error: ' + err;
-                                sgpaySettleFeedback.classList.remove('d-none');
-                            }
-                        });
-                });
-            }
-
-            // 2. SoBpay Live Test Logic
-            const btnSobpayTestGenerate = document.getElementById('btnSobpayTestGenerate');
-            const sobpayTestAmount = document.getElementById('sobpayTestAmount');
-            const sobpayTestFeedback = document.getElementById('sobpayTestFeedback');
-            const sobpayTestResult = document.getElementById('sobpayTestResult');
-            const sobpayTestPaymentUrl = document.getElementById('sobpayTestPaymentUrl');
-            const btnCopySobpayUrl = document.getElementById('btnCopySobpayUrl');
-            const btnSobpayOpenUrl = document.getElementById('btnSobpayOpenUrl');
-            const sobpayTestRefBadge = document.getElementById('sobpayTestRefBadge');
-            const sobpayTestAmountDisplay = document.getElementById('sobpayTestAmountDisplay');
-            const btnSobpayTestSettle = document.getElementById('btnSobpayTestSettle');
-            const sobpaySettleFeedback = document.getElementById('sobpaySettleFeedback');
-
-            let currentSobpayTxRef = '';
-            let currentSobpayInvoice = '';
-            let currentSobpayAmount = 0;
-
-            if (btnSobpayTestGenerate) {
-                btnSobpayTestGenerate.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const amount = sobpayTestAmount ? sobpayTestAmount.value : 2500000;
-                    btnSobpayTestGenerate.disabled = true;
-                    btnSobpayTestGenerate.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Generating...';
-                    if (sobpayTestFeedback) sobpayTestFeedback.classList.add('d-none');
-                    if (sobpaySettleFeedback) sobpaySettleFeedback.classList.add('d-none');
-
-                    fetch('{{ route('admin.settings.payg.test.sobpay', [], false) }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                amount: amount
-                            })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            btnSobpayTestGenerate.disabled = false;
-                            btnSobpayTestGenerate.innerHTML =
-                                '<i class="fas fa-bolt me-1"></i> ⚡ Generate SoBpay Checkout';
-
-                            if (data.success) {
-                                currentSobpayTxRef = data.transaction_ref;
-                                currentSobpayInvoice = data.invoice_number;
-                                currentSobpayAmount = data.amount;
-
-                                if (sobpayTestPaymentUrl) sobpayTestPaymentUrl.value = data.payment_url;
-                                if (btnSobpayOpenUrl) {
-                                    btnSobpayOpenUrl.href = data.payment_url;
-                                    btnSobpayOpenUrl.classList.remove('disabled');
-                                }
-                                if (sobpayTestRefBadge) sobpayTestRefBadge.textContent = data
-                                    .transaction_ref;
-                                if (sobpayTestAmountDisplay) sobpayTestAmountDisplay.textContent =
-                                    'Rp ' + Number(data.amount).toLocaleString('id-ID');
-
-                                if (btnSobpayTestSettle) {
-                                    btnSobpayTestSettle.disabled = false;
-                                    btnSobpayTestSettle.className =
-                                        'btn btn-success btn-sm w-100 py-2 fw-bold shadow-sm';
-                                    btnSobpayTestSettle.innerHTML =
-                                        '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Callback SociaBuzz (Instant Settlement)';
-                                }
-
-                                if (sobpayTestResult) sobpayTestResult.classList.remove('d-none');
-
-                                updateRecentTransactionsTable(
-                                    data.transaction_ref,
-                                    'PENDING',
-                                    data.amount,
-                                    data.invoice_number
-                                );
-                            } else {
-                                if (sobpayTestFeedback) {
-                                    sobpayTestFeedback.textContent = data.message ||
-                                        'Gagal generate SoBpay Checkout';
-                                    sobpayTestFeedback.classList.remove('d-none');
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            btnSobpayTestGenerate.disabled = false;
-                            btnSobpayTestGenerate.innerHTML =
-                                '<i class="fas fa-bolt me-1"></i> ⚡ Generate SoBpay Checkout';
-                            if (sobpayTestFeedback) {
-                                sobpayTestFeedback.textContent = 'Terjadi kesalahan sistem: ' + err;
-                                sobpayTestFeedback.classList.remove('d-none');
-                            }
-                        });
-                });
-            }
-
-            if (btnCopySobpayUrl && sobpayTestPaymentUrl) {
-                btnCopySobpayUrl.addEventListener('click', function() {
-                    copyToClipboard(sobpayTestPaymentUrl.value, btnCopySobpayUrl);
-                });
-            }
-
-            if (btnSobpayTestSettle) {
-                btnSobpayTestSettle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (!currentSobpayTxRef) return;
-
-                    btnSobpayTestSettle.disabled = true;
-                    btnSobpayTestSettle.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Settlement in progress...';
-
-                    fetch('{{ route('admin.settings.payg.test.settle', [], false) }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                transaction_ref: currentSobpayTxRef
-                            })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                btnSobpayTestSettle.className =
-                                    'btn btn-outline-success btn-sm w-100 py-2 fw-bold';
-                                btnSobpayTestSettle.innerHTML =
-                                    '<i class="fas fa-check-circle me-1"></i> ✓ Callback SociaBuzz Berhasil Disimulasikan (Settled)';
-
-                                if (sobpaySettleFeedback) {
-                                    sobpaySettleFeedback.className =
-                                        'mt-2 text-center small fw-bold text-success';
-                                    const escAmt = data.ledger_state && data.ledger_state
-                                        .escrow_amount_held ? Number(data.ledger_state
-                                            .escrow_amount_held).toLocaleString('id-ID') : Number(
-                                            currentSobpayAmount).toLocaleString('id-ID');
-                                    sobpaySettleFeedback.innerHTML =
-                                        '<i class="fas fa-shield-alt me-1"></i> Invoice ' + (
-                                            currentSobpayInvoice || '') +
-                                        ' PAID_SETTLED & Escrow HELD (Rp ' + escAmt + ')';
-                                    sobpaySettleFeedback.classList.remove('d-none');
-                                }
-
-                                updateRecentTransactionsTable(
-                                    data.transaction?.transaction_ref || currentSobpayTxRef,
-                                    'SETTLEMENT',
-                                    data.transaction?.amount || currentSobpayAmount,
-                                    data.transaction?.invoice_number || currentSobpayInvoice
-                                );
-                            } else {
-                                btnSobpayTestSettle.disabled = false;
-                                btnSobpayTestSettle.innerHTML =
-                                    '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Callback SociaBuzz (Instant Settlement)';
-                                if (sobpaySettleFeedback) {
-                                    sobpaySettleFeedback.className =
-                                        'mt-2 text-center small fw-bold text-danger';
-                                    sobpaySettleFeedback.textContent = data.message ||
-                                        'Settlement gagal.';
-                                    sobpaySettleFeedback.classList.remove('d-none');
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            btnSobpayTestSettle.disabled = false;
-                            btnSobpayTestSettle.innerHTML =
-                                '<i class="fas fa-bolt me-1"></i> ⚡ Simulasikan Callback SociaBuzz (Instant Settlement)';
-                            if (sobpaySettleFeedback) {
-                                sobpaySettleFeedback.className =
-                                    'mt-2 text-center small fw-bold text-danger';
-                                sobpaySettleFeedback.textContent = 'Network error: ' + err;
-                                sobpaySettleFeedback.classList.remove('d-none');
-                            }
-                        });
                 });
             }
         });

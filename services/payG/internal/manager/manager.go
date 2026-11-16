@@ -27,6 +27,11 @@ type Manager struct {
 
 func NewManager(cfg *config.Config, s *store.Store) *Manager {
 	sg := SGpay.NewEngine(s.GetSGPayStaticQR())
+	for _, tx := range s.ListRecentTransactions(150) {
+		if tx != nil && tx.Engine == core.EngineSGPay && tx.Status == core.StatusPending {
+			sg.RestorePendingOrder(tx)
+		}
+	}
 	if sess := s.GetShopeeSession(); sess.IsLoggedIn {
 		sg.Shopee().SetSession(sess)
 	}
@@ -36,7 +41,11 @@ func NewManager(cfg *config.Config, s *store.Store) *Manager {
 
 	sob := SoBpay.NewEngine(s.GetSobpayUsername())
 	sim := simulator.NewEngine()
-	disp := NewWebhookDispatcher(cfg.WebhookURL, cfg.SharedSecret)
+	sharedSecret := s.GetSharedSecret()
+	if sharedSecret == "" {
+		sharedSecret = cfg.SharedSecret
+	}
+	disp := NewWebhookDispatcher(cfg.WebhookURL, sharedSecret)
 
 	return &Manager{
 		cfg:        cfg,

@@ -31,8 +31,8 @@
 
           <form action="{{ route('admin.reports.export', ['category' => 'invoices']) }}" method="GET">
             <div class="mb-3">
-              <label class="form-label small text-muted fw-bold">Quick Presets</label>
-              <div class="btn-group btn-group-sm w-100" role="group">
+              <div class="form-label small text-muted fw-bold">Quick Presets</div>
+              <div class="btn-group btn-group-sm w-100" role="group" aria-label="Invoice export quick presets">
                 <button type="submit" name="preset" value="today" class="btn btn-outline-secondary">Today</button>
                 <button type="submit" name="preset" value="last_7_days" class="btn btn-outline-secondary">Last 7 Days</button>
                 <button type="submit" name="preset" value="this_month" class="btn btn-outline-secondary">This Month</button>
@@ -42,21 +42,21 @@
 
             <div class="row g-2 mb-3">
               <div class="col-sm-6">
-                <label class="form-label small text-muted">Start Date</label>
-                <input type="date" name="start_date" class="form-control form-control-sm">
+                <label for="invoicesStartDate" class="form-label small text-muted">Start Date</label>
+                <input type="date" id="invoicesStartDate" name="start_date" class="form-control form-control-sm">
               </div>
               <div class="col-sm-6">
-                <label class="form-label small text-muted">End Date</label>
-                <input type="date" name="end_date" class="form-control form-control-sm">
+                <label for="invoicesEndDate" class="form-label small text-muted">End Date</label>
+                <input type="date" id="invoicesEndDate" name="end_date" class="form-control form-control-sm">
               </div>
             </div>
 
             <div class="mb-3">
-              <label class="form-label small text-muted">Filter Payment Status</label>
-              <select name="status" class="form-select form-select-sm">
+              <label for="invoicesStatusFilter" class="form-label small text-muted">Filter Payment Status</label>
+              <select id="invoicesStatusFilter" name="status" class="form-select form-select-sm">
                 <option value="">All Statuses</option>
                 <option value="PAID_SETTLED">PAID_SETTLED (Completed)</option>
-                <option value="PENDING">PENDING (Unpaid)</option>
+                <option value="UNPAID">UNPAID (Pending)</option>
                 <option value="EXPIRED">EXPIRED</option>
                 <option value="FAILED">FAILED</option>
               </select>
@@ -84,8 +84,8 @@
 
           <form action="{{ route('admin.reports.export', ['category' => 'escrow']) }}" method="GET">
             <div class="mb-3">
-              <label class="form-label small text-muted fw-bold">Quick Presets</label>
-              <div class="btn-group btn-group-sm w-100" role="group">
+              <div class="form-label small text-muted fw-bold">Quick Presets</div>
+              <div class="btn-group btn-group-sm w-100" role="group" aria-label="Escrow export quick presets">
                 <button type="submit" name="preset" value="today" class="btn btn-outline-secondary">Today</button>
                 <button type="submit" name="preset" value="last_7_days" class="btn btn-outline-secondary">Last 7 Days</button>
                 <button type="submit" name="preset" value="this_month" class="btn btn-outline-secondary">This Month</button>
@@ -95,18 +95,18 @@
 
             <div class="row g-2 mb-3">
               <div class="col-sm-6">
-                <label class="form-label small text-muted">Start Date</label>
-                <input type="date" name="start_date" class="form-control form-control-sm">
+                <label for="escrowStartDate" class="form-label small text-muted">Start Date</label>
+                <input type="date" id="escrowStartDate" name="start_date" class="form-control form-control-sm">
               </div>
               <div class="col-sm-6">
-                <label class="form-label small text-muted">End Date</label>
-                <input type="date" name="end_date" class="form-control form-control-sm">
+                <label for="escrowEndDate" class="form-label small text-muted">End Date</label>
+                <input type="date" id="escrowEndDate" name="end_date" class="form-control form-control-sm">
               </div>
             </div>
 
             <div class="mb-3">
-              <label class="form-label small text-muted">Filter Escrow Status</label>
-              <select name="status" class="form-select form-select-sm">
+              <label for="escrowStatusFilter" class="form-label small text-muted">Filter Escrow Status</label>
+              <select id="escrowStatusFilter" name="status" class="form-select form-select-sm">
                 <option value="">All Statuses</option>
                 <option value="HELD_IN_ESCROW">HELD_IN_ESCROW</option>
                 <option value="PARTIALLY_RELEASED">PARTIALLY_RELEASED</option>
@@ -136,16 +136,16 @@
 
           <form action="{{ route('admin.reports.export', ['category' => 'manifests']) }}" method="GET">
             <div class="mb-3">
-              <label class="form-label small text-muted fw-bold">Quick Presets</label>
-              <div class="btn-group btn-group-sm w-100" role="group">
+              <div class="form-label small text-muted fw-bold">Quick Presets</div>
+              <div class="btn-group btn-group-sm w-100" role="group" aria-label="Manifest export quick presets">
                 <button type="submit" name="preset" value="this_month" class="btn btn-outline-secondary">This Month</button>
                 <button type="submit" name="preset" value="all" class="btn btn-outline-secondary">All Time</button>
               </div>
             </div>
 
             <div class="mb-3">
-              <label class="form-label small text-muted">Filter Operational Status</label>
-              <select name="status" class="form-select form-select-sm">
+              <label for="manifestsStatusFilter" class="form-label small text-muted">Filter Operational Status</label>
+              <select id="manifestsStatusFilter" name="status" class="form-select form-select-sm">
                 <option value="">All Statuses</option>
                 <option value="OPEN">OPEN (Draft)</option>
                 <option value="LOCKED_SEALED">LOCKED_SEALED</option>
@@ -176,16 +176,16 @@
 
           <form action="{{ route('admin.reports.export', ['category' => 'bookings']) }}" method="GET">
             <div class="mb-3">
-              <label class="form-label small text-muted fw-bold">Quick Presets</label>
-              <div class="btn-group btn-group-sm w-100" role="group">
+              <div class="form-label small text-muted fw-bold">Quick Presets</div>
+              <div class="btn-group btn-group-sm w-100" role="group" aria-label="Booking export quick presets">
                 <button type="submit" name="preset" value="this_month" class="btn btn-outline-secondary">This Month</button>
                 <button type="submit" name="preset" value="all" class="btn btn-outline-secondary">All Time</button>
               </div>
             </div>
 
             <div class="mb-3">
-              <label class="form-label small text-muted">Filter Cargo Status</label>
-              <select name="status" class="form-select form-select-sm">
+              <label for="bookingsStatusFilter" class="form-label small text-muted">Filter Cargo Status</label>
+              <select id="bookingsStatusFilter" name="status" class="form-select form-select-sm">
                 <option value="">All Statuses</option>
                 <option value="GATE_IN">GATE_IN</option>
                 <option value="CUSTOMS_INSPECTION">CUSTOMS_INSPECTION</option>
@@ -216,16 +216,16 @@
 
           <form action="{{ route('admin.reports.export', ['category' => 'audit']) }}" method="GET">
             <div class="mb-3">
-              <label class="form-label small text-muted fw-bold">Quick Presets</label>
-              <div class="btn-group btn-group-sm w-100" role="group">
+              <div class="form-label small text-muted fw-bold">Quick Presets</div>
+              <div class="btn-group btn-group-sm w-100" role="group" aria-label="Audit trail export quick presets">
                 <button type="submit" name="preset" value="this_month" class="btn btn-outline-secondary">This Month</button>
                 <button type="submit" name="preset" value="all" class="btn btn-outline-secondary">All Time</button>
               </div>
             </div>
 
             <div class="mb-3">
-              <label class="form-label small text-muted">Filter Action Code</label>
-              <input type="text" name="status" class="form-control form-control-sm" placeholder="e.g. PASSWORD_RESET_REQUESTED">
+              <label for="auditActionFilterInput" class="form-label small text-muted">Filter Action Code</label>
+              <input type="text" id="auditActionFilterInput" name="status" class="form-control form-control-sm" placeholder="e.g. PASSWORD_RESET_REQUESTED">
             </div>
 
             <button type="submit" class="btn btn-outline-danger btn-sm w-100 fw-bold">
@@ -238,4 +238,3 @@
   </div>
 </div>
 @endsection
-

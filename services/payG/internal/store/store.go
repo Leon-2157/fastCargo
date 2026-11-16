@@ -15,6 +15,7 @@ import (
 type StateData struct {
 	ActiveMode     string                `json:"active_mode"`
 	SgpayStaticQR  string                `json:"sgpay_static_qr"`
+	SharedSecret   string                `json:"shared_secret,omitempty"`
 	ShopeeSession  shopee.SessionInfo    `json:"shopee_session"`
 	GoPaySession   gopay.SessionInfo     `json:"gopay_session"`
 	SobpayUsername string                `json:"sobpay_username"`
@@ -105,6 +106,19 @@ func (s *Store) SetSGPayStaticQR(qr string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.data.SgpayStaticQR = qr
+	return s.saveLocked()
+}
+
+func (s *Store) GetSharedSecret() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.data.SharedSecret
+}
+
+func (s *Store) SetSharedSecret(secret string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data.SharedSecret = secret
 	return s.saveLocked()
 }
 

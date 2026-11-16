@@ -22,33 +22,49 @@ class VerifyPayGSignature
             return $next($request);
         }
 
-        // 2. Check X-PayG-Signature HMAC
-        $signatureHeader = (string) $request->header('X-PayG-Signature', '');
-        $sharedSecret = (string) (AdmSystemSetting::get('payg_secret')
-            ?: config('payg.secret', 'fastcargo-payg-secret-2026'));
+        // 2. Load shared PayG secret (Admin DB setting takes precedence over env/config)
+        $configuredSecret = AdmSystemSetting::get('payg_secret');
+        $configSecret = trim((string) config('payg.secret', ''));
+        $sharedSecret = (is_string($configuredSecret) && trim($configuredSecret) !== '')
+            ? trim($configuredSecret)
+            : ($configSecret !== '' ? $configSecret : 'fastcargo-payg-secret-2026');
 
-        if (empty($signatureHeader) || empty($sharedSecret)) {
+        // 3. Check direct X-PayG-Secret header (zero-code MacroDroid Free integration)
+        $providedPaygSecret = trim((string) $request->header('X-PayG-Secret', ''));
+        if ($sharedSecret !== '' && $providedPaygSecret !== '' && hash_equals($sharedSecret, $providedPaygSecret)) {
+            return $next($request);
+        }
+
+        // 4. Check X-PayG-Signature HMAC-SHA256
+        $signatureHeader = trim((string) $request->header('X-PayG-Signature', ''));
+        if ($sharedSecret !== '' && $signatureHeader !== '') {
+            $rawSignature = str_starts_with($signatureHeader, 'sha256=')
+                ? substr($signatureHeader, 7)
+                : $signatureHeader;
+
+            $payload = $request->getContent();
+            $expectedSignature = hash_hmac('sha256', $payload, $sharedSecret);
+
+            if (! hash_equals(strtolower($expectedSignature), strtolower($rawSignature))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: Invalid PayG HMAC signature.',
+                ], 403);
+            }
+
+            return $next($request);
+        }
+
+        if ($providedPaygSecret !== '') {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized: Missing PayG signature header.',
+                'message' => 'Unauthorized: Invalid PayG secret header.',
             ], 401);
         }
 
-        // Strip prefix "sha256=" if present
-        $rawSignature = str_starts_with($signatureHeader, 'sha256=')
-            ? substr($signatureHeader, 7)
-            : $signatureHeader;
-
-        $payload = $request->getContent();
-        $expectedSignature = hash_hmac('sha256', $payload, $sharedSecret);
-
-        if (! hash_equals(strtolower($expectedSignature), strtolower($rawSignature))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized: Invalid PayG HMAC signature.',
-            ], 403);
-        }
-
-        return $next($request);
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized: Missing PayG signature or secret header.',
+        ], 401);
     }
 }

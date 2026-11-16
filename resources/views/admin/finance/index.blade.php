@@ -36,7 +36,7 @@
   <div class="col-md-3 col-6 mb-2">
     <div class="card shadow-sm border-start-warning">
       <div class="card-body">
-        <div class="text-xs fw-bold text-warning text-uppercase mb-1">Operator Haulage Pool (73%)</div>
+        <div class="text-xs fw-bold text-warning text-uppercase mb-1">Operator Haulage Pool (78%)</div>
         <div class="h5 mb-0 fw-bold text-warning">IDR {{ number_format($operatorPool, 0, ',', '.') }}</div>
       </div>
     </div>
@@ -44,7 +44,7 @@
   <div class="col-md-3 col-6 mb-2">
     <div class="card shadow-sm border-start-info">
       <div class="card-body">
-        <div class="text-xs fw-bold text-info text-uppercase mb-1">Terminal &amp; Port Dues (15%)</div>
+        <div class="text-xs fw-bold text-info text-uppercase mb-1">Tax &amp; Port Dues (10%)</div>
         <div class="h5 mb-0 fw-bold text-info">IDR {{ number_format($portDues, 0, ',', '.') }}</div>
       </div>
     </div>
@@ -77,9 +77,15 @@
               <td><span class="badge bg-info">{{ $tx->payment_channel }}</span></td>
               <td class="fw-bold">IDR {{ number_format($tx->amount, 0, ',', '.') }}</td>
               <td>
-                <span class="badge bg-success">{{ $tx->payment_status }}</span>
+                @if(in_array($tx->payment_status, ['SETTLEMENT', 'SETTLED', 'PAID_SETTLED'], true))
+                  <span class="badge bg-success">{{ $tx->payment_status }}</span>
+                @elseif($tx->payment_status === 'PENDING')
+                  <span class="badge bg-warning text-dark">{{ $tx->payment_status }}</span>
+                @else
+                  <span class="badge bg-secondary">{{ $tx->payment_status }}</span>
+                @endif
               </td>
-              <td class="small text-muted">{{ \Carbon\Carbon::parse($tx->paid_at)->format('d M Y, H:i T') }}</td>
+              <td class="small text-muted">{{ $tx->paid_at ? \Carbon\Carbon::parse($tx->paid_at)->format('d M Y, H:i T') : '—' }}</td>
             </tr>
           @empty
             <tr>

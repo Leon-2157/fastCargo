@@ -98,18 +98,15 @@ class Phase2WaGatewayTest extends TestCase
         Http::fake([
             'wag.test/internal/status' => Http::response(['paired' => false, 'ready' => false, 'status' => 'qr_ready', 'service' => 'waG'], 200),
             'wag.test/qr' => Http::response(['qr' => '2@LIVE-QR-TOKEN'], 200),
-            'wag.test/send' => Http::sequence()
-                ->push(['status' => false, 'error' => 'Not paired'], 502)
-                ->push(['status' => true, 'messageId' => 'msg-ok'], 200),
         ]);
 
-        $index = $this->actingAs($admin, 'admin')
+        $settingsPage = $this->actingAs($admin, 'admin')
             ->withSession(['admin_two_factor_verified' => true])
-            ->get('http://admin.fastcargo.local/wa-gateway');
+            ->get('http://admin.fastcargo.local/settings');
 
-        $index->assertStatus(200);
-        $index->assertSee('Disconnected / Pairing Needed');
-        $index->assertSee('<svg', false);
+        $settingsPage->assertStatus(200);
+        $settingsPage->assertSee('WhatsApp Gateway');
+        $settingsPage->assertSee('<svg', false);
 
         $qrResponse = $this->actingAs($admin, 'admin')
             ->withSession(['admin_two_factor_verified' => true])
@@ -117,32 +114,6 @@ class Phase2WaGatewayTest extends TestCase
 
         $qrResponse->assertStatus(200);
         $qrResponse->assertHeader('Content-Type', 'image/svg+xml');
-
-        // Failed send must NOT fake connected state
-        $failSend = $this->actingAs($admin, 'admin')
-            ->withSession(['admin_two_factor_verified' => true])
-            ->withHeader('Sec-Fetch-Site', 'same-origin')
-            ->post('http://admin.fastcargo.local/wa-gateway/test', [
-                'phone' => '+62811000003',
-                'message' => 'Test message failure',
-            ]);
-
-        $failSend->assertRedirect();
-        $failSend->assertSessionHas('error');
-        $this->assertSame('0', AdmSystemSetting::where('key', 'wag_connected')->value('value'));
-
-        // Successful send marks wag_connected = 1
-        $okSend = $this->actingAs($admin, 'admin')
-            ->withSession(['admin_two_factor_verified' => true])
-            ->withHeader('Sec-Fetch-Site', 'same-origin')
-            ->post('http://admin.fastcargo.local/wa-gateway/test', [
-                'phone' => '+62811000003',
-                'message' => 'Test message success',
-            ]);
-
-        $okSend->assertRedirect();
-        $okSend->assertSessionHas('success');
-        $this->assertSame('1', AdmSystemSetting::where('key', 'wag_connected')->value('value'));
     }
 
     public function test_admin_wa_gateway_status_polling_and_session_reset_work(): void

@@ -79,6 +79,7 @@ Route::middleware(['auth:customer', 'customer.2fa.verified'])->group(function ()
     Route::prefix('invoices')->name('customer.invoices.')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');
         Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
+        Route::get('/{invoice}/status', [InvoiceController::class, 'status'])->name('status');
         Route::get('/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('pdf');
         Route::post('/{invoice}/pay', [InvoiceController::class, 'initPayment'])->name('pay');
     });

@@ -52,10 +52,10 @@ func (h *StatusHandler) GetTransactions(w http.ResponseWriter, r *http.Request) 
 
 func (h *StatusHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		ActiveMode     string `json:"active_mode"`
-		SgpayStaticQR  string `json:"sgpay_static_qr"`
-		SobpayUsername string `json:"sobpay_username"`
-		SharedSecret   string `json:"shared_secret"`
+		ActiveMode     string  `json:"active_mode"`
+		SgpayStaticQR  *string `json:"sgpay_static_qr"`
+		SobpayUsername string  `json:"sobpay_username"`
+		SharedSecret   string  `json:"shared_secret"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -66,8 +66,8 @@ func (h *StatusHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	if body.ActiveMode != "" {
 		_ = h.mgr.Store().SetActiveMode(body.ActiveMode)
 	}
-	if body.SgpayStaticQR != "" {
-		cleanQR := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(body.SgpayStaticQR, "\r", ""), "\n", ""))
+	if body.SgpayStaticQR != nil {
+		cleanQR := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(*body.SgpayStaticQR, "\r", ""), "\n", ""))
 		_ = h.mgr.Store().SetSGPayStaticQR(cleanQR)
 		h.mgr.SGPay().SetStaticQR(cleanQR)
 	}
@@ -76,6 +76,7 @@ func (h *StatusHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		h.mgr.SoBPay().SetUsername(body.SobpayUsername)
 	}
 	if body.SharedSecret != "" {
+		_ = h.mgr.Store().SetSharedSecret(body.SharedSecret)
 		h.mgr.Dispatcher().SetSharedSecret(body.SharedSecret)
 	}
 

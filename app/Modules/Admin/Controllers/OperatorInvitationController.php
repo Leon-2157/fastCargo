@@ -4,6 +4,7 @@ namespace App\Modules\Admin\Controllers;
 
 use App\Modules\Shared\Models\AdmOperatorInvitation;
 use App\Modules\Shared\Models\Port;
+use App\Modules\Shared\Services\AuditLogService;
 use App\Modules\Shared\WhatsApp\WaNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,10 +72,25 @@ class OperatorInvitationController extends Controller
             'assigned_role_tier' => ['nullable', 'string', 'in:OPERATOR_DOMESTIC,OPERATOR_INTERNATIONAL'],
         ]);
 
+        $previousStatus = $invitation->status;
         $hubId = $validated['assigned_hub_id'] ?? $invitation->assigned_hub_id;
         $roleTier = $validated['assigned_role_tier'] ?? 'OPERATOR_INTERNATIONAL';
 
         $registrationUrl = $this->issueInvitation($invitation, $hubId, $roleTier);
+
+        AuditLogService::record(
+            'OPERATOR_APPLICATION_APPROVED',
+            'adm_operator_invitations',
+            (string) $invitation->id,
+            ['status' => $previousStatus, 'email' => $invitation->email],
+            [
+                'status' => AdmOperatorInvitation::STATUS_INVITATION_SENT,
+                'email' => $invitation->email,
+                'assigned_hub_id' => $hubId,
+                'assigned_role_tier' => $roleTier,
+            ],
+            $request
+        );
 
         return back()->with('success', "Application approved. Onboarding registration link generated: {$registrationUrl}");
     }
@@ -94,6 +110,8 @@ class OperatorInvitationController extends Controller
             'rejection_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
+        $previousStatus = $invitation->status;
+
         $invitation->update([
             'status' => AdmOperatorInvitation::STATUS_REJECTED,
             'invitation_token' => null,
@@ -101,6 +119,19 @@ class OperatorInvitationController extends Controller
             'invited_by_admin_id' => auth('admin')->id(),
             'rejection_reason' => $validated['rejection_reason'] ?? null,
         ]);
+
+        AuditLogService::record(
+            'OPERATOR_APPLICATION_REJECTED',
+            'adm_operator_invitations',
+            (string) $invitation->id,
+            ['status' => $previousStatus, 'email' => $invitation->email],
+            [
+                'status' => AdmOperatorInvitation::STATUS_REJECTED,
+                'email' => $invitation->email,
+                'rejection_reason' => $validated['rejection_reason'] ?? null,
+            ],
+            $request
+        );
 
         return back()->with('warning', "Application for {$invitation->name} ({$invitation->email}) marked as REJECTED.");
     }
@@ -124,6 +155,18 @@ class OperatorInvitationController extends Controller
         $roleTier = $invitation->assigned_role_tier ?: 'OPERATOR_INTERNATIONAL';
 
         $registrationUrl = $this->issueInvitation($invitation, $hubId, $roleTier);
+
+        AuditLogService::record(
+            'OPERATOR_INVITATION_RESENT',
+            'adm_operator_invitations',
+            (string) $invitation->id,
+            ['email' => $invitation->email],
+            [
+                'status' => AdmOperatorInvitation::STATUS_INVITATION_SENT,
+                'expires_at' => $invitation->expires_at?->toIso8601String(),
+            ],
+            $request
+        );
 
         return back()->with('success', "New onboarding token generated: {$registrationUrl}");
     }

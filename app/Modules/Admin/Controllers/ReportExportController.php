@@ -148,12 +148,16 @@ class ReportExportController extends Controller
             $query->where('created_at', '<=', $dates['end']);
         }
         if (! empty($status)) {
-            $query->where('payment_status', $status);
+            if ($status === 'UNPAID') {
+                $query->whereIn('payment_status', ['UNPAID', 'PENDING']);
+            } else {
+                $query->where('payment_status', $status);
+            }
         }
 
         foreach ($query->cursor() as $invoice) {
             $tx = $invoice->paymentTransactions->first();
-            fputcsv($handle, [
+            fputcsv($handle, $this->sanitizeCsvRow([
                 $invoice->invoice_number,
                 $invoice->booking?->tracking_number ?? 'N/A',
                 $invoice->booking?->shipper?->name ?? 'Guest/Unknown',
@@ -165,7 +169,7 @@ class ReportExportController extends Controller
                 $invoice->created_at->format('Y-m-d H:i:s'),
                 $invoice->paid_at?->format('Y-m-d H:i:s') ?? 'Unpaid',
                 $tx?->transaction_ref ?? 'N/A',
-            ]);
+            ]));
         }
     }
 
@@ -376,7 +380,7 @@ class ReportExportController extends Controller
         }
 
         foreach ($query->cursor() as $row) {
-            fputcsv($handle, [
+            fputcsv($handle, $this->sanitizeCsvRow([
                 $row->id,
                 $row->created_at,
                 $row->actor_id ?? 'SYSTEM',
@@ -388,7 +392,27 @@ class ReportExportController extends Controller
                 $row->ip_address ?? '127.0.0.1',
                 $row->before ?? '{}',
                 $row->after ?? '{}',
-            ]);
+            ]));
         }
+    }
+
+    /**
+     * Prevent CSV formula injection in spreadsheet software.
+     *
+     * @param  array<int, mixed>  $row
+     * @return array<int, mixed>
+     */
+    private function sanitizeCsvRow(array $row): array
+    {
+        return array_map(static function ($cell) {
+            if (! is_string($cell) || $cell === '') {
+                return $cell;
+            }
+            if (in_array($cell[0], ['=', '+', '@', "\t", "\r"], true)) {
+                return "'".$cell;
+            }
+
+            return $cell;
+        }, $row);
     }
 }

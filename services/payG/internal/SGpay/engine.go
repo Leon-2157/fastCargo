@@ -110,6 +110,11 @@ func (e *Engine) CreateCheckout(ctx context.Context, req core.CheckoutRequest) (
 		if err != nil {
 			return nil, fmt.Errorf("failed to inject Tag 54 into static QRIS: %w", err)
 		}
+		if parsed, parseErr := qris.ParseEmv(qrPayload); parseErr == nil {
+			if name := strings.TrimSpace(parsed[qris.TagMerchantName]); name != "" {
+				merchantName = name
+			}
+		}
 	} else {
 		qrPayload, err = qris.BuildSyntheticQRIS(merchantName, "JAKARTA", ref, payableAmount)
 		if err != nil {
@@ -170,6 +175,19 @@ func (e *Engine) ReleaseUniqueAmount(payableAmount float64) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	delete(e.takenAmounts, int64(payableAmount))
+}
+
+// RestorePendingOrder re-populates activeOrders and takenAmounts for non-expired pending orders after restart.
+func (e *Engine) RestorePendingOrder(tx *core.Transaction) {
+	if tx == nil || tx.Status != core.StatusPending || time.Now().After(tx.ExpiresAt) {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.activeOrders[tx.TransactionRef] = tx
+	if tx.PayableAmount > 0 {
+		e.takenAmounts[int64(tx.PayableAmount)] = true
+	}
 }
 
 // CleanExpiredOrders cleans pending orders past their expiration and frees taken amounts

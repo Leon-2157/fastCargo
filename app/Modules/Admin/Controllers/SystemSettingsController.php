@@ -3,15 +3,9 @@
 namespace App\Modules\Admin\Controllers;
 
 use App\Modules\Shared\AI\AiManager;
-use App\Modules\Shared\Models\AdmEscrowLedger;
-use App\Modules\Shared\Models\AdmInvoice;
 use App\Modules\Shared\Models\AdmSystemSetting;
-use App\Modules\Shared\Models\Company;
-use App\Modules\Shared\Models\OpsCargoBooking;
 use App\Modules\Shared\Models\PaymentTransaction;
-use App\Modules\Shared\Models\Port;
-use App\Modules\Shared\Models\Route;
-use App\Modules\Shared\Models\User;
+use App\Modules\Shared\Services\AuditLogService;
 use App\Modules\Shared\Services\MailSettingsService;
 use App\Modules\Shared\Services\PayGPaymentGatewayService;
 use App\Modules\Shared\WhatsApp\WaGatewayClient;
@@ -25,14 +19,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class SystemSettingsController extends Controller
@@ -61,89 +50,49 @@ class SystemSettingsController extends Controller
         $defaultGeminiModel = $aiModelsRegistry['google_gemini_api'][0]['model'] ?? 'gemini-flash-lite-latest';
         $defaultCustomModel = $aiModelsRegistry['openai_compatible'][0]['model'] ?? 'ag/gemini-3.8-flash-low';
 
+        $waAiProvider = (string) AdmSystemSetting::get('wa_ai_provider', 'default');
+        $mailAiProvider = (string) AdmSystemSetting::get('mail_ai_provider', 'default');
+
         $aiConfig = [
             'active_provider' => AiManager::activeProviderKey(),
             'active_label' => AiManager::activeProviderLabel(),
             'custom_ai_provider_name' => AiManager::settingValue('custom_ai_provider_name', (string) config('ai.providers.custom.name', 'Custom AI')),
             'custom_ai_base_url' => AiManager::settingValue('custom_ai_base_url', (string) config('ai.providers.custom.base_url', 'http://localhost:20128/v1')),
-            'custom_ai_api_key' => $customAiKey,
+            'custom_ai_api_key' => $customAiKey !== '' ? '••••••••••••••••' : '',
             'custom_ai_model' => AiManager::settingValue('custom_ai_model', (string) config('ai.providers.custom.model', $defaultCustomModel)),
             'custom_ai_max_completion_tokens' => AiManager::settingValue('custom_ai_max_completion_tokens', '4096'),
             'custom_ai_max_output_tokens' => AiManager::settingValue('custom_ai_max_output_tokens', '2048'),
             'custom_ai_max_tokens' => AiManager::settingValue('custom_ai_max_tokens', '8192'),
             'custom_ai_key_configured' => $customAiKey !== '',
-            'gemini_api_key' => $geminiKey,
+            'gemini_api_key' => $geminiKey !== '' ? '••••••••••••••••' : '',
             'gemini_model' => AiManager::settingValue('gemini_model', (string) config('ai.providers.gemini.model', $defaultGeminiModel)),
             'gemini_key_configured' => $geminiKey !== '',
             'models_registry' => $aiModelsRegistry,
+            'wa_ai_provider' => $waAiProvider,
+            'mail_ai_provider' => $mailAiProvider,
         ];
 
         $waSnapshot = $this->resolveGatewaySnapshot();
         $mailConfig = MailSettingsService::getAdminSummary();
 
-        $waAiProvider = (string) AdmSystemSetting::get('wa_ai_provider', 'default');
-        $mailAiProvider = (string) AdmSystemSetting::get('mail_ai_provider', 'default');
-        $aiConfig['wa_ai_provider'] = $waAiProvider;
-        $aiConfig['mail_ai_provider'] = $mailAiProvider;
-
-        $danaEnv = AdmSystemSetting::get('dana_env', config('dana.env', 'sandbox'));
-        $danaMerchantId = AdmSystemSetting::get('dana_merchant_id', config('dana.merchant_id', ''));
-        $danaClientId = AdmSystemSetting::get('dana_client_id', config('dana.client_id', ''));
-        $danaClientSecret = AdmSystemSetting::get('dana_client_secret', config('dana.client_secret', ''));
-
-        $isDanaConfigured = ! empty($danaClientId) && ! empty($danaClientSecret);
-
-        $renderer = new ImageRenderer(
-            new RendererStyle(135, 1),
-            new SvgImageBackEnd
-        );
-        $writer = new Writer($renderer);
-        $samplePayload = '00020101021226580014ID.DANA.WWW011893600911002233445551440014ID.LINKAJA.WWW01189360091100223344555204541153033605802ID5925FASTCARGO ASEAN LOGISTICS6007JAKARTA6304A1B2';
-        $sampleQrSvg = $writer->writeString($samplePayload);
-
-        $recentTransactions = PaymentTransaction::with(['invoice.booking', 'payer'])
-            ->latest('created_at')
-            ->take(5)
-            ->get();
-
-        $simulatorTransactions = PaymentTransaction::with(['invoice.booking.escrowLedger'])
-            ->whereIn('payment_status', ['PENDING', 'EXPIRED', 'FAILED', 'CANCELLED', 'SETTLEMENT'])
-            ->latest('created_at')
-            ->take(10)
-            ->get();
-
-        $simulatorRecentLogs = DB::table('adm_immutable_audit_trails')
-            ->whereIn('action', ['WEBHOOK_SIMULATOR_DISPATCHED', 'SIMULATOR_SANDBOX_TX_CREATED'])
-            ->latest('created_at')
-            ->take(10)
-            ->get();
-
-        $danaConfig = [
-            'dana_env' => (string) $danaEnv,
-            'dana_merchant_id' => (string) $danaMerchantId,
-            'dana_client_id' => (string) $danaClientId,
-            'dana_client_secret' => (string) $danaClientSecret,
-            'is_configured' => $isDanaConfigured,
-            'webhook_url' => url('/api/webhooks/dana'),
-            'sample_qr_svg' => $sampleQrSvg,
-            'recent_transactions' => $recentTransactions,
-        ];
-
         $paygStatus = $this->paygService->getGatewayStatus();
-        $paygActiveMode = AdmSystemSetting::get('payg_active_mode', 'auto');
-        $paygSobUsername = AdmSystemSetting::get('payg_sobpay_username', '');
-        $paygStaticQr = AdmSystemSetting::get('payg_sgpay_static_qr', '');
-        $paygSecret = AdmSystemSetting::get('payg_secret', config('payg.secret'));
+        $paygActiveMode = AdmSystemSetting::get('payg_active_mode', 'sgpay');
+        $paygStaticQr = PayGPaymentGatewayService::cleanQrisString((string) AdmSystemSetting::get('payg_sgpay_static_qr', ''));
+        $paygSecret = (string) AdmSystemSetting::get('payg_secret', config('payg.secret', ''));
+        $merchantPreview = $paygStaticQr !== '' ? $this->paygService->parseEmvcoMetadata($paygStaticQr) : null;
+        $staticQrSvg = ($paygStaticQr !== '' && ($merchantPreview['valid'] ?? false))
+            ? $this->paygService->renderQrSvg($paygStaticQr)
+            : null;
 
         $paygConfig = [
             'status' => $paygStatus,
             'active_mode' => (string) $paygActiveMode,
-            'sobpay_username' => (string) $paygSobUsername,
-            'sgpay_static_qr' => (string) $paygStaticQr,
-            'secret' => (string) $paygSecret,
+            'sgpay_static_qr' => $paygStaticQr,
+            'merchant_preview' => $merchantPreview,
+            'static_qr_svg' => $staticQrSvg,
+            'secret' => $paygSecret !== '' ? '••••••••••••••••' : '',
+            'is_secret_configured' => $paygSecret !== '',
             'webhook_url' => url('/api/internal/payg/webhook'),
-            'sample_qr_svg' => $sampleQrSvg,
-            'recent_transactions' => $recentTransactions,
         ];
 
         return view('admin.settings.index', [
@@ -153,12 +102,9 @@ class SystemSettingsController extends Controller
             'aiModelsRegistry' => $aiModelsRegistry,
             'mailConfig' => $mailConfig,
             'waConfig' => $waSnapshot,
-            'danaConfig' => $danaConfig,
             'paygConfig' => $paygConfig,
-            'simulatorTransactions' => $simulatorTransactions,
-            'simulatorRecentLogs' => $simulatorRecentLogs,
-            'transactions' => $simulatorTransactions,
-            'recentLogs' => $simulatorRecentLogs,
+            'merchantPreview' => $merchantPreview,
+            'staticQrSvg' => $staticQrSvg,
             'waAiProvider' => $waAiProvider,
             'mailAiProvider' => $mailAiProvider,
             'wa_ai_provider' => $waAiProvider,
@@ -197,9 +143,8 @@ class SystemSettingsController extends Controller
             'dana_merchant_id' => ['nullable', 'string', 'max:100'],
             'dana_client_id' => ['nullable', 'string', 'max:150'],
             'dana_client_secret' => ['nullable', 'string', 'max:255'],
-            'payg_active_mode' => ['nullable', 'string', 'in:auto,sgpay,sobpay,simulator'],
+            'payg_active_mode' => ['nullable', 'string', 'in:auto,sgpay'],
             'payg_sgpay_static_qr' => ['nullable', 'string'],
-            'payg_sobpay_username' => ['nullable', 'string', 'max:100'],
             'payg_secret' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -211,8 +156,21 @@ class SystemSettingsController extends Controller
             $validated['operator_vpn_whitelist'] = json_encode($decoded);
         }
 
-        if (isset($validated['payg_sgpay_static_qr'])) {
-            $validated['payg_sgpay_static_qr'] = trim(str_replace(["\r", "\n", ' '], '', (string) $validated['payg_sgpay_static_qr']));
+        if (array_key_exists('payg_sgpay_static_qr', $validated)) {
+            if ($validated['payg_sgpay_static_qr'] === null) {
+                $validated['payg_sgpay_static_qr'] = '';
+            } else {
+                $cleanedQr = PayGPaymentGatewayService::cleanQrisString((string) $validated['payg_sgpay_static_qr']);
+                if ($cleanedQr !== '' && ! $this->paygService->isValidEmvcoQris($cleanedQr)) {
+                    $meta = $this->paygService->parseEmvcoMetadata($cleanedQr);
+                    $reason = $meta['error'] ?? 'Format QRIS EMVCo ASPI atau checksum CRC-16 tidak valid.';
+
+                    throw ValidationException::withMessages([
+                        'payg_sgpay_static_qr' => "Static QRIS tidak valid: {$reason}",
+                    ]);
+                }
+                $validated['payg_sgpay_static_qr'] = $cleanedQr;
+            }
         }
 
         $auditChanges = [];
@@ -303,10 +261,6 @@ class SystemSettingsController extends Controller
             $this->paygService->configureStaticQr((string) $validated['payg_sgpay_static_qr']);
             $daemonConfig['sgpay_static_qr'] = (string) $validated['payg_sgpay_static_qr'];
         }
-        if (isset($validated['payg_sobpay_username'])) {
-            $this->paygService->configureSobpay((string) $validated['payg_sobpay_username']);
-            $daemonConfig['sobpay_username'] = (string) $validated['payg_sobpay_username'];
-        }
         if (isset($validated['payg_secret']) && ! empty($validated['payg_secret']) && ! str_starts_with((string) $validated['payg_secret'], '••••')) {
             $daemonConfig['shared_secret'] = (string) $validated['payg_secret'];
         }
@@ -314,12 +268,19 @@ class SystemSettingsController extends Controller
             $this->paygService->updateDaemonConfig($daemonConfig);
         }
 
-        $this->recordAudit($request, 'SYSTEM_SETTINGS_UPDATED', $auditChanges);
+        AuditLogService::record(
+            'SYSTEM_SETTINGS_UPDATED',
+            'adm_system_settings',
+            'platform_config',
+            null,
+            $auditChanges,
+            $request
+        );
 
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Konfigurasi pengaturan AI berhasil disimpan.',
+                'message' => 'AI configuration settings saved successfully.',
             ]);
         }
 
@@ -327,76 +288,90 @@ class SystemSettingsController extends Controller
     }
 
     /**
-     * Dispatch an immediate live test email to verify SMTP/Resend configuration.
+     * Reveal the active PayG shared secret for authenticated 2FA admins configuring MacroDroid.
      */
-    public function sendTestEmail(Request $request): RedirectResponse
+    public function revealPaymentSecret(): JsonResponse
+    {
+        $configured = AdmSystemSetting::get('payg_secret');
+        $secret = (is_string($configured) && $configured !== '')
+            ? $configured
+            : (string) config('payg.secret', 'fastcargo-payg-secret-2026');
+
+        return response()->json([
+            'success' => true,
+            'secret' => $secret,
+        ]);
+    }
+
+    /**
+     * Render a live SVG QR preview and parsed EMVCo ASPI merchant metadata for Admin Settings.
+     */
+    public function previewPaymentQr(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'test_email' => ['required', 'email', 'max:255'],
+            'qris' => ['nullable', 'string', 'max:2048'],
         ]);
 
-        try {
-            MailSettingsService::apply();
-
-            $recipient = $validated['test_email'];
-            $from = config('mail.from.address', 'noreply@leonproject.my.id');
-            $fromName = config('mail.from.name', 'FastCargo');
-
-            $activeMailer = config('mail.default', 'smtp');
-
-            Mail::raw("Hello from FastCargo Logistics!\n\nThis is a verified test email sent via ".strtoupper($activeMailer)." engine.\nTimestamp: ".now()->toIso8601String()."\nSender: {$from} ({$fromName})\n\nIf you received this message, your FastCargo email delivery and 2FA reset dispatch are properly configured and operational.", function ($message) use ($recipient, $from, $fromName) {
-                $message->to($recipient)
-                    ->from($from, $fromName)
-                    ->subject('FastCargo — Email Delivery Test ('.now()->format('H:i:s').')');
-            });
-
-            $this->recordAudit($request, 'TEST_EMAIL_DISPATCHED', [
-                'recipient' => $recipient,
-                'status' => 'SUCCESS',
-                'mailer' => $activeMailer,
+        $cleaned = PayGPaymentGatewayService::cleanQrisString((string) ($validated['qris'] ?? ''));
+        if ($cleaned === '') {
+            return response()->json([
+                'success' => true,
+                'valid' => false,
+                'svg' => null,
+                'metadata' => null,
             ]);
-
-            AdmSystemSetting::updateOrCreate(
-                ['key' => 'mail_last_test'],
-                [
-                    'value' => json_encode([
-                        'recipient' => $recipient,
-                        'mailer' => $activeMailer,
-                        'status' => 'SUCCESS',
-                        'timestamp' => now()->toIso8601String(),
-                        'formatted_time' => now()->format('d M Y, H:i').' WIB',
-                    ]),
-                    'type' => 'json',
-                    'description' => 'Last email delivery test audit result',
-                ]
-            );
-
-            if ($activeMailer === 'log') {
-                return back()->with('success', 'Test email berhasil dicatat ke file log server (storage/logs/laravel.log). Mode Local Log aktif, email tidak dikirim ke internet.');
-            }
-
-            return back()->with('success', "Test email was sent successfully to {$recipient}. Please check your inbox (and spam/promotions tab).");
-        } catch (Throwable $e) {
-            Log::error('Send test email failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-
-            AdmSystemSetting::updateOrCreate(
-                ['key' => 'mail_last_test'],
-                [
-                    'value' => json_encode([
-                        'recipient' => $validated['test_email'] ?? 'unknown',
-                        'mailer' => $activeMailer ?? 'unknown',
-                        'status' => 'FAILED',
-                        'error' => $e->getMessage(),
-                        'timestamp' => now()->toIso8601String(),
-                        'formatted_time' => now()->format('d M Y, H:i').' WIB',
-                    ]),
-                    'type' => 'json',
-                    'description' => 'Last email delivery test audit result',
-                ]
-            );
-
-            return back()->with('error', 'Failed to dispatch test email: '.$e->getMessage());
         }
+
+        $metadata = $this->paygService->parseEmvcoMetadata($cleaned);
+        $svg = $metadata['valid'] ? $this->paygService->renderQrSvg($cleaned) : null;
+
+        return response()->json([
+            'success' => true,
+            'valid' => $metadata['valid'],
+            'svg' => $svg,
+            'metadata' => $metadata,
+        ]);
+    }
+
+    /**
+     * Dry-run IDR extraction & pending-invoice lookup for MacroDroid setup testing without mutating state.
+     */
+    public function testWebhookExtraction(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'notification_text' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $amount = PayGPaymentGatewayService::extractIdrAmount($validated['notification_text']);
+        if ($amount === null) {
+            return response()->json([
+                'success' => false,
+                'amount' => null,
+                'matching_invoices' => 0,
+                'message' => 'Tidak ditemukan nominal IDR positif pada teks notifikasi tersebut.',
+            ], 422);
+        }
+
+        $matchingInvoices = PaymentTransaction::where('payment_status', PaymentTransaction::STATUS_PENDING)
+            ->where('amount', $amount)
+            ->where('created_at', '>=', now()->subHours(24))
+            ->whereHas('invoice', static function ($query): void {
+                $query->where('payment_status', '!=', 'PAID_SETTLED');
+            })
+            ->distinct('invoice_id')
+            ->count('invoice_id');
+
+        return response()->json([
+            'success' => true,
+            'amount' => $amount,
+            'formatted_amount' => 'Rp '.number_format($amount, 0, ',', '.'),
+            'matching_invoices' => $matchingInvoices,
+            'message' => $matchingInvoices === 1
+                ? 'Nominal terdeteksi dan cocok unik dengan 1 invoice pending.'
+                : ($matchingInvoices > 1
+                    ? "Peringatan: ditemukan {$matchingInvoices} invoice pending dengan nominal sama (409 Conflict)."
+                    : 'Nominal berhasil diekstrak; belum ada invoice pending dengan nominal tersebut dalam 24 jam terakhir.'),
+        ]);
     }
 
     public function switchAiProvider(Request $request): RedirectResponse
@@ -419,10 +394,14 @@ class SystemSettingsController extends Controller
 
         AiManager::reset();
 
-        $this->recordAudit($request, 'AI_PROVIDER_SWITCHED', [
-            'from' => $previous,
-            'to' => $provider,
-        ]);
+        AuditLogService::record(
+            'AI_PROVIDER_SWITCHED',
+            'adm_system_settings',
+            'ai_provider',
+            ['ai_provider' => $previous],
+            ['ai_provider' => $provider],
+            $request
+        );
 
         return back()->with('success', "Active AI intelligence engine switched to {$provider}.");
     }
@@ -448,7 +427,7 @@ class SystemSettingsController extends Controller
         try {
             if ($provider === 'gemini') {
                 $apiKey = trim((string) ($validated['gemini_api_key'] ?? ''));
-                if ($apiKey === '') {
+                if ($apiKey === '' || str_starts_with($apiKey, '••••')) {
                     $apiKey = AiManager::settingValue('gemini_api_key', (string) config('ai.providers.gemini.api_key', ''));
                 }
                 if ($apiKey === '') {
@@ -495,7 +474,7 @@ class SystemSettingsController extends Controller
                 }
 
                 $apiKey = trim((string) ($validated['custom_ai_api_key'] ?? ''));
-                if ($apiKey === '') {
+                if ($apiKey === '' || str_starts_with($apiKey, '••••')) {
                     $apiKey = AiManager::settingValue('custom_ai_api_key', '');
                 }
 
@@ -576,7 +555,7 @@ class SystemSettingsController extends Controller
             if (strcasecmp($existing['model'] ?? '', $modelName) === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Model '{$modelName}' sudah terdaftar untuk engine ini.",
+                    'message' => "Model '{$modelName}' is already registered for this engine.",
                 ], 422);
             }
         }
@@ -591,14 +570,18 @@ class SystemSettingsController extends Controller
         $registry[$engine][] = $newEntry;
         AiManager::saveAiModelsRegistry($registry);
 
-        $this->recordAudit($request, 'AI_MODEL_ADDED', [
-            'engine' => $engine,
-            'model' => $modelName,
-        ]);
+        AuditLogService::record(
+            'AI_MODEL_ADDED',
+            'adm_system_settings',
+            'ai_models_registry',
+            null,
+            ['engine' => $engine, 'model' => $modelName],
+            $request
+        );
 
         return response()->json([
             'success' => true,
-            'message' => "Model '{$modelName}' berhasil ditambahkan ke registry.",
+            'message' => "Model '{$modelName}' added to registry.",
             'registry' => $registry,
             'model' => $newEntry,
         ]);
@@ -620,7 +603,7 @@ class SystemSettingsController extends Controller
         if (count($models) <= 1) {
             return response()->json([
                 'success' => false,
-                'message' => 'Tidak dapat menghapus satu-satunya model yang tersisa untuk engine ini.',
+                'message' => 'Cannot delete the last remaining model for this engine.',
             ], 422);
         }
 
@@ -629,7 +612,7 @@ class SystemSettingsController extends Controller
         if (count($filtered) === count($models)) {
             return response()->json([
                 'success' => false,
-                'message' => "Model '{$modelName}' tidak ditemukan pada registry.",
+                'message' => "Model '{$modelName}' not found in registry.",
             ], 404);
         }
 
@@ -655,14 +638,18 @@ class SystemSettingsController extends Controller
 
         AiManager::reset();
 
-        $this->recordAudit($request, 'AI_MODEL_DELETED', [
-            'engine' => $engine,
-            'model' => $modelName,
-        ]);
+        AuditLogService::record(
+            'AI_MODEL_DELETED',
+            'adm_system_settings',
+            'ai_models_registry',
+            ['engine' => $engine, 'model' => $modelName],
+            ['fallback_model' => $filtered[0]['model']],
+            $request
+        );
 
         return response()->json([
             'success' => true,
-            'message' => "Model '{$modelName}' berhasil dihapus dari registry.",
+            'message' => "Model '{$modelName}' removed from registry.",
             'registry' => $registry,
             'fallback_model' => $filtered[0]['model'],
         ]);
@@ -710,7 +697,7 @@ class SystemSettingsController extends Controller
         $pairedAtRaw = AdmSystemSetting::where('key', 'wag_paired_at')->value('value');
         $pairedAtFormatted = $pairedAtRaw
             ? Carbon::parse($pairedAtRaw)->format('d M Y, H:i').' WIB'
-            : ($isConnected && $wagSetting ? $wagSetting->updated_at?->format('d M Y, H:i').' WIB' : 'Menunggu scan');
+            : ($isConnected && $wagSetting ? $wagSetting->updated_at?->format('d M Y, H:i').' WIB' : 'Awaiting scan');
 
         $qrSvg = null;
         if (($gatewayStatus['reachable'] ?? false) && ! $isConnected) {
@@ -728,287 +715,5 @@ class SystemSettingsController extends Controller
             'gatewayBaseUrl' => (string) config('wagateway.base_url', 'http://wag:8080'),
             'pairedAt' => $pairedAtFormatted,
         ];
-    }
-
-    /**
-     * Request OTP for SGpay merchant login (ShopeePay or GoPay).
-     */
-    public function requestPaygOtp(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:shopee,gopay'],
-            'phone' => ['required', 'string', 'max:25'],
-        ]);
-
-        $result = $this->paygService->requestSgpayOtp($validated['provider'], $validated['phone']);
-
-        return response()->json($result);
-    }
-
-    /**
-     * Verify OTP for SGpay merchant login.
-     */
-    public function verifyPaygOtp(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:shopee,gopay'],
-            'phone' => ['required', 'string', 'max:25'],
-            'otp' => ['required', 'string', 'max:10'],
-            'challenge' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $result = $this->paygService->verifySgpayOtp(
-            $validated['provider'],
-            $validated['phone'],
-            $validated['otp'],
-            $validated['challenge'] ?? ''
-        );
-
-        return response()->json($result);
-    }
-
-    /**
-     * Disconnect active SGpay session.
-     */
-    public function disconnectPayg(Request $request): JsonResponse
-    {
-        $provider = $request->input('provider');
-        $result = $this->paygService->disconnectSgpay($provider ? (string) $provider : null);
-
-        return response()->json($result);
-    }
-
-    /**
-     * Get multi-channel fee calculation for SoBpay.
-     */
-    public function getPaygFees(Request $request): JsonResponse
-    {
-        $country = (string) $request->input('country', 'Indonesia');
-        $amount = (float) $request->input('amount', 100000);
-
-        $result = $this->paygService->getSobpayFees($country, $amount);
-
-        return response()->json($result);
-    }
-
-    /**
-     * Live testing endpoint for SGpay (Direct Dynamic QRIS).
-     */
-    public function testPaygSgpay(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'amount' => ['nullable', 'numeric', 'min:1000'],
-        ]);
-
-        $amount = (float) ($validated['amount'] ?? 500000.00);
-        [$invoice, $user] = $this->createSandboxInvoice($amount);
-
-        $result = $this->paygService->generateCheckout($invoice, $user, ['engine' => 'sgpay']);
-
-        return response()->json([
-            'success' => true,
-            'engine' => 'sgpay',
-            'transaction_ref' => $result['transaction_ref'],
-            'invoice_number' => $invoice->invoice_number,
-            'amount' => (float) $result['amount'],
-            'unique_code' => (int) ($result['unique_code'] ?? 0),
-            'payable_amount' => (float) ($result['payable_amount'] ?? $result['amount']),
-            'qr_string' => $result['qr_string'] ?? '',
-            'qr_svg' => $result['qr_svg'] ?? '',
-            'channel' => $result['channel'] ?? 'QRIS',
-            'currency' => $result['currency'] ?? 'IDR',
-        ]);
-    }
-
-    /**
-     * Live testing endpoint for SoBpay (SociaBuzz Aggregator & ASEAN).
-     */
-    public function testPaygSobpay(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'amount' => ['nullable', 'numeric', 'min:1000'],
-        ]);
-
-        $amount = (float) ($validated['amount'] ?? 2500000.00);
-        [$invoice, $user] = $this->createSandboxInvoice($amount);
-
-        $result = $this->paygService->generateCheckout($invoice, $user, ['engine' => 'sobpay']);
-
-        $paymentUrl = $result['payment_url'] ?? '';
-        if (empty($paymentUrl)) {
-            $username = AdmSystemSetting::get('payg_sobpay_username') ?: 'fastcargotest';
-            $paymentUrl = "https://sociabuzz.com/@{$username}/tribe";
-        }
-
-        return response()->json([
-            'success' => true,
-            'engine' => 'sobpay',
-            'transaction_ref' => $result['transaction_ref'],
-            'invoice_number' => $invoice->invoice_number,
-            'amount' => (float) $result['amount'],
-            'payable_amount' => (float) ($result['payable_amount'] ?? $result['amount']),
-            'payment_url' => $paymentUrl,
-            'channels' => [
-                'QRIS (Xendit / Midtrans)',
-                'BCA Virtual Account',
-                'Mandiri Virtual Account',
-                'BNI Virtual Account',
-                'BRI Virtual Account',
-                'E-Wallet (OVO / DANA / GoPay / ShopeePay)',
-                'ASEAN PayNow (SGD) & FPX (MYR)',
-            ],
-        ]);
-    }
-
-    /**
-     * Simulate instant settlement for live test transaction.
-     */
-    public function testPaygSettle(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'transaction_ref' => ['required', 'string'],
-        ]);
-
-        $ref = $validated['transaction_ref'];
-        $settleResult = $this->paygService->simulateSettlement($ref, 'SETTLEMENT');
-
-        if (! ($settleResult['success'] ?? false)) {
-            return response()->json([
-                'success' => false,
-                'message' => $settleResult['message'] ?? 'Settlement simulation failed.',
-            ]);
-        }
-
-        $tx = PaymentTransaction::where('transaction_ref', $ref)->first();
-        $invoice = $tx ? AdmInvoice::find($tx->invoice_id) : null;
-        $escrow = $invoice ? AdmEscrowLedger::where('cargo_booking_id', $invoice->cargo_booking_id)->first() : null;
-
-        $admin = Auth::guard('admin')->user();
-        DB::table('adm_immutable_audit_trails')->insert([
-            'actor_id' => $admin?->id,
-            'actor_type' => 'ADMIN',
-            'action' => 'PAYG_LIVE_TEST_SETTLED',
-            'target_type' => 'payment_transactions',
-            'target_id' => $tx?->id,
-            'before' => json_encode(['transaction_ref' => $ref]),
-            'after' => json_encode([
-                'tx_status' => $tx?->payment_status,
-                'invoice_status' => $invoice?->payment_status,
-                'escrow_status' => $escrow?->escrow_status,
-            ]),
-            'ip_address' => $request->ip(),
-            'created_at' => now(),
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => $settleResult['message'] ?? 'Settlement simulated successfully.',
-            'transaction' => [
-                'id' => $tx?->id,
-                'transaction_ref' => $tx?->transaction_ref ?? $ref,
-                'amount' => (float) ($tx?->amount ?? 0),
-                'payment_status' => $tx?->payment_status ?? 'SETTLEMENT',
-                'invoice_number' => $invoice?->invoice_number ?? null,
-                'payment_gateway' => $tx?->payment_gateway ?? 'PAYG',
-                'created_at_human' => 'Baru saja',
-            ],
-            'ledger_state' => [
-                'transaction_status' => $tx?->payment_status ?? 'SETTLEMENT',
-                'invoice_status' => $invoice?->payment_status ?? 'PAID_SETTLED',
-                'escrow_status' => $escrow?->escrow_status ?? 'HELD_IN_ESCROW',
-                'escrow_amount_held' => $escrow ? number_format((float) $escrow->total_paid_amount, 2, '.', '') : '0.00',
-            ],
-        ]);
-    }
-
-    /**
-     * Helper to create an isolated sandbox booking & invoice for live testing.
-     *
-     * @return array{0: AdmInvoice, 1: User}
-     */
-    private function createSandboxInvoice(float $amount = 500000.00): array
-    {
-        $user = User::firstOrCreate(
-            ['email' => 'sandbox.merchant@fastcargo.test'],
-            [
-                'name' => 'Sandbox ASEAN Merchant',
-                'password' => Hash::make('Sandbox123!'),
-                'user_type' => 'CORPORATE_USER',
-                'status' => 'ACTIVE',
-                'email_verified_at' => now(),
-            ]
-        );
-
-        $company = Company::firstOrCreate(
-            ['user_id' => $user->id],
-            [
-                'company_name' => 'FastCargo Sandbox Enterprise Ltd',
-                'email' => $user->email,
-            ]
-        );
-
-        $origin = Port::firstOrCreate(
-            ['id' => 'IDJKT'],
-            ['name' => 'Tanjung Priok', 'city' => 'Jakarta', 'country_code' => 'ID', 'port_type' => 'SEAPORT', 'latitude' => -6.102, 'longitude' => 106.885]
-        );
-
-        $dest = Port::firstOrCreate(
-            ['id' => 'MYPKG'],
-            ['name' => 'Port Klang', 'city' => 'Klang', 'country_code' => 'MY', 'port_type' => 'SEAPORT', 'latitude' => 3.002, 'longitude' => 101.398]
-        );
-
-        $route = Route::firstOrCreate(
-            ['origin_port_id' => $origin->id, 'destination_port_id' => $dest->id],
-            ['id' => Str::uuid()->toString(), 'transport_mode' => 'SEA', 'transit_days' => 2, 'base_rate_idr' => 5000000, 'is_active' => true]
-        );
-
-        $randomSuffix = strtoupper(Str::random(6));
-        $trackingNo = "FC-SBX-{$randomSuffix}";
-
-        $booking = OpsCargoBooking::create([
-            'id' => Str::uuid()->toString(),
-            'tracking_number' => $trackingNo,
-            'shipper_id' => $user->id,
-            'company_id' => $company->id,
-            'route_id' => $route->id,
-            'cargo_status' => 'GATE_IN',
-            'total_weight_kg' => 250,
-            'total_volume_cbm' => 1.5,
-            'declared_goods_value' => 25000000,
-            'currency' => 'IDR',
-        ]);
-
-        $invoice = AdmInvoice::create([
-            'id' => Str::uuid()->toString(),
-            'company_id' => $company->id,
-            'cargo_booking_id' => $booking->id,
-            'invoice_number' => "SANDBOX-INV-{$randomSuffix}",
-            'total_invoice_amount' => $amount,
-            'currency' => 'IDR',
-            'due_date' => now()->addDays(3),
-            'payment_status' => 'PENDING',
-        ]);
-
-        return [$invoice, $user];
-    }
-
-    /**
-     * @param  array<string, mixed>  $after
-     */
-    private function recordAudit(Request $request, string $action, array $after): void
-    {
-        $admin = Auth::guard('admin')->user();
-
-        DB::table('adm_immutable_audit_trails')->insert([
-            'actor_id' => $admin?->id,
-            'actor_type' => 'ADMIN',
-            'action' => $action,
-            'target_type' => 'adm_system_settings',
-            'target_id' => 'ai_config',
-            'before' => null,
-            'after' => json_encode($after),
-            'ip_address' => $request->ip(),
-            'created_at' => now(),
-        ]);
     }
 }

@@ -223,7 +223,7 @@ class BookingWizard extends Component
             $this->validate([
                 'bookingType' => 'required|in:RETAIL_LCL,CORPORATE_FCL,CHARTER_TRUCK',
                 'cargoType' => 'required|string',
-                'declaredValue' => 'required|numeric|min:100000',
+                'declaredValue' => 'required|numeric|min:1000',
             ]);
         } elseif ($this->currentStep === 3) {
             $this->validate([

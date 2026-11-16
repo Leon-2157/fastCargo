@@ -206,9 +206,10 @@ class DanaPaymentAndEscrowTest extends TestCase
             ->get("http://customer.fastcargo.local/invoices/{$this->invoice->id}");
 
         $response->assertStatus(200);
-        $response->assertSee('Dana Business QRIS');
+        $response->assertSee('SGpay Direct QRIS');
         $response->assertSee('FASTCARGO ASEAN LOGISTICS');
         $response->assertSee('3-Stage Escrow Protection');
+        $response->assertDontSee('SociaBuzz');
 
         // Execute payment simulation via POST
         $payResponse = $this->actingAs($this->customer, 'customer')

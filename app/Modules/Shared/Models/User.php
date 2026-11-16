@@ -30,6 +30,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'nik',
         'kyc_aml_status',
         'ktp_file_url',
+        'ktp_verified_at',
         'business_type',
         'timezone',
     ];

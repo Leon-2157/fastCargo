@@ -143,7 +143,7 @@
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('admin.finance.*') ? 'active' : '' }}"
                                 href="{{ route('admin.finance.index') }}">
-                                <i class="fas fa-vault"></i><span>Escrow &amp; Revenue</span>
+                                <i class="fas fa-coins"></i><span>Escrow &amp; Revenue</span>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -186,7 +186,7 @@
                 </ul>
 
                 <div class="text-center d-none d-md-inline mt-3">
-                    <button class="btn rounded-circle border-0" id="sidebarToggle" type="button"></button>
+                    <button class="btn rounded-circle border-0" id="sidebarToggle" type="button" aria-label="Toggle sidebar"></button>
                 </div>
             </div>
         </nav>
@@ -198,7 +198,7 @@
                 <nav class="navbar navbar-expand bg-white shadow mb-4 topbar static-top">
                     <div class="container-fluid">
                         <button class="btn btn-link d-md-none me-3 rounded-circle" id="sidebarToggleTop"
-                            type="button">
+                            type="button" aria-label="Toggle navigation menu">
                             <i class="fas fa-bars"></i>
                         </button>
 
@@ -232,7 +232,7 @@
                                     <div class="dropdown-divider"></div>
                                     <form action="{{ route($currentRole . '.logout') }}" method="POST">
                                         @csrf
-                                        <button type="submit" class="dropdown-item text-danger">
+                                        <button type="submit" class="dropdown-item text-danger" aria-label="Sign out">
                                             <i class="fas fa-sign-out-alt fa-sm fa-fw me-2 text-danger"></i> Logout
                                         </button>
                                     </form>

@@ -10,7 +10,6 @@ use App\Modules\Admin\Controllers\IncidentReviewController;
 use App\Modules\Admin\Controllers\InvoiceAdminController;
 use App\Modules\Admin\Controllers\KycController;
 use App\Modules\Admin\Controllers\OperatorInvitationController;
-use App\Modules\Admin\Controllers\PaymentSimulatorController;
 use App\Modules\Admin\Controllers\ReportExportController;
 use App\Modules\Admin\Controllers\SystemSettingsController;
 use App\Modules\Admin\Controllers\UserManagementController;
@@ -18,7 +17,7 @@ use App\Modules\Admin\Controllers\WaGatewayController;
 use App\Modules\Shared\Controllers\TwoFactorResetController;
 use Illuminate\Support\Facades\Route;
 
-// Auth — tidak ada landing page, langsung /login
+// Auth — direct redirect to /login
 Route::middleware('guest:admin')->group(function () {
     Route::get('/', fn () => redirect()->route('admin.login'));
     Route::get('/login', [LoginController::class, 'showForm'])->name('admin.login');
@@ -38,7 +37,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/two-factor/reset/verify', [TwoFactorResetController::class, 'verifyOtp'])->name('admin.2fa.reset.verify');
 });
 
-// Dashboard — wajib auth admin + 2FA terverifikasi
+// Dashboard & Governance Modules — requires auth:admin + verified 2FA
 Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/dashboard/map-data', [DashboardController::class, 'mapData'])->name('admin.dashboard.map');
@@ -98,32 +97,19 @@ Route::middleware(['auth:admin', 'admin.2fa.verified'])->group(function () {
     Route::prefix('settings')->name('admin.settings.')->group(function () {
         Route::get('/', [SystemSettingsController::class, 'index'])->name('index');
         Route::put('/', [SystemSettingsController::class, 'update'])->name('update');
+        Route::post('/payment/qr-preview', [SystemSettingsController::class, 'previewPaymentQr'])->name('payment.qr-preview');
+        Route::post('/payment/webhook-test', [SystemSettingsController::class, 'testWebhookExtraction'])->name('payment.webhook-test');
+        Route::post('/payment/reveal-secret', [SystemSettingsController::class, 'revealPaymentSecret'])->name('payment.reveal-secret');
         Route::post('/ai/switch', [SystemSettingsController::class, 'switchAiProvider'])->name('ai.switch');
         Route::post('/ai/test', [SystemSettingsController::class, 'testAiConnection'])->name('ai.test');
         Route::post('/ai/models', [SystemSettingsController::class, 'addAiModel'])->name('ai.models.add');
         Route::delete('/ai/models', [SystemSettingsController::class, 'deleteAiModel'])->name('ai.models.delete');
-        Route::post('/mail/test', [SystemSettingsController::class, 'sendTestEmail'])->name('mail.test');
-        Route::post('/payg/otp/request', [SystemSettingsController::class, 'requestPaygOtp'])->name('payg.otp.request');
-        Route::post('/payg/otp/verify', [SystemSettingsController::class, 'verifyPaygOtp'])->name('payg.otp.verify');
-        Route::post('/payg/disconnect', [SystemSettingsController::class, 'disconnectPayg'])->name('payg.disconnect');
-        Route::get('/payg/fees', [SystemSettingsController::class, 'getPaygFees'])->name('payg.fees');
-        Route::post('/payg/test/sgpay', [SystemSettingsController::class, 'testPaygSgpay'])->name('payg.test.sgpay');
-        Route::post('/payg/test/sobpay', [SystemSettingsController::class, 'testPaygSobpay'])->name('payg.test.sobpay');
-        Route::post('/payg/test/settle', [SystemSettingsController::class, 'testPaygSettle'])->name('payg.test.settle');
     });
 
     Route::prefix('wa-gateway')->name('admin.wa.')->group(function () {
-        Route::get('/', [WaGatewayController::class, 'index'])->name('index');
         Route::get('/status', [WaGatewayController::class, 'status'])->name('status');
         Route::get('/qr', [WaGatewayController::class, 'getQr'])->name('qr');
-        Route::post('/test', [WaGatewayController::class, 'testSend'])->name('test');
         Route::post('/reset', [WaGatewayController::class, 'resetSession'])->name('reset');
-    });
-
-    Route::prefix('webhook-simulator')->name('admin.simulator.')->group(function () {
-        Route::get('/', [PaymentSimulatorController::class, 'index'])->name('index');
-        Route::post('/generate', [PaymentSimulatorController::class, 'generateSandbox'])->name('generate');
-        Route::post('/fire', [PaymentSimulatorController::class, 'fireWebhook'])->name('fire');
     });
 
     Route::prefix('credits')->name('admin.credits.')->group(function () {

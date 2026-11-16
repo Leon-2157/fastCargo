@@ -58,10 +58,12 @@ class ProfileController extends Controller
             'industry' => 'required|string|max:100',
         ]);
 
-        $company = Company::updateOrCreate(
+        $existingCompany = Company::where('user_id', $user->id)->first();
+
+        Company::updateOrCreate(
             ['user_id' => $user->id],
             array_merge($validated, [
-                'id' => Str::uuid()->toString(),
+                'id' => $existingCompany?->id ?? Str::uuid()->toString(),
                 'pic_name' => $user->name,
                 'pic_phone' => $user->phone ?? '+62811000000',
                 'email' => $user->email,
@@ -69,7 +71,7 @@ class ProfileController extends Controller
         );
 
         $user->update([
-            'user_type' => 'CORPORATE_CUSTOMER',
+            'user_type' => 'CORPORATE_USER',
             'kyc_aml_status' => 'PENDING',
         ]);
 
