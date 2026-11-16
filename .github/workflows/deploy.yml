@@ -96,6 +96,7 @@ jobs:
           script_stop: true
           script: |
             cd /opt/fastcargo
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             bash deploy.sh
 

@@ -3,8 +3,9 @@ set -euo pipefail
 
 cd /opt/fastcargo
 
-echo "==> [1/5] Pulling latest code from origin/main..."
-git pull origin main
+echo "==> [1/5] Syncing latest code from origin/main..."
+git fetch origin main
+git reset --hard origin/main
 
 echo "==> [2/5] Building frontend Vite assets..."
 npm install --no-save
