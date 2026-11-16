@@ -44,6 +44,11 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Prepare CI .env for testing
+        run: |
+          cp .env.example .env
+          sed -i 's/^OPERATOR_IP_WHITELIST_ENABLED=true/OPERATOR_IP_WHITELIST_ENABLED=false/' .env
+
       - name: Run Laravel Pint check
         run: vendor/bin/pint app tests --test
 
