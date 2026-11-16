@@ -12,7 +12,7 @@ npm install --no-save
 npm run build
 
 echo "==> [3/5] Rebuilding and starting Docker Compose stack (with Cloudflare Tunnel)..."
-docker compose --profile tunnel up -d --build
+docker compose -f podman-compose.yml --profile tunnel up -d --build
 
 echo "==> [4/5] Running database migrations..."
 docker exec fastcargo-php-1 php artisan migrate --force
